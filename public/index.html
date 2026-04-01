@@ -34,6 +34,20 @@
   @media(max-width:700px){.duel-score-grid{grid-template-columns:1fr!important;}}
   #recipe-compare-grid{display:grid;grid-template-columns:1fr;gap:18px;max-width:1180px;margin:0 auto;}
   @media(min-width:920px){#recipe-compare-grid{grid-template-columns:1fr 1fr;align-items:start;}}
+  @keyframes rndPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.45)}50%{box-shadow:0 0 20px 6px rgba(245,158,11,.3)}}
+  @keyframes rndSpin{0%{opacity:.35;transform:translateY(6px) scale(.98)}100%{opacity:1;transform:translateY(0) scale(1)}}
+  @keyframes rndShine{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  #randomize-overlay{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 20%,#1e293b 0%,#0f172a 55%,#020617 100%);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .25s ease}
+  #randomize-overlay .rnd-panel{max-width:420px;width:100%;background:linear-gradient(145deg,#334155,#1e293b);border:2px solid #f59e0b;border-radius:20px;padding:24px 22px;text-align:center;box-shadow:0 25px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08)}
+  #randomize-overlay .rnd-title{font-size:11px;font-weight:900;letter-spacing:4px;color:#94a3b8;text-transform:uppercase;margin-bottom:8px}
+  #randomize-overlay .rnd-h{font-size:22px;font-weight:900;color:#f8fafc;margin-bottom:6px;line-height:1.2}
+  #randomize-overlay .rnd-slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin:12px 0;width:100%}
+  #randomize-overlay .rnd-slot{min-height:46px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fbbf24;padding:10px 8px;background:#0f172a;border-radius:10px;border:1px solid #475569;text-align:center;line-height:1.25;animation:rndSpin .12s ease}
+  #randomize-overlay .rnd-slot.rnd-done{color:#a5b4fc;border-color:#6366f1}
+  #randomize-overlay .rnd-sub{font-size:12px;color:#94a3b8;line-height:1.45;margin-top:8px}
+  #randomize-overlay .rnd-bar{height:4px;border-radius:999px;background:#334155;overflow:hidden;margin-top:14px}
+  #randomize-overlay .rnd-bar>i{display:block;height:100%;width:30%;background:linear-gradient(90deg,#f59e0b,#fbbf24,#f59e0b);background-size:200% 100%;animation:rndShine .8s linear infinite;border-radius:999px}
 </style>
 </head>
 <body>
@@ -204,6 +218,12 @@ function refreshAfterModalAdd() {
 function escapeHtml(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
+function truncateStr(s,max){
+  const t=String(s||"").trim();
+  if(!t) return "";
+  if(t.length<=max) return t;
+  return t.slice(0,max)+"…";
+}
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let state = {
@@ -214,7 +234,7 @@ let state = {
   diff:"medium", ctype:CTYPES[1], customTypes:[],
   total:30, prep:10, cook:20, cut:false,
   req:[], res:[], reqEq:[], forbEq:[], lim:false, twist:"",
-  challenge:null, recipe:null,
+  challenge:null, recipe:null, contestRecipe:null,
   userCookPlan:{dish:"",techniques:"",timing:""},
   scoresYou:{taste:7,creativity:7,presentation:7,difficulty:7},
   scoresAI:{taste:7,creativity:7,presentation:7,difficulty:7},
@@ -538,9 +558,10 @@ function toggleFromModal(id) {
 
 // ── BUILD SCREEN ──────────────────────────────────────────────────────────────
 function renderBuild() {
+  const cfg=DIFF[state.diff];
+  pruneConflictingReq(cfg);
   const sc=$("screen-build");
   sc.innerHTML="";
-  const cfg=DIFF[state.diff];
 
   // Header
   const hdr=div({style:{background:"#1e293b",padding:"14px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"10px"}});
@@ -550,7 +571,7 @@ function renderBuild() {
   hsub.textContent="Battle builder — set your challenge";
   const hleft=div({},[htitle,hsub]);
   const hbtns=div({style:{display:"flex",gap:"8px"}});
-  const randBtn=btn("🎲 Randomize","#f59e0b","#fff",{},()=>{doRandomize();renderBuild();});
+  const randBtn=btn("🎰 Spin mystery basket","#f59e0b","#fff",{animation:"rndPulse 2s ease-in-out infinite"},()=>runMysteryRandomize());
   const launchBtn=btn("Launch →",state.req.length===0?"#475569":"#6366f1","#fff",{cursor:state.req.length===0?"not-allowed":"pointer"},()=>{if(state.req.length>0)doLaunch();});
   hbtns.append(randBtn,launchBtn);
   hdr.append(hleft,hbtns);
@@ -558,7 +579,7 @@ function renderBuild() {
 
   const wrap=div({style:{maxWidth:"820px",margin:"0 auto",padding:"14px 12px"}});
   const flowHint=div({style:{background:"#eff6ff",border:"2px solid #bfdbfe",borderRadius:"10px",padding:"10px 12px",marginBottom:"12px",fontSize:"12px",color:"#1e3a8a",lineHeight:"1.55"}});
-  flowHint.innerHTML="<strong>Mystery haul</strong> — required ingredients are drawn only from what you stocked (use <strong>Randomize</strong> or pick below). Next screen: you vs rival chef on the same basket.";
+  flowHint.innerHTML="<strong>Mystery haul</strong> — ingredients respect your <strong>restrictions</strong> (no dairy + heavy cream, etc.). Use <strong>Spin mystery basket</strong> for a show-style reveal or pick below.";
   wrap.appendChild(flowHint);
 
   // DIFFICULTY
@@ -627,7 +648,7 @@ function renderBuild() {
   const rHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
   const rlbl=el("span",{class:"lbl",style:{marginBottom:"0"}});rlbl.textContent="Required Ingredients";
   const rbtns=div({style:{display:"flex",gap:"4px"}});
-  rbtns.append(btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("ingredient")),btn("Random "+cfg.req,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{state.req=pickRequiredPattern(pantryPool(),cfg.req);renderBuild();}));
+  rbtns.append(btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("ingredient")),btn("Random "+cfg.req,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{state.req=pickRequiredPattern(pantryPool(),cfg.req,state.res);renderBuild();}));
   rHead.append(rlbl,rbtns);rCard.appendChild(rHead);
   if(state.req.length===0){const e=div({style:{fontSize:"11px",color:"#94a3b8",fontStyle:"italic",marginBottom:"6px"}});e.textContent="None selected";rCard.appendChild(e);}
   const reqChips=div({class:"chip-row"});
@@ -642,7 +663,14 @@ function renderBuild() {
   const pantryScroll=div({style:{maxHeight:"90px",overflowY:"auto",display:"flex",flexWrap:"wrap",gap:"3px"}});
   (window.USER_PANTRY||PANTRY).filter(p=>!state.req.includes(p)).forEach(p=>{
     const b=el("button",{style:{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"2px 6px",fontSize:"10px",cursor:"pointer",color:"#475569"}});
-    b.textContent="+"+p;b.addEventListener("click",()=>{state.req.push(p);renderBuild();});
+    b.textContent="+"+p;b.addEventListener("click",()=>{
+      if(ingredientConflictsWithAny(p,state.res)){
+        const bad=(state.res||[]).filter(r=>ingredientConflictsWithRestriction(p,r));
+        alert(`"${p}" conflicts with: ${bad.join(", ")}`);
+        return;
+      }
+      state.req.push(p);renderBuild();
+    });
     pantryScroll.appendChild(b);
   });
   rCard.appendChild(pantryScroll);
@@ -653,7 +681,7 @@ function renderBuild() {
   const resHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
   const reslbl=el("span",{class:"lbl",style:{marginBottom:"0"}});reslbl.textContent="Restrictions";
   const resbtns=div({style:{display:"flex",gap:"4px"}});
-  resbtns.append(btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("restriction")),btn("Random "+cfg.res,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{state.res=pick(RESTRICT,cfg.res);renderBuild();}));
+  resbtns.append(btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("restriction")),btn("Random "+cfg.res,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{state.res=pick(RESTRICT,cfg.res);pruneConflictingReq(cfg);renderBuild();}));
   resHead.append(reslbl,resbtns);resCard.appendChild(resHead);
   const resChips=div({style:{display:"flex",flexWrap:"wrap",gap:"4px"}});
   [...RESTRICT,...state.res.filter(r=>!RESTRICT.includes(r))].forEach(r=>{
@@ -728,9 +756,19 @@ function renderBuild() {
 
 // ── LAUNCH ────────────────────────────────────────────────────────────────────
 function doLaunch() {
+  const cfg=DIFF[state.diff];
+  if(state.req.length<cfg.req){
+    alert(`This difficulty needs ${cfg.req} required ingredients that fit your restrictions — you have ${state.req.length}. Add pantry items or ease restrictions.`);
+    return;
+  }
+  if(state.req.some(n=>ingredientConflictsWithAny(n,state.res))){
+    alert("A required ingredient still conflicts with a restriction. Check your basket.");
+    return;
+  }
   const pool = pantryPool();
   state.challenge={diff:state.diff,ctype:state.ctype,totalTime:state.total,prepTime:state.prep,cookTime:state.cook,surpriseCut:state.cut,required:state.req,restrictions:state.res,reqEquip:state.reqEq,forbEquip:state.forbEq,limitBurners:state.lim,twist:state.twist,pantry:pool.filter(p=>!state.req.includes(p))};
   state.userCookPlan={dish:"",techniques:"",timing:""};
+  state.contestRecipe=null;
   showScreen("screen-recipe");
   renderRecipe();
 }
@@ -1084,6 +1122,56 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
   }
 }
 
+function contestRecipeHtml(cr){
+  if(!cr) return "";
+  const ing=(cr.ingredients||[]).map(i=>`<div style="font-size:11px;color:#e9d5ff;padding:4px 0;border-bottom:1px solid #4c1d95"><span style="color:#fbbf24;font-weight:700">${escapeHtml(i.amount||"")}</span> ${escapeHtml(i.item||"")}${i.prep?` <span style="color:#94a3b8;font-size:10px">(${escapeHtml(i.prep)})</span>`:""}</div>`).join("");
+  const steps=(cr.steps||[]).map(s=>`<div style="margin-bottom:8px"><span style="font-size:9px;font-weight:800;color:#a78bfa">${escapeHtml(s.phase||"")}</span> <strong style="color:#fff;font-size:12px">${escapeHtml(s.what||"")}</strong><div style="font-size:11px;color:#c4b5fd;margin-top:2px;line-height:1.4">${escapeHtml(s.how||"")}</div></div>`).join("");
+  return `<div id="contest-recipe-box" style="margin-bottom:14px;background:linear-gradient(160deg,#1e1b4b 0%,#0f172a 100%);border:2px solid #a855f7;border-radius:14px;padding:14px 16px">
+    <div style="font-size:10px;font-weight:900;color:#e9d5ff;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">On the line — real competition run</div>
+    <div style="font-size:17px;font-weight:900;color:#fff;margin-bottom:4px">${escapeHtml(cr.title||"Your winning run")}</div>
+    ${cr.tagline?`<div style="font-size:12px;color:#c4b5fd;margin-bottom:10px;font-style:italic">${escapeHtml(cr.tagline)}</div>`:""}
+    ${cr.atThePass?`<div style="font-size:11px;color:#e2e8f0;line-height:1.5;margin-bottom:8px"><strong style="color:#94a3b8">Plate:</strong> ${escapeHtml(cr.atThePass)}</div>`:""}
+    ${cr.flavorBalance?`<div style="font-size:11px;color:#e2e8f0;line-height:1.5;margin-bottom:8px"><strong style="color:#94a3b8">Flavor:</strong> ${escapeHtml(cr.flavorBalance)}</div>`:""}
+    ${ing?`<div style="margin-top:10px"><div style="font-size:10px;font-weight:800;color:#a78bfa;text-transform:uppercase;margin-bottom:4px">Ingredients</div>${ing}</div>`:""}
+    ${steps?`<div style="margin-top:10px"><div style="font-size:10px;font-weight:800;color:#a78bfa;text-transform:uppercase;margin-bottom:4px">Run of show</div>${steps}</div>`:""}
+    ${cr.lastMinuteTip?`<div style="margin-top:10px;padding:10px;background:#3b0764;border-radius:8px;font-size:11px;color:#f5d0fe;line-height:1.45"><strong style="color:#f0abfc">Last minute:</strong> ${escapeHtml(cr.lastMinuteTip)}</div>`:""}
+  </div>`;
+}
+
+async function generateContestRecipe(){
+  const ch=state.challenge;
+  if(!ch||!state.recipe){alert("Wait for the rival chef recipe first.");return;}
+  const btn=$("contest-live-btn");
+  if(btn){btn.disabled=true;btn.innerHTML="⏳ Calling the pass…";}
+  try{
+    const pantryLines=ch.pantry.length<=28?ch.pantry.join(", "):ch.pantry.slice(0,28).join(", ")+", …";
+    const rr=state.recipe;
+    const prompt=`You are a competition cooking coach for a timed TV-style cook-off. The cook will REALLY make this dish on the clock.
+Write a WINNING, execution-tight plan — not a copy of the rival recipe. Different angles, clearer priorities, fewer moving parts.
+
+CONTEXT (rival recipe — do not plagiarize; beat it on clarity and clock fit):
+Title: ${(rr.title||"").slice(0,120)}
+Tagline: ${(rr.tagline||"").slice(0,160)}
+
+MUST USE: ${ch.required.join(", ")}
+RESTRICTIONS: ${(ch.restrictions||[]).join(", ")||"none"}
+EQUIPMENT: must ${(ch.reqEquip||[]).join(", ")||"—"} · forbidden ${(ch.forbEquip||[]).join(", ")||"—"}${ch.limitBurners?" · 1 burner only":""}
+COURSE: ${ch.ctype.label} | ${ch.totalTime} min (prep ${ch.prepTime}, cook ${ch.cookTime})
+PANTRY ADD-ONS: ${pantryLines}
+
+Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
+{"title":"","tagline":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":""}],"lastMinuteTip":"one sentence"}
+Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE and every restriction.`;
+    const data=await ai(prompt,4096);
+    state.contestRecipe=data;
+    showRecipeData(state.recipe);
+  }catch(e){
+    alert("On the line recipe failed: "+e.message);
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML="🔴 On the line — cook to win";}
+  }
+}
+
 function showRecipeData(r) {
   $("recipe-title").textContent=r.title||"Your Recipe";
   if(r.tagline) $("recipe-tagline").textContent=r.tagline;
@@ -1091,12 +1179,14 @@ function showRecipeData(r) {
   if(cb) cb.style.display="block";
   const ch=state.challenge;
   let html=``;
-  if(r.balance){
-    html+=`<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:12px 14px;margin-bottom:12px">
-      <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:8px">Balance Check</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">
-        ${[["Flavor","flavor","#818cf8"],["Haul integrity","basket","#e879f9"],["Texture","texture","#fb923c"],["Richness","richness","#f87171"],["Visual","visual","#34d399"],["Complete","complete","#fbbf24"]].map(([l,k,c])=>r.balance[k]?`<div style="background:#0f172a;border-radius:8px;padding:8px"><div style="font-size:11px;font-weight:800;color:${c};margin-bottom:2px">${l}</div><div style="font-size:11px;color:#94a3b8;line-height:1.4">${r.balance[k]}</div></div>`:"").join("")}
-      </div></div>`;
+  const plateLine=truncateStr(r.plating||(r.balance&&r.balance.visual)||"",220);
+  const flavorLine=truncateStr(r.balance&&r.balance.flavor||"",240);
+  if(plateLine||flavorLine){
+    html+=`<div style="background:#0f172a;border:1px solid #475569;border-radius:12px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:8px">At the pass</div>
+      ${plateLine?`<div style="font-size:12px;color:#e2e8f0;line-height:1.45;margin-bottom:6px"><strong style="color:#94a3b8">Plate:</strong> ${escapeHtml(plateLine)}</div>`:""}
+      ${flavorLine?`<div style="font-size:12px;color:#e2e8f0;line-height:1.45"><strong style="color:#94a3b8">Flavor balance:</strong> ${escapeHtml(flavorLine)}</div>`:""}
+    </div>`;
   }
   html+=`<div style="display:grid;grid-template-columns:1fr 1.4fr;gap:14px">
     <div>
@@ -1107,10 +1197,12 @@ function showRecipeData(r) {
     <div>
       <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:8px">Timeline</div>
       ${(r.steps||[]).map((s,i)=>{const col=({"PREP":"#3b82f6","COOK":"#ef4444","SAUCE":"#f97316","ASSEMBLE":"#a855f7","PLATE":"#22c55e"})[s.phase]||"#64748b";return`<div style="display:flex;gap:10px;margin-bottom:10px"><div style="text-align:right;min-width:36px;padding-top:2px;flex-shrink:0"><div style="font-size:11px;font-weight:800;color:#f59e0b">${s.time}</div><div style="font-size:10px;color:#475569">${s.dur}</div></div><div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="width:10px;height:10px;border-radius:50%;background:${s.phase==="PLATE"?col:"#334155"};border:2px solid ${col};margin-top:3px"></div>${i<(r.steps.length-1)?`<div style="width:2px;flex:1;background:#1e293b;min-height:12px;margin-top:2px"></div>`:""}</div><div style="flex:1"><div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><span style="background:${col}22;color:${col};border:1px solid ${col}55;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800">${s.phase}</span><span style="font-size:12px;font-weight:800;color:#f8fafc">${s.what}</span></div><div style="font-size:11px;color:#94a3b8;line-height:1.4">${s.how}</div></div></div>`}).join("")}
-      ${r.plating?`<div style="margin-top:6px;background:#052e16;border:1px solid #166534;border-radius:10px;padding:10px 12px"><div style="font-size:10px;color:#22c55e;font-weight:800;text-transform:uppercase;margin-bottom:3px">Plating</div><div style="font-size:11px;color:#bbf7d0;line-height:1.5">${r.plating}</div></div>`:""}
     </div>
   </div>
+  ${state.contestRecipe?contestRecipeHtml(state.contestRecipe):""}
   <div style="margin-top:16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px">
+    <button type="button" id="contest-live-btn" onclick="generateContestRecipe()" style="background:linear-gradient(180deg,#a855f7,#7c3aed);color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:13px;font-weight:900;cursor:pointer;width:100%;max-width:420px;box-shadow:0 6px 20px rgba(124,58,237,0.35)">🔴 On the line — cook to win</button>
+    <div style="font-size:11px;color:#94a3b8;max-width:420px;line-height:1.45">For when you’re <strong style="color:#c4b5fd">actually cooking</strong> this basket — a tighter, competition-focused game plan (not the same as the rival draft above).</div>
     <button type="button" id="battle-btn" onclick="openBattleScorecards()" disabled style="background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#0f172a;border:none;border-radius:12px;padding:12px 28px;font-size:14px;font-weight:900;cursor:not-allowed;box-shadow:0 6px 20px rgba(245,158,11,0.35);width:100%;max-width:380px">⚔ Battle — compare & scorecards</button>
     <div id="battle-hint" style="font-size:11px;color:#94a3b8;text-align:center;max-width:400px;line-height:1.45">Describe what you’d cook in <strong style="color:#f59e0b">Your battle plan</strong> (left column). Then tap <strong style="color:#fbbf24">Battle</strong> to judge both dishes side by side — or start the clock and cook first.</div>
     <button type="button" onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:12px;padding:12px 32px;font-size:14px;font-weight:900;cursor:pointer">Pantry Wars — Start ${ch.totalTime} min clock</button>
@@ -1394,7 +1486,7 @@ async function doModalLookup(){
 function doModalAdd(data){
   const t=state.modalType;
   if(t==="type"){const nt={id:"c"+Date.now(),label:data.label||data.name,emoji:data.emoji||"🍴",custom:true};state.customTypes.push(nt);state.ctype=nt;}
-  else if(t==="ingredient"){const n=data.name||data.label;if(n&&!state.req.includes(n))state.req.push(n);}
+  else if(t==="ingredient"){const n=data.name||data.label;if(n&&!state.req.includes(n)){if(ingredientConflictsWithAny(n,state.res)){alert("That ingredient conflicts with a restriction (e.g. dairy under No Dairy).");return;}state.req.push(n);}}
   else if(t==="pantry_item"){
     const n=(data.name||data.label||"").trim();
     if(!n){closeModal();refreshAfterModalAdd();return;}
@@ -1422,6 +1514,84 @@ function doModalAddFromPending(){
   if(data) doModalAdd(data);
 }
 
+function ingredientConflictsWithRestriction(ingName, restriction){
+  const n=String(ingName||"").toLowerCase();
+  const m=pantryCatalog().find(x=>String(x.name||"").toLowerCase()===n);
+  const cat=String((m&&m.cat)||"").toLowerCase();
+
+  if(restriction==="No Dairy"){
+    if(/\b(heavy cream|half\s*and\s*half|cream cheese|sour cream|cream|milk|buttermilk|butter|cheese|yogurt|kefir|mozzarella|feta|parmesan|pecorino|goat cheese|ricotta|cheddar|brie|halloumi|crema|queso|ghee|whey|paneer)\b/i.test(n)) return true;
+    if(/dairy|cheese/.test(cat)) return true;
+    return false;
+  }
+  if(restriction==="No Butter"){
+    if(/\bbutter\b|ghee|brown butter/i.test(n)) return true;
+    return false;
+  }
+  if(restriction==="No Gluten"){
+    if(/\b(flour|wheat|pasta|spaghetti|bread|couscous|barley|rye|semolina|udon|ramen|noodle|farro|bulgur)\b/i.test(n)) return true;
+    if(/\ball[\s-]?purpose\b/i.test(n)) return true;
+    if(/\bsoy sauce\b/i.test(n)) return true;
+    return false;
+  }
+  if(restriction==="No Sugar"){
+    if(/\b(honey|sugar|maple|molasses|candy|frosting|icing|marshmallow|nesquik|syrup|caramel sauce|jam)\b/i.test(n)) return true;
+    if(/\b(chocolate|dark chocolate)\b/i.test(n)) return true;
+    return false;
+  }
+  if(restriction==="No Pre-made Sauces"){
+    if(/\b(soy sauce|fish sauce|worcestershire|oyster sauce|hoisin|sriracha|ketchup|bbq sauce|teriyaki)\b/i.test(n)) return true;
+    if(/\b(crushed tomatoes|tomato paste|mustard|vinegar)\b/i.test(n) && /\b(canned|jarred|bottle)\b/i.test(cat)) return true;
+    return false;
+  }
+  if(restriction==="No Alcohol"){
+    if(/\bvinegar\b/i.test(n)) return false;
+    if(/\b(beer|bourbon|whiskey|rum|vodka|brandy|sake|liqueur|alcohol)\b/i.test(n)) return true;
+    if(/\bwine\b/i.test(n)) return true;
+    return false;
+  }
+  if(restriction==="No Nuts"){
+    if(/\b(almond|peanut|cashew|pistachio|pecan|walnut|hazelnut|pine nut|macadamia|pesto)\b/i.test(n)) return true;
+    if(/nuts\s*&\s*seeds/i.test(cat)) return true;
+    return false;
+  }
+  if(restriction==="Vegetarian"){
+    if(/\b(chicken|beef|pork|lamb|turkey|duck|salmon|tuna|cod|halibut|trout|fish|shrimp|prawn|crab|lobster|scallop|mussel|clam|anchovy|sardine|bacon|sausage|prosciutto|chorizo|ground beef|steak|oxtail|veal)\b/i.test(n)) return true;
+    if(cat==="proteins" && !/\b(egg|tofu|tempeh|bean|chickpea|lentil)\b/i.test(n)) return true;
+    return false;
+  }
+  if(restriction==="Vegan"){
+    if(ingredientConflictsWithRestriction(ingName,"No Dairy")) return true;
+    if(ingredientConflictsWithRestriction(ingName,"No Butter")) return true;
+    if(/\b(egg|eggs|honey|gelatin|mayo)\b/i.test(n)) return true;
+    if(ingredientConflictsWithRestriction(ingName,"Vegetarian")) return true;
+    return false;
+  }
+  if(restriction==="Raw Only") return false;
+  if(restriction==="No Salt") return false;
+  return false;
+}
+
+function ingredientConflictsWithAny(ingName, restrictions){
+  return (restrictions||[]).some(r=>ingredientConflictsWithRestriction(ingName,r));
+}
+
+function filterPoolByRestrictions(pool, restrictions){
+  const r=restrictions||[];
+  if(!r.length) return [...new Set((pool||[]).filter(Boolean))];
+  return [...new Set((pool||[]).filter(Boolean))].filter(n=>!ingredientConflictsWithAny(n,r));
+}
+
+function pruneConflictingReq(cfg){
+  const need=cfg.req;
+  state.req=state.req.filter(n=>!ingredientConflictsWithAny(n,state.res));
+  const pool=filterPoolByRestrictions(pantryPool(),state.res).filter(x=>!state.req.includes(x));
+  while(state.req.length<need && pool.length){
+    const i=Math.floor(Math.random()*pool.length);
+    state.req.push(pool.splice(i,1)[0]);
+  }
+}
+
 function classifyRequiredBucket(name){
   const n=String(name||"").toLowerCase();
   const m=pantryCatalog().find(x=>String(x.name||"").toLowerCase()===n);
@@ -1443,8 +1613,14 @@ function classifyRequiredBucket(name){
   return "flavor";
 }
 
-function pickRequiredPattern(pool,count){
-  const uniq=[...new Set((pool||[]).filter(Boolean))];
+function pickRequiredPattern(pool,count,resList){
+  const r=resList!==undefined?resList:state.res;
+  const filtered=filterPoolByRestrictions(pool||[],r||[]);
+  const uniq=[...new Set(filtered.filter(Boolean))];
+  if(uniq.length===0){
+    alert("Nothing in your pantry matches the current restrictions. Clear a restriction or add compatible ingredients.");
+    return [];
+  }
   const by={protein:[],produce:[],wildcard:[],flavor:[]};
   uniq.forEach(n=>by[classifyRequiredBucket(n)].push(n));
   const ordered=count>=4?["protein","produce","wildcard","flavor"]:count===3?["protein","produce","flavor"]:["protein","produce"];
@@ -1469,10 +1645,64 @@ function pickRequiredPattern(pool,count){
   return out.slice(0,count);
 }
 
+function runMysteryRandomize(){
+  const pool=(window.USER_PANTRY&&window.USER_PANTRY.length)?window.USER_PANTRY:PANTRY;
+  const need=DIFF[state.diff].req;
+  const diffLabel=DIFF[state.diff].label;
+  const slotCells=Array.from({length:need},(_,i)=>`<div class="rnd-slot" data-slot="${i}" aria-label="Ingredient ${i+1}">—</div>`).join("");
+  const ov=el("div",{id:"randomize-overlay"});
+  ov.innerHTML=`<div class="rnd-panel">
+    <div class="rnd-title">Pantry Wars</div>
+    <div class="rnd-h">🎰 Mystery basket</div>
+    <div class="rnd-sub" id="rnd-subline"><strong style="color:#fbbf24">${need} ingredients</strong> · ${escapeHtml(diffLabel)} difficulty — spinning…</div>
+    <div class="rnd-slots" id="rnd-slots">${slotCells}</div>
+    <div class="rnd-bar"><i></i></div>
+    <div class="rnd-sub" id="rnd-foot" style="margin-top:10px;font-size:11px">Each slot = one spot on your plate. Same rules as the big shows.</div>
+  </div>`;
+  document.body.appendChild(ov);
+  const slots=[...ov.querySelectorAll(".rnd-slot")];
+  let ticks=0;
+  const tickMs=52;
+  const maxTicks=38+need*5;
+  const iv=setInterval(()=>{
+    ticks++;
+    slots.forEach(s=>{
+      s.textContent=pool[Math.floor(Math.random()*pool.length)];
+      s.style.animation="none";
+      void s.offsetWidth;
+      s.style.animation="rndSpin .1s ease";
+    });
+    if(ticks>=maxTicks){
+      clearInterval(iv);
+      doRandomize();
+      const got=state.req.length;
+      slots.forEach((s,i)=>{
+        const name=state.req[i];
+        if(name){
+          s.textContent=name;
+          s.classList.add("rnd-done");
+        } else {
+          s.textContent="—";
+          s.style.opacity="0.5";
+        }
+      });
+      const sub=$("rnd-subline");
+      if(sub) sub.innerHTML=`<strong style="color:#22c55e">${got} mystery items</strong> · ${escapeHtml(diffLabel)} — locked in`;
+      const sum=$("rnd-foot");
+      if(sum) sum.innerHTML=`<strong style="color:#fbbf24">${state.ctype.emoji} ${escapeHtml(state.ctype.label)}</strong> · ${state.diff.toUpperCase()} · ${state.total} min<br>
+        <span style="color:#94a3b8">Restrictions:</span> ${state.res.length?state.res.map(x=>escapeHtml(x)).join(" · "):"none"}`;
+      setTimeout(()=>{ov.remove();renderBuild();},1800);
+    }
+  },tickMs);
+}
+
 function doRandomize(){
   const d=DIFF[state.diff];
-  state.req=pickRequiredPattern(window.USER_PANTRY||PANTRY,d.req);state.res=pick(RESTRICT,d.res);state.forbEq=pick(EQUIP,d.forb);
+  state.res=pick(RESTRICT,d.res);
+  state.forbEq=pick(EQUIP,d.forb);
   state.lim=d.burners;state.cut=d.cut;
+  const pool=window.USER_PANTRY||PANTRY;
+  state.req=pickRequiredPattern(pool,d.req,state.res);
   const t=d.times[Math.floor(Math.random()*d.times.length)];
   state.total=t;state.prep=Math.round(t*0.35);state.cook=Math.round(t*0.65);
   state.ctype=CTYPES[Math.floor(Math.random()*CTYPES.length)];
