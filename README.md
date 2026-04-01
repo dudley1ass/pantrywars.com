@@ -1,5 +1,7 @@
 # Pantry Wars
 
+**Repository:** [github.com/dudley1ass/pantrywars.com](https://github.com/dudley1ass/pantrywars.com)
+
 Competition-style cooking app: build a pantry, run a mystery-basket challenge, duel your plan against an **AI rival chef**, timer, and judge scores.
 
 ## Run locally
