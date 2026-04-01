@@ -31,6 +31,7 @@
   input[type=range]{width:100%;accent-color:#6366f1;}
   textarea{width:100%;background:#f8fafc;border:2px solid #e2e8f0;border-radius:8px;padding:8px;font-size:13px;resize:vertical;}
   @media(max-width:600px){.grid2{grid-template-columns:1fr;}.full{grid-column:1;}}
+  @media(max-width:700px){.duel-score-grid{grid-template-columns:1fr!important;}}
   #recipe-compare-grid{display:grid;grid-template-columns:1fr;gap:18px;max-width:1180px;margin:0 auto;}
   @media(min-width:920px){#recipe-compare-grid{grid-template-columns:1fr 1fr;align-items:start;}}
 </style>
@@ -38,7 +39,8 @@
 <body>
 
 <!-- SCREENS -->
-<div id="screen-pantry" class="page"></div>
+<div id="screen-landing" class="page"></div>
+<div id="screen-pantry" class="page hidden"></div>
 <div id="screen-build" class="page hidden"></div>
 <div id="screen-recipe" class="dark hidden"></div>
 <div id="screen-active" class="page hidden"></div>
@@ -213,7 +215,8 @@ let state = {
   req:[], res:[], reqEq:[], forbEq:[], lim:false, twist:"",
   challenge:null, recipe:null,
   userCookPlan:{dish:"",techniques:"",timing:""},
-  scores:{taste:7,creativity:7,presentation:7,difficulty:7},
+  scoresYou:{taste:7,creativity:7,presentation:7,difficulty:7},
+  scoresAI:{taste:7,creativity:7,presentation:7,difficulty:7},
   timerRem:0, timerRunning:false, timerInterval:null,
   modalType:null,
 };
@@ -240,9 +243,34 @@ const btn=(text,bg,fg="#fff",extra={},onClick)=>{
   return b;
 };
 const showScreen = id => {
-  ["screen-pantry","screen-build","screen-recipe","screen-active","screen-score"].forEach(s=>$(s).classList.add("hidden"));
+  ["screen-landing","screen-pantry","screen-build","screen-recipe","screen-active","screen-score"].forEach(s=>$(s).classList.add("hidden"));
   $(id).classList.remove("hidden");
 };
+
+function renderLanding() {
+  const sc = $("screen-landing");
+  sc.innerHTML = `
+    <div style="min-height:100vh;background:linear-gradient(160deg,#0f172a 0%,#1e293b 45%,#334155 100%);color:#f8fafc;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 18px;text-align:center">
+      <div style="max-width:520px;width:100%">
+        <div style="font-size:11px;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:#94a3b8;margin-bottom:12px">Pantry Wars</div>
+        <h1 style="font-size:clamp(26px,5vw,36px);font-weight:900;line-height:1.15;margin:0 0 14px;color:#fff">Think you can <span style="color:#f59e0b">out-cook</span> the rival chef?</h1>
+        <p style="font-size:15px;color:#cbd5e1;line-height:1.55;margin:0 0 22px">Stock a pantry, draw a <strong style="color:#e2e8f0">mystery haul</strong> from it, run the clock. <strong style="color:#e2e8f0">You</strong> write the battle plan — <strong style="color:#e2e8f0">AI</strong> spins a full recipe. Same ingredients. Same rules. You be the judge.</p>
+        <div style="text-align:left;background:rgba(15,23,42,0.55);border:1px solid #475569;border-radius:14px;padding:18px;margin-bottom:26px">
+          <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:12px">How it works</div>
+          <ol style="margin:0;padding-left:20px;color:#e2e8f0;font-size:14px;line-height:1.65">
+            <li style="margin-bottom:8px"><strong style="color:#fff">Stock your pantry</strong> — pick what’s in your kitchen.</li>
+            <li style="margin-bottom:8px"><strong style="color:#fff">Build the battle</strong> — randomize or hand-pick required ingredients <em>only from that pantry.</em></li>
+            <li style="margin-bottom:8px"><strong style="color:#fff">Duel</strong> — your dish + techniques vs the rival chef’s recipe.</li>
+            <li><strong style="color:#fff">Judge</strong> — score both. Bragging rights optional.</li>
+          </ol>
+        </div>
+        <button type="button" id="landing-start-btn" style="width:100%;max-width:320px;padding:16px 20px;font-size:16px;font-weight:900;border-radius:12px;background:#22c55e;color:#0f172a;border:none;cursor:pointer;box-shadow:0 8px 30px rgba(34,197,94,0.3)">Start — build my pantry</button>
+        <p style="margin-top:16px;font-size:12px;color:#64748b">Bring your own Anthropic API key, or the host may supply one.</p>
+      </div>
+    </div>`;
+  sc.querySelector("#landing-start-btn").onclick = () => { showScreen("screen-pantry"); renderPantry(); };
+  showScreen("screen-landing");
+}
 
 // Extract one JSON object from model text (handles ```json fences, braces inside strings, trailing commas).
 function stripCodeFences(text) {
@@ -378,6 +406,11 @@ function renderPantry() {
     window.USER_PANTRY = names.length > 0 ? names : PANTRY;
     showScreen("screen-build"); renderBuild();
   };
+  const introBtn = document.createElement("button");
+  introBtn.textContent = "Intro";
+  introBtn.title = "Back to main screen";
+  introBtn.style.cssText = "background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer;font-size:12px;";
+  introBtn.onclick = () => renderLanding();
   const keyBtn = document.createElement("button");
   keyBtn.textContent = "API key";
   keyBtn.title = "Pantry Wars: clear saved API key";
@@ -386,7 +419,7 @@ function renderPantry() {
     localStorage.removeItem("basket_anthropic_key_v1");
     alert("Pantry Wars: saved API key cleared. Next AI lookup or rival chef will ask again.");
   };
-  hbtns.append(selAllBtn, keyBtn, goBtn);
+  hbtns.append(selAllBtn, introBtn, keyBtn, goBtn);
   hdr.append(htxt, hbtns);
   sc.appendChild(hdr);
 
@@ -507,6 +540,9 @@ function renderBuild() {
   sc.appendChild(hdr);
 
   const wrap=div({style:{maxWidth:"820px",margin:"0 auto",padding:"14px 12px"}});
+  const flowHint=div({style:{background:"#eff6ff",border:"2px solid #bfdbfe",borderRadius:"10px",padding:"10px 12px",marginBottom:"12px",fontSize:"12px",color:"#1e3a8a",lineHeight:"1.55"}});
+  flowHint.innerHTML="<strong>Mystery haul</strong> — required ingredients are drawn only from what you stocked (use <strong>Randomize</strong> or pick below). Next screen: you vs rival chef on the same basket.";
+  wrap.appendChild(flowHint);
 
   // DIFFICULTY
   const diffCard=div({class:"card full"});
@@ -704,9 +740,36 @@ function wireUserCookPlanForm() {
   d.value=state.userCookPlan.dish||"";
   t.value=state.userCookPlan.techniques||"";
   tm.value=state.userCookPlan.timing||"";
-  d.oninput=()=>{state.userCookPlan.dish=d.value;};
-  t.oninput=()=>{state.userCookPlan.techniques=t.value;};
-  tm.oninput=()=>{state.userCookPlan.timing=tm.value;};
+  d.oninput=()=>{state.userCookPlan.dish=d.value;updateBattleButtonState();};
+  t.oninput=()=>{state.userCookPlan.techniques=t.value;updateBattleButtonState();};
+  tm.oninput=()=>{state.userCookPlan.timing=tm.value;updateBattleButtonState();};
+}
+
+function syncUserCookPlanFromDom() {
+  const d=$("user-plan-dish"),t=$("user-plan-tech"),tm=$("user-plan-time");
+  if(d) state.userCookPlan.dish=d.value;
+  if(t) state.userCookPlan.techniques=t.value;
+  if(tm) state.userCookPlan.timing=tm.value;
+}
+
+function userPlanFilled() {
+  const u=state.userCookPlan;
+  return !!(u.dish||"").trim()||!! (u.techniques||"").trim()||!!(u.timing||"").trim();
+}
+
+function updateBattleButtonState() {
+  const b=$("battle-btn"),hint=$("battle-hint");
+  if(!b)return;
+  const ok=userPlanFilled()&&!!state.recipe;
+  b.disabled=!ok;b.style.opacity=ok?"1":"0.55";b.style.cursor=ok?"pointer":"not-allowed";
+  if(hint) hint.style.display=ok?"none":"block";
+}
+
+function openBattleScorecards() {
+  syncUserCookPlanFromDom();
+  if(!userPlanFilled()){alert("Fill in Your battle plan (dish, techniques, or timing) — then run Battle.");return;}
+  if(!state.recipe){alert("Wait for the rival chef to finish.");return;}
+  showScreen("screen-score");renderScore();
 }
 
 // ── RECIPE SCREEN ─────────────────────────────────────────────────────────────
@@ -725,7 +788,7 @@ function renderRecipe() {
       </div>
     </div>
     <div id="recipe-body" style="padding:8px 12px 20px">
-      <p style="text-align:center;font-size:12px;color:#64748b;max-width:640px;margin:8px auto 14px;line-height:1.45"><strong style="color:#f8fafc;font-size:11px;letter-spacing:2px">PANTRY WARS</strong> · <strong style="color:#94a3b8">Duel mode:</strong> write <strong style="color:#f59e0b">Your plan</strong> while <strong style="color:#818cf8">AI Chef</strong> fires—then compare at the judges' table.</p>
+      <p style="text-align:center;font-size:12px;color:#64748b;max-width:640px;margin:8px auto 14px;line-height:1.45"><strong style="color:#f8fafc;font-size:11px;letter-spacing:2px">PANTRY WARS</strong> · <strong style="color:#94a3b8">Duel:</strong> write <strong style="color:#f59e0b">Your plan</strong> while <strong style="color:#818cf8">Rival chef</strong> loads—then tap <strong style="color:#fbbf24">Battle</strong> for side-by-side scorecards (or run the clock first).</p>
       <div id="recipe-compare-grid">
         <div id="recipe-ai-panel">
           <div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>
@@ -889,14 +952,17 @@ function showRecipeData(r) {
       ${r.plating?`<div style="margin-top:6px;background:#052e16;border:1px solid #166534;border-radius:10px;padding:10px 12px"><div style="font-size:10px;color:#22c55e;font-weight:800;text-transform:uppercase;margin-bottom:3px">Plating</div><div style="font-size:11px;color:#bbf7d0;line-height:1.5">${r.plating}</div></div>`:""}
     </div>
   </div>
-  <div style="margin-top:16px;text-align:center">
-    <button onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:12px;padding:12px 32px;font-size:14px;font-weight:900;cursor:pointer">Pantry Wars — Start ${ch.totalTime} min clock</button>
+  <div style="margin-top:16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px">
+    <button type="button" id="battle-btn" onclick="openBattleScorecards()" disabled style="background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#0f172a;border:none;border-radius:12px;padding:12px 28px;font-size:14px;font-weight:900;cursor:not-allowed;box-shadow:0 6px 20px rgba(245,158,11,0.35);width:100%;max-width:380px">⚔ Battle — compare & scorecards</button>
+    <div id="battle-hint" style="font-size:11px;color:#94a3b8;text-align:center;max-width:400px;line-height:1.45">Describe what you’d cook in <strong style="color:#f59e0b">Your battle plan</strong> (left column). Then tap <strong style="color:#fbbf24">Battle</strong> to judge both dishes side by side — or start the clock and cook first.</div>
+    <button type="button" onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:12px;padding:12px 32px;font-size:14px;font-weight:900;cursor:pointer">Pantry Wars — Start ${ch.totalTime} min clock</button>
   </div>`;
   const aiPanel=$("recipe-ai-panel");
   const aiHead='<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>';
   if(aiPanel) aiPanel.innerHTML=aiHead+html;
   else $("recipe-body").innerHTML=aiHead+html;
   wireUserCookPlanForm();
+  updateBattleButtonState();
 }
 
 // ── ACTIVE SCREEN ─────────────────────────────────────────────────────────────
@@ -974,64 +1040,110 @@ function fireTwist(){const tb=$("twist-banner");if(tb){tb.textContent="TWIST: "+
 
 // ── SCORE SCREEN ──────────────────────────────────────────────────────────────
 function renderScore(){
-  const ch=state.challenge;
   const sc=$("screen-score");
+  const cats=[{k:"taste",l:"Taste",w:"35%"},{k:"creativity",l:"Creativity",w:"25%"},{k:"presentation",l:"Presentation",w:"20%"},{k:"difficulty",l:"Difficulty",w:"20%"}];
+  function duelCard(side,title,accent,skey){
+    const s=state[skey];
+    return `<div style="background:#fff;border:2px solid ${accent};border-radius:12px;padding:14px">
+      <div style="font-size:11px;font-weight:900;color:${accent};text-transform:uppercase;letter-spacing:1.2px;margin-bottom:12px;text-align:center">${title}</div>
+      ${cats.map(cat=>`<div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <div style="font-size:12px;font-weight:800;color:#0f172a">${cat.l} <span style="font-size:10px;color:#94a3b8">(${cat.w})</span></div>
+          <div id="score-${side}-val-${cat.k}" style="font-size:22px;font-weight:900;color:${accent}">${s[cat.k]}</div>
+        </div>
+        <input type="range" min="1" max="10" value="${s[cat.k]}" oninput="updateDuelScore('${side}','${cat.k}',this.value)" style="width:100%;accent-color:${accent}">
+      </div>`).join("")}
+    </div>`;
+  }
   sc.innerHTML=`
-    <div style="background:#1e293b;padding:14px 16px;display:flex;align-items:center;gap:10px">
+    <div style="background:#1e293b;padding:14px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <button onclick="showScreen('screen-active');renderActive()" style="background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Back</button>
-      <div style="font-size:16px;font-weight:800;color:#f8fafc">Pantry Wars — Judges' scores</div>
+      <div style="font-size:16px;font-weight:800;color:#f8fafc">Pantry Wars — Duel scorecards</div>
     </div>
-    <div style="max-width:480px;margin:0 auto;padding:16px 12px">
+    <div style="max-width:920px;margin:0 auto;padding:16px 12px">
       ${(()=>{const uc=state.userCookPlan;const has=(uc.dish||"").trim()||(uc.techniques||"").trim()||(uc.timing||"").trim();if(!has)return"";const aiT=state.recipe&&state.recipe.title?state.recipe.title:"—";return`<div style="background:#fff7ed;border:2px solid #fdba74;border-radius:12px;padding:14px;margin-bottom:14px;text-align:left">
-        <div style="font-size:10px;font-weight:900;color:#c2410c;text-transform:uppercase;margin-bottom:8px">Pantry Wars · Duel recap</div>
-        <div style="font-size:12px;color:#0f172a;margin-bottom:8px"><span style="color:#6366f1;font-weight:800">AI</span> · ${escapeHtml(aiT)}</div>
-        <div style="font-size:11px;color:#44403c;line-height:1.5;margin-bottom:6px"><span style="color:#f59e0b;font-weight:800">You</span> · ${escapeHtml((uc.dish||"").slice(0,220))}${(uc.dish||"").length>220?"…":""}</div>
-        ${(uc.techniques||"").trim()?`<div style="font-size:10px;color:#57534e;line-height:1.45"><strong>Your techniques:</strong> ${escapeHtml((uc.techniques||"").slice(0,160))}${(uc.techniques||"").length>160?"…":""}</div>`:""}
+        <div style="font-size:10px;font-weight:900;color:#c2410c;text-transform:uppercase;margin-bottom:8px">Pantry Wars · Compared</div>
+        <div class="duel-score-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;color:#0f172a">
+          <div><span style="color:#818cf8;font-weight:800">Rival chef</span> · ${escapeHtml(aiT)}</div>
+          <div><span style="color:#f59e0b;font-weight:800">You</span> · ${escapeHtml((uc.dish||"").slice(0,160))}${(uc.dish||"").length>160?"…":""}</div>
+        </div>
+        ${(uc.techniques||"").trim()?`<div style="font-size:11px;color:#57534e;margin-top:8px;line-height:1.45"><strong>Your techniques:</strong> ${escapeHtml((uc.techniques||"").slice(0,200))}${(uc.techniques||"").length>200?"…":""}</div>`:""}
       </div>`;})()}
-      ${[{k:"taste",l:"Taste",w:"35%"},{k:"creativity",l:"Creativity",w:"25%"},{k:"presentation",l:"Presentation",w:"20%"},{k:"difficulty",l:"Difficulty",w:"20%"}].map(cat=>`
-        <div style="background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <div style="font-size:13px;font-weight:800;color:#0f172a">${cat.l} <span style="font-size:10px;color:#94a3b8">(${cat.w})</span></div>
-            <div id="score-val-${cat.k}" style="font-size:26px;font-weight:900;color:#6366f1">${state.scores[cat.k]}</div>
-          </div>
-          <input type="range" min="1" max="10" value="${state.scores[cat.k]}" oninput="updateScore('${cat.k}',this.value)" style="width:100%;accent-color:#6366f1">
-        </div>`).join("")}
-      <div style="background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px">
-        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:6px">Judge Notes</div>
-        <textarea id="judge-notes" placeholder="What worked? What to fix?" rows="3"></textarea>
+      <div class="duel-score-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        ${duelCard("you","You","#d97706","scoresYou")}
+        ${duelCard("ai","Rival chef","#4f46e5","scoresAI")}
       </div>
-      <div id="score-display" style="background:#1e293b;border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"></div>
-      <button onclick="submitScore()" style="width:100%;padding:12px;font-size:14px;font-weight:900;border-radius:10px;background:#6366f1;color:#fff;border:none;cursor:pointer">Submit — Pantry Wars</button>
+      <div style="background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:14px">
+        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:6px">Judge notes</div>
+        <textarea id="judge-notes" placeholder="What worked? What to fix? How do the two dishes compare?" rows="3"></textarea>
+      </div>
+      <div class="duel-score-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div id="score-display-you" style="background:#0f172a;border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border:2px solid #f59e0b"></div>
+        <div id="score-display-ai" style="background:#0f172a;border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;border:2px solid #6366f1"></div>
+      </div>
+      <button onclick="submitScore()" style="width:100%;padding:12px;font-size:14px;font-weight:900;border-radius:10px;background:#6366f1;color:#fff;border:none;cursor:pointer">Submit — see results</button>
     </div>`;
   updateScoreDisplay();
 }
 
-function updateScore(k,v){state.scores[k]=+v;$("score-val-"+k).textContent=v;updateScoreDisplay();}
-function calcTotal(){const s=state.scores;return Math.round(s.taste*3.5+s.creativity*2.5+s.presentation*2+s.difficulty*2);}
+function resetDuelScores(){
+  const d={taste:7,creativity:7,presentation:7,difficulty:7};
+  state.scoresYou={...d};state.scoresAI={...d};
+}
+
+function updateDuelScore(side,k,v){
+  const key=side==="you"?"scoresYou":"scoresAI";
+  state[key][k]=+v;
+  const el=$(`score-${side}-val-${k}`);
+  if(el) el.textContent=v;
+  updateScoreDisplay();
+}
+function calcTotal(s){return Math.round(s.taste*3.5+s.creativity*2.5+s.presentation*2+s.difficulty*2);}
+function gradeTotal(t){return {g:t>=90?"A+":t>=80?"A":t>=70?"B":t>=60?"C":"D",gc:t>=80?"#22c55e":t>=60?"#f59e0b":"#ef4444"};}
 function updateScoreDisplay(){
-  const t=calcTotal();const g=t>=90?"A+":t>=80?"A":t>=70?"B":t>=60?"C":"D";
-  const gc=t>=80?"#22c55e":t>=60?"#f59e0b":"#ef4444";
-  const sd=$("score-display");
-  if(sd) sd.innerHTML=`<div><div style="font-size:10px;color:#64748b;font-weight:700">SCORE</div><div style="font-size:28px;font-weight:900;color:${gc}">${t}/100</div></div><div style="font-size:44px;font-weight:900;color:${gc}">${g}</div>`;
+  const ty=calcTotal(state.scoresYou),ta=calcTotal(state.scoresAI);
+  const gy=gradeTotal(ty),ga=gradeTotal(ta);
+  const sdy=$("score-display-you"),sda=$("score-display-ai");
+  if(sdy) sdy.innerHTML=`<div><div style="font-size:9px;color:#94a3b8;font-weight:800;letter-spacing:1px">YOU</div><div style="font-size:22px;font-weight:900;color:${gy.gc}">${ty}/100</div></div><div style="font-size:36px;font-weight:900;color:${gy.gc}">${gy.g}</div>`;
+  if(sda) sda.innerHTML=`<div><div style="font-size:9px;color:#94a3b8;font-weight:800;letter-spacing:1px">RIVAL</div><div style="font-size:22px;font-weight:900;color:${ga.gc}">${ta}/100</div></div><div style="font-size:36px;font-weight:900;color:${ga.gc}">${ga.g}</div>`;
 }
 function submitScore(){
-  const t=calcTotal();const g=t>=90?"A+":t>=80?"A":t>=70?"B":t>=60?"C":"D";
-  const gc=t>=80?"#22c55e":t>=60?"#f59e0b":"#ef4444";
+  const ty=calcTotal(state.scoresYou),ta=calcTotal(state.scoresAI);
+  const gy=gradeTotal(ty),ga=gradeTotal(ta);
   const notes=$("judge-notes")?.value||"";
-  const s=state.scores;
+  const sy=state.scoresAI, su=state.scoresYou;
+  let verdict="",vb="#0f172a";
+  if(ty>ta){verdict="You take this round.";vb="#d97706";}
+  else if(ta>ty){verdict="Rival chef takes this round.";vb="#4f46e5";}
+  else{verdict="Dead heat — split decision.";vb="#64748b";}
   $("screen-score").innerHTML=`
     <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#f1f5f9">
-      <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:32px;max-width:400px;width:100%;text-align:center">
-        <div style="font-size:52px;margin-bottom:8px">🏆</div>
-        <div style="font-size:11px;font-weight:900;color:#6366f1;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px">Pantry Wars</div>
-        <div style="font-size:52px;font-weight:900;color:${gc}">${g}</div>
-        <div style="font-size:20px;font-weight:800;color:#0f172a">${t}/100</div>
-        <div style="font-size:12px;color:#94a3b8;margin-bottom:18px">${state.challenge.ctype.label} · ${state.challenge.diff.toUpperCase()}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;text-align:left">
-          ${[["Taste",s.taste],["Creativity",s.creativity],["Presentation",s.presentation],["Difficulty",s.difficulty]].map(([l,v])=>`<div style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:8px;padding:10px"><div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase">${l}</div><div style="font-size:22px;font-weight:900;color:#0f172a">${v}<span style="font-size:11px;color:#94a3b8">/10</span></div></div>`).join("")}
+      <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:28px 24px;max-width:520px;width:100%;text-align:center">
+        <div style="font-size:48px;margin-bottom:6px">🏆</div>
+        <div style="font-size:11px;font-weight:900;color:#6366f1;letter-spacing:3px;text-transform:uppercase;margin-bottom:10px">Pantry Wars</div>
+        <div style="font-size:15px;font-weight:900;color:${vb};margin-bottom:16px;line-height:1.3">${verdict}</div>
+        <div class="duel-score-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;text-align:left">
+          <div style="background:#fffbeb;border:2px solid #f59e0b;border-radius:12px;padding:14px">
+            <div style="font-size:10px;font-weight:800;color:#d97706;text-transform:uppercase;margin-bottom:4px">You</div>
+            <div style="font-size:36px;font-weight:900;color:${gy.gc};line-height:1">${gy.g}</div>
+            <div style="font-size:16px;font-weight:800;color:#0f172a">${ty}/100</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;font-size:11px">
+              ${[["Taste",su.taste],["Creativity",su.creativity],["Presentation",su.presentation],["Difficulty",su.difficulty]].map(([l,v])=>`<div style="background:#fff;border-radius:6px;padding:6px"><span style="color:#94a3b8;font-weight:700">${l}</span> <strong>${v}</strong></div>`).join("")}
+            </div>
+          </div>
+          <div style="background:#eef2ff;border:2px solid #6366f1;border-radius:12px;padding:14px">
+            <div style="font-size:10px;font-weight:800;color:#4f46e5;text-transform:uppercase;margin-bottom:4px">Rival chef</div>
+            <div style="font-size:36px;font-weight:900;color:${ga.gc};line-height:1">${ga.g}</div>
+            <div style="font-size:16px;font-weight:800;color:#0f172a">${ta}/100</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;font-size:11px">
+              ${[["Taste",sy.taste],["Creativity",sy.creativity],["Presentation",sy.presentation],["Difficulty",sy.difficulty]].map(([l,v])=>`<div style="background:#fff;border-radius:6px;padding:6px"><span style="color:#94a3b8;font-weight:700">${l}</span> <strong>${v}</strong></div>`).join("")}
+            </div>
+          </div>
         </div>
-        ${notes?`<div style="background:#f8fafc;border-radius:8px;padding:10px;font-size:12px;color:#334155;text-align:left;margin-bottom:14px">${notes}</div>`:""}
-        <button onclick="state.scores={taste:7,creativity:7,presentation:7,difficulty:7};showScreen('screen-pantry');renderPantry();" style="width:100%;padding:12px;font-size:13px;font-weight:800;border-radius:10px;background:#6366f1;color:#fff;border:none;cursor:pointer">Pantry Wars — Play again</button>
+        <div style="font-size:12px;color:#94a3b8;margin-bottom:12px">${state.challenge.ctype.label} · ${state.challenge.diff.toUpperCase()}</div>
+        ${notes?`<div style="background:#f8fafc;border-radius:8px;padding:10px;font-size:12px;color:#334155;text-align:left;margin-bottom:14px">${escapeHtml(notes)}</div>`:""}
+        <button onclick="resetDuelScores();showScreen('screen-pantry');renderPantry();" style="width:100%;padding:12px;font-size:13px;font-weight:800;border-radius:10px;background:#6366f1;color:#fff;border:none;cursor:pointer;margin-bottom:8px">Pantry Wars — Play again</button>
+        <button onclick="resetDuelScores();renderLanding();" style="width:100%;padding:10px;font-size:12px;font-weight:700;border-radius:10px;background:#f1f5f9;color:#475569;border:2px solid #e2e8f0;cursor:pointer">Home</button>
       </div>
     </div>`;
 }
@@ -1130,7 +1242,7 @@ function doRandomize(){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-loadAppConfig().then(() => renderPantry());
+loadAppConfig().then(() => renderLanding());
 </script>
 </body>
 </html>
