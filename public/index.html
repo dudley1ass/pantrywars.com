@@ -147,7 +147,7 @@ const FULL_PANTRY = [
   {id:76, name:"Caramel",             cat:"Sweet Items",             flavor:["sweet","bitter"],       texture:["soft","creamy"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Dry caramel = more control. Pull darker than you think."},
 ];
 
-const CATEGORIES = ["All",...new Set(FULL_PANTRY.map(i=>i.cat))];
+const CUSTOM_PANTRY_CAT = "My pantry";
 
 const FLAVOR_C={
   sweet: {bg:"#fef9c3",text:"#713f12",border:"#fde047"},
@@ -208,6 +208,7 @@ function escapeHtml(s) {
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let state = {
   pantryItems: [],   // ids of items in user's pantry
+  customPantryItems: [], // {id,name,cat,flavor,texture,richness,acidity,intensity,notes,custom}
   pantrySearch: "",
   pantryCategory: "All",
   diff:"medium", ctype:CTYPES[1], customTypes:[],
@@ -217,9 +218,18 @@ let state = {
   userCookPlan:{dish:"",techniques:"",timing:""},
   scoresYou:{taste:7,creativity:7,presentation:7,difficulty:7},
   scoresAI:{taste:7,creativity:7,presentation:7,difficulty:7},
+  duelAutoScoring:false,
+  duelAutoSummary:"",
   timerRem:0, timerRunning:false, timerInterval:null,
   modalType:null,
 };
+
+function pantryCatalog() { return FULL_PANTRY.concat(state.customPantryItems); }
+function pantryCategories() {
+  const s = new Set(FULL_PANTRY.map(i => i.cat));
+  state.customPantryItems.forEach(i => s.add(i.cat));
+  return ["All", ...Array.from(s).sort()];
+}
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 const pick = (arr,n) => [...arr].sort(()=>Math.random()-0.5).slice(0,n);
@@ -382,11 +392,12 @@ function renderPantry() {
   const hdr = document.createElement("div");
   hdr.style.cssText = "background:#1e293b;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;";
   const htxt = document.createElement("div");
-  htxt.innerHTML = `<div style="font-size:16px;font-weight:800;color:#f8fafc">⚔️ PANTRY WARS</div><div style="font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:3px;text-transform:uppercase;margin-top:2px">Stock your pantry</div><div style="font-size:11px;color:#475569;margin-top:4px">${FULL_PANTRY.length} ingredients · Food Attribute Engine</div>`;
+  const nCustom = state.customPantryItems.length;
+  htxt.innerHTML = `<div style="font-size:16px;font-weight:800;color:#f8fafc">⚔️ PANTRY WARS</div><div style="font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:3px;text-transform:uppercase;margin-top:2px">Stock your pantry</div><div style="font-size:11px;color:#475569;margin-top:4px">${pantryCatalog().length} ingredients${nCustom?` · <span style="color:#a5b4fc">${nCustom} yours</span>`:""} · Food Attribute Engine</div>`;
   const hbtns = document.createElement("div");
   hbtns.style.cssText = "display:flex;gap:8px;";
   const selAllBtn = document.createElement("button");
-  const allFiltered = FULL_PANTRY.filter(i => (state.pantryCategory === "All" || i.cat === state.pantryCategory) && (!state.pantrySearch || i.name.toLowerCase().includes(state.pantrySearch.toLowerCase()) || i.flavor.some(f=>f.includes(state.pantrySearch.toLowerCase()))));
+  const allFiltered = pantryCatalog().filter(i => (state.pantryCategory === "All" || i.cat === state.pantryCategory) && (!state.pantrySearch || i.name.toLowerCase().includes(state.pantrySearch.toLowerCase()) || i.flavor.some(f=>f.includes(state.pantrySearch.toLowerCase())) || (i.notes&&i.notes.toLowerCase().includes(state.pantrySearch.toLowerCase()))));
   const allSel = allFiltered.length > 0 && allFiltered.every(i => inPantry(i.id));
   selAllBtn.textContent = allSel ? "Deselect All" : "+ Select All";
   selAllBtn.style.cssText = `background:${allSel?"#f0fdf4":"#6366f1"};color:${allSel?"#15803d":"#fff"};border:${allSel?"2px solid #22c55e":"none"};border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:13px;`;
@@ -401,7 +412,7 @@ function renderPantry() {
   goBtn.style.cssText = `background:${state.pantryItems.length===0?"#475569":"#22c55e"};color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:13px;`;
   goBtn.onclick = () => {
     // Sync pantry to PANTRY array for challenge builder
-    const names = FULL_PANTRY.filter(i=>state.pantryItems.includes(i.id)).map(i=>i.name);
+    const names = pantryCatalog().filter(i=>state.pantryItems.includes(i.id)).map(i=>i.name);
     // replace PANTRY global with user's selection
     window.USER_PANTRY = names.length > 0 ? names : PANTRY;
     showScreen("screen-build"); renderBuild();
@@ -433,17 +444,23 @@ function renderPantry() {
   inp.oninput = e => { state.pantrySearch = e.target.value; renderPantry(); };
   const sel = document.createElement("select");
   sel.style.cssText = "background:#f8fafc;border:2px solid #e2e8f0;border-radius:8px;padding:9px 10px;font-size:13px;cursor:pointer;outline:none;font-weight:600;";
-  CATEGORIES.forEach(cat => {
+  pantryCategories().forEach(cat => {
     const opt = document.createElement("option");
     opt.value = cat; opt.textContent = cat;
     if (cat === state.pantryCategory) opt.selected = true;
     sel.appendChild(opt);
   });
   sel.onchange = e => { state.pantryCategory = e.target.value; renderPantry(); };
+  const addPantryBtn = document.createElement("button");
+  addPantryBtn.type = "button";
+  addPantryBtn.textContent = "+ Add item";
+  addPantryBtn.title = "Add a custom ingredient with AI lookup";
+  addPantryBtn.style.cssText = "background:#22c55e;color:#fff;border:none;border-radius:8px;padding:9px 14px;font-weight:800;cursor:pointer;font-size:13px;white-space:nowrap;";
+  addPantryBtn.onclick = () => openModal("pantry_item");
   const cnt = document.createElement("span");
   cnt.style.cssText = "font-size:12px;color:#64748b;font-weight:600;";
   cnt.textContent = `${state.pantryItems.length} in pantry · ${allFiltered.length} shown`;
-  bar.append(inp, sel, cnt);
+  bar.append(inp, sel, addPantryBtn, cnt);
   sc.appendChild(bar);
 
   // Item list
@@ -455,7 +472,7 @@ function renderPantry() {
     row.style.cssText = `display:flex;align-items:center;gap:10px;padding:9px 12px;margin-bottom:4px;background:${on?"#f0fdf4":"#fff"};border:2px solid ${on?"#86efac":"#e2e8f0"};border-radius:10px;cursor:pointer;`;
     const info = document.createElement("div");
     info.style.cssText = "flex:1;";
-    info.innerHTML = `<div style="font-size:14px;font-weight:700;color:#0f172a">${item.name}</div><div style="font-size:11px;color:#94a3b8;margin-top:1px">${item.cat}</div>`;
+    info.innerHTML = `<div style="font-size:14px;font-weight:700;color:#0f172a;display:flex;align-items:center;gap:8px;flex-wrap:wrap">${item.name}${item.custom?`<span style="font-size:9px;font-weight:800;color:#4f46e5;background:#eef2ff;border:1px solid #a5b4fc;border-radius:4px;padding:1px 6px;text-transform:uppercase;letter-spacing:0.5px">Yours</span>`:""}</div><div style="font-size:11px;color:#94a3b8;margin-top:1px">${item.cat}</div>`;
     info.onclick = () => showItemDetail(item);
     const tags = document.createElement("div");
     tags.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;";
@@ -503,7 +520,7 @@ function showItemDetail(item) {
       <div style="font-size:10px;color:#6366f1;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Chef Notes</div>
       <div style="font-size:13px;color:#334155;line-height:1.6">${item.notes}</div>
     </div>
-    <button onclick="toggleFromModal(${item.id})" id="modal-add-btn" style="width:100%;padding:11px;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;background:${state.pantryItems.includes(item.id)?"#f0fdf4":"#6366f1"};border:2px solid ${state.pantryItems.includes(item.id)?"#22c55e":"#4f46e5"};color:${state.pantryItems.includes(item.id)?"#15803d":"#fff"}">
+    <button onclick="toggleFromModal(${typeof item.id==='number'?item.id:JSON.stringify(item.id)})" id="modal-add-btn" style="width:100%;padding:11px;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;background:${state.pantryItems.includes(item.id)?"#f0fdf4":"#6366f1"};border:2px solid ${state.pantryItems.includes(item.id)?"#22c55e":"#4f46e5"};color:${state.pantryItems.includes(item.id)?"#15803d":"#fff"}">
       ${state.pantryItems.includes(item.id)?"✓ In Pantry — Remove":"+ Add to Pantry"}
     </button>
   </div>`;
@@ -610,7 +627,7 @@ function renderBuild() {
   const rHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
   const rlbl=el("span",{class:"lbl",style:{marginBottom:"0"}});rlbl.textContent="Required Ingredients";
   const rbtns=div({style:{display:"flex",gap:"4px"}});
-  rbtns.append(btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("ingredient")),btn("Random "+cfg.req,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{state.req=pick(pantryPool(),cfg.req);renderBuild();}));
+  rbtns.append(btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("ingredient")),btn("Random "+cfg.req,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{state.req=pickRequiredPattern(pantryPool(),cfg.req);renderBuild();}));
   rHead.append(rlbl,rbtns);rCard.appendChild(rHead);
   if(state.req.length===0){const e=div({style:{fontSize:"11px",color:"#94a3b8",fontStyle:"italic",marginBottom:"6px"}});e.textContent="None selected";rCard.appendChild(e);}
   const reqChips=div({class:"chip-row"});
@@ -769,7 +786,79 @@ function openBattleScorecards() {
   syncUserCookPlanFromDom();
   if(!userPlanFilled()){alert("Fill in Your battle plan (dish, techniques, or timing) — then run Battle.");return;}
   if(!state.recipe){alert("Wait for the rival chef to finish.");return;}
+  resetDuelScores();
   showScreen("screen-score");renderScore();
+  runAutoBattleScoring();
+}
+
+function clampScore(v){
+  const n=Math.round(Number(v)||0);
+  return Math.min(10,Math.max(1,n));
+}
+
+async function runAutoBattleScoring(){
+  if(state.duelAutoScoring) return;
+  const ch=state.challenge, uc=state.userCookPlan, r=state.recipe;
+  if(!ch||!r) return;
+  state.duelAutoScoring=true;
+  const st=$("score-auto-status");
+  if(st) st.textContent="Auto-judging duel...";
+  try{
+    const prompt=`You are a fair cooking competition judge. Compare two competitors from the same basket.
+Return ONLY compact JSON with this shape:
+{"you":{"taste":1-10,"creativity":1-10,"presentation":1-10,"difficulty":1-10},"ai":{"taste":1-10,"creativity":1-10,"presentation":1-10,"difficulty":1-10},"summary":"2-4 sentences with winner + why"}
+
+SCORING RUBRIC:
+- Taste: flavor logic, balance, plausibility
+- Creativity: originality without nonsense
+- Presentation: plating clarity from described dish
+- Difficulty: technical ambition that fits time
+
+Challenge:
+- Type: ${ch.ctype.label}
+- Time: ${ch.totalTime} minutes
+- Required: ${ch.required.join(", ")}
+- Restrictions: ${(ch.restrictions||[]).join(", ")||"none"}
+
+USER PLAN:
+- Dish: ${(uc.dish||"").slice(0,1200)}
+- Techniques: ${(uc.techniques||"").slice(0,1200)}
+- Timing: ${(uc.timing||"").slice(0,1200)}
+
+AI ENTRY:
+${JSON.stringify({
+  title:r.title||"",
+  tagline:r.tagline||"",
+  balance:r.balance||{},
+  ingredients:(r.ingredients||[]).slice(0,20),
+  steps:(r.steps||[]).slice(0,16),
+  plating:r.plating||"",
+  tip:r.tip||""
+})}`;
+    const out=await ai(prompt,1400);
+    if(out&&out.you&&out.ai){
+      state.scoresYou={
+        taste:clampScore(out.you.taste),
+        creativity:clampScore(out.you.creativity),
+        presentation:clampScore(out.you.presentation),
+        difficulty:clampScore(out.you.difficulty),
+      };
+      state.scoresAI={
+        taste:clampScore(out.ai.taste),
+        creativity:clampScore(out.ai.creativity),
+        presentation:clampScore(out.ai.presentation),
+        difficulty:clampScore(out.ai.difficulty),
+      };
+      state.duelAutoSummary=String(out.summary||"").slice(0,700);
+      renderScore();
+    } else {
+      if(st) st.textContent="Auto-judge unavailable — set scores manually.";
+    }
+  } catch(_e){
+    if(st) st.textContent="Auto-judge unavailable — set scores manually.";
+  } finally{
+    state.duelAutoScoring=false;
+  }
 }
 
 // ── RECIPE SCREEN ─────────────────────────────────────────────────────────────
@@ -1061,6 +1150,10 @@ function renderScore(){
       <div style="font-size:16px;font-weight:800;color:#f8fafc">Pantry Wars — Duel scorecards</div>
     </div>
     <div style="max-width:920px;margin:0 auto;padding:16px 12px">
+      <div style="background:#e0f2fe;border:2px solid #7dd3fc;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#0c4a6e">
+        <strong>Battle judge:</strong> AI pre-fills both scorecards from your plan vs rival recipe.
+        <span id="score-auto-status" style="margin-left:6px;color:#0369a1">${state.duelAutoScoring?"Auto-judging duel...":"Auto-judge ready."}</span>
+      </div>
       ${(()=>{const uc=state.userCookPlan;const has=(uc.dish||"").trim()||(uc.techniques||"").trim()||(uc.timing||"").trim();if(!has)return"";const aiT=state.recipe&&state.recipe.title?state.recipe.title:"—";return`<div style="background:#fff7ed;border:2px solid #fdba74;border-radius:12px;padding:14px;margin-bottom:14px;text-align:left">
         <div style="font-size:10px;font-weight:900;color:#c2410c;text-transform:uppercase;margin-bottom:8px">Pantry Wars · Compared</div>
         <div class="duel-score-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;color:#0f172a">
@@ -1068,6 +1161,7 @@ function renderScore(){
           <div><span style="color:#f59e0b;font-weight:800">You</span> · ${escapeHtml((uc.dish||"").slice(0,160))}${(uc.dish||"").length>160?"…":""}</div>
         </div>
         ${(uc.techniques||"").trim()?`<div style="font-size:11px;color:#57534e;margin-top:8px;line-height:1.45"><strong>Your techniques:</strong> ${escapeHtml((uc.techniques||"").slice(0,200))}${(uc.techniques||"").length>200?"…":""}</div>`:""}
+        ${state.duelAutoSummary?`<div style="font-size:11px;color:#1f2937;line-height:1.5;margin-top:8px"><strong>Judge summary:</strong> ${escapeHtml(state.duelAutoSummary)}</div>`:""}
       </div>`;})()}
       <div class="duel-score-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
         ${duelCard("you","You","#d97706","scoresYou")}
@@ -1155,14 +1249,19 @@ const MODAL_PROMPTS={
 "name": STANDARD ENGLISH pantry label (US grocery / competition basket), Title Case — e.g. Chicken, Chicken Breast, Boneless Skinless Chicken Breast. NEVER translate (no Poulet, Suprema de Pollo, etc.) unless the user's text was in that language. Match specificity: vague input → simple name (chicken → Chicken); specific cut → that cut in English.
 "notes": 1-2 sentence competition tip.
 "tags": array of flavor tags (salty, umami, etc.).`,
+  pantry_item:i=>`Culinary expert. User is stocking their home pantry for "${i}". Return ONLY compact JSON — no markdown, no extra text.
+"name": STANDARD ENGLISH pantry label (US grocery), Title Case — same rules as competition baskets.
+"category": ONE short shelf label, Title Case — choose the best fit from typical store sections (e.g. Proteins, Vegetables, Dairy, Canned & Jarred, Baking & Bases, Snacks, Spices & Herbs) or use "${CUSTOM_PANTRY_CAT}" if unsure.
+"notes": 1-2 sentence competition tip for cooking with it.
+"tags": array of flavor tags from: sweet, salty, sour, bitter, umami, savory, gamey, rich, briny, smoky, mild (use 1-4 that fit).`,
   restriction:i=>`Culinary expert. "${i}" as a cooking restriction. Return ONLY JSON no markdown: {"label":"short name","description":"what it eliminates","tags":["affected"]}`,
   equipment: i=>`Culinary expert. "${i}" as kitchen equipment. Return ONLY JSON no markdown: {"label":"equipment name","description":"how it affects cooking","tags":["techniques"]}`,
 };
 
 function openModal(type){
   state.modalType=type;
-  const titles={type:"Add Challenge Type",ingredient:"Add Ingredient",restriction:"Add Restriction",equipment:"Add Equipment"};
-  const placeholders={type:"e.g. Diner Food, Brunch...",ingredient:"e.g. Kohlrabi, Wagyu Beef...",restriction:"e.g. No Frying, Kosher...",equipment:"e.g. Tagine, Pizza Stone..."};
+  const titles={type:"Add Challenge Type",ingredient:"Add Ingredient",pantry_item:"Add to your pantry",restriction:"Add Restriction",equipment:"Add Equipment"};
+  const placeholders={type:"e.g. Diner Food, Brunch...",ingredient:"e.g. Kohlrabi, Wagyu Beef...",pantry_item:"e.g. Gochujang, halloumi, leftover brisket...",restriction:"e.g. No Frying, Kosher...",equipment:"e.g. Tagine, Pizza Stone..."};
   const ov=$("modal-overlay");
   ov.innerHTML=`
     <div class="modal">
@@ -1220,6 +1319,22 @@ function doModalAdd(data){
   const t=state.modalType;
   if(t==="type"){const nt={id:"c"+Date.now(),label:data.label||data.name,emoji:data.emoji||"🍴",custom:true};state.customTypes.push(nt);state.ctype=nt;}
   else if(t==="ingredient"){const n=data.name||data.label;if(n&&!state.req.includes(n))state.req.push(n);}
+  else if(t==="pantry_item"){
+    const n=(data.name||data.label||"").trim();
+    if(!n){closeModal();refreshAfterModalAdd();return;}
+    const low=n.toLowerCase();
+    if(pantryCatalog().some(x=>x.name.toLowerCase()===low)){alert("That ingredient is already in the list (built-in or yours).");closeModal();refreshAfterModalAdd();return;}
+    const allowed=new Set(["sweet","salty","sour","bitter","umami","savory","gamey","rich","briny","smoky","mild"]);
+    const flavor=(data.tags||[]).map(x=>String(x).toLowerCase()).filter(x=>allowed.has(x));
+    const flavor2=flavor.length?flavor.slice(0,4):["mild"];
+    const cat=(data.category||CUSTOM_PANTRY_CAT).trim()||CUSTOM_PANTRY_CAT;
+    const id="pc_"+Date.now();
+    state.customPantryItems.push({
+      id,name:n,cat,flavor:flavor2,texture:[],richness:"lean",acidity:"none",intensity:"mild",
+      notes:(data.notes||"Added to your pantry.").slice(0,500),custom:true
+    });
+    if(!state.pantryItems.includes(id))state.pantryItems.push(id);
+  }
   else if(t==="restriction"){const n=data.label;if(n&&!state.res.includes(n))state.res.push(n);}
   else if(t==="equipment"){const n=data.label;if(n&&!state.reqEq.includes(n))state.reqEq.push(n);}
   closeModal();refreshAfterModalAdd();
@@ -1231,9 +1346,38 @@ function doModalAddFromPending(){
   if(data) doModalAdd(data);
 }
 
+function classifyRequiredBucket(name){
+  const n=String(name||"").toLowerCase();
+  const m=pantryCatalog().find(x=>String(x.name||"").toLowerCase()===n);
+  const cat=String((m&&m.cat)||"").toLowerCase();
+  const proteinRx=/\b(chicken|beef|pork|lamb|turkey|duck|salmon|tuna|cod|fish|shrimp|prawn|crab|lobster|tofu|tempeh|egg|eggs|beans|chickpeas|lentils|anchovy|anchovies)\b/;
+  const produceRx=/\b(tomato|tomatoes|onion|shallot|garlic|ginger|pepper|jalape|spinach|kale|cauliflower|asparagus|corn|beet|brussels|carrot|scallion|lemon|lime|avocado|mango|apple|banana|orange|berry|grape|melon|produce|vegetable|fruit|herb|basil|thyme|rosemary)\b/;
+  const wildcardRx=/\b(candy|frosting|icing|syrup|caramel|chocolate|soda|cola|chips|cereal|cookie|marshmallow|dessert|sweet)\b/;
+
+  if(proteinRx.test(n)||/protein|meat|seafood|dairy/.test(cat)) return "protein";
+  if(wildcardRx.test(n)||/sweet items|snacks/.test(cat)) return "wildcard";
+  if(produceRx.test(n)||/vegetables|fruits|aromatics/.test(cat)) return "produce";
+  return "flavor";
+}
+
+function pickRequiredPattern(pool,count){
+  const uniq=[...new Set((pool||[]).filter(Boolean))];
+  const by={protein:[],produce:[],wildcard:[],flavor:[]};
+  uniq.forEach(n=>by[classifyRequiredBucket(n)].push(n));
+  const ordered=count>=4?["protein","produce","wildcard","flavor"]:count===3?["protein","produce","flavor"]:["protein","produce"];
+  const out=[];
+  ordered.forEach(k=>{
+    const avail=by[k].filter(x=>!out.includes(x));
+    if(avail.length) out.push(avail[Math.floor(Math.random()*avail.length)]);
+  });
+  const leftovers=uniq.filter(x=>!out.includes(x));
+  while(out.length<count&&leftovers.length) out.push(leftovers.splice(Math.floor(Math.random()*leftovers.length),1)[0]);
+  return out.slice(0,count);
+}
+
 function doRandomize(){
   const d=DIFF[state.diff];
-  state.req=pick(window.USER_PANTRY||PANTRY,d.req);state.res=pick(RESTRICT,d.res);state.forbEq=pick(EQUIP,d.forb);
+  state.req=pickRequiredPattern(window.USER_PANTRY||PANTRY,d.req);state.res=pick(RESTRICT,d.res);state.forbEq=pick(EQUIP,d.forb);
   state.lim=d.burners;state.cut=d.cut;
   const t=d.times[Math.floor(Math.random()*d.times.length)];
   state.total=t;state.prep=Math.round(t*0.35);state.cook=Math.round(t*0.65);
