@@ -905,6 +905,49 @@ function analyzeBasketForRecipe(required) {
   return { hardBasket, cleanBasket, processedSweet, junkHits };
 }
 
+/** Prompt block: enforce challenge course identity (esp. dessert vs savory hybrid failures). */
+function courseEnforcementBlock(ch, sig) {
+  const id = String((ch.ctype && ch.ctype.id) || "");
+  const label = String((ch.ctype && ch.ctype.label) || "").toLowerCase();
+  const isDessert = id === "dessert" || /\bdessert\b/.test(label);
+  const reqBlob = (ch.required || []).map(s => String(s).toLowerCase()).join(" ");
+  const savoryHeavyRx = /\b(bacon|pancetta|guanciale|mushroom|miso|chicken|beef|pork|lamb|fish|salmon|trout|cod|shrimp|prawn|scallop|garlic|onion|stock|demi|soy\s*sauce|fish\s*sauce|parmesan|pecorino|anchov|sardine)\b/;
+  const savoryHeavyDessert = isDessert && savoryHeavyRx.test(reqBlob);
+
+  if (isDessert) {
+    let s = `COURSE LOCK — DESSERT (hard rule):
+- A judge must instantly read the plate as dessert (title + tagline + story). It must NOT scan as a savory main with sugar on top.
+- BANNED center of the plate: savory entree or tart identity (e.g. mushroom cream filling, bacon-fat-forward base, miso-heavy savory broth/ganache) as the "dessert." Umami/salt may only support the sweet story (accent, garnish, tiny shard, trace in caramel) — not dominate.
+- REQUIRED sweet backbone (choose what fits the basket): honest pastry/tart shell, cake/cookie, custard/pudding, fruit compote, chocolate dessert use, caramel/butterscotch with real sugar cook, mousse, ice cream/sorbet if time allows. If the basket skews savory, pivot ingredients with CLEAR sweet technique (candied bacon crumb, tiny mushroom only in dulce-adjacent base, etc.) — still dessert-first, fewer parts.
+- No fake "hybrid" excuse: do not label a confused savory plate as dessert.
+- Texture honesty: only call it brittle if sugar/syrup is cooked to snap; "dust" is fine powder — not chopped nuts renamed.
+- In balance.complete, one sentence must state why this READS as dessert (not why it's clever).
+`;
+    if (sig.hardBasket || savoryHeavyDessert) {
+      s += `SIMPLICITY OVERRIDE (hard or savory-leaning basket + dessert): Cap yourself at 3 composed elements on the plate. ONE dessert idea only — no spaghetti crusts, no nested starches, no six-layer stunt. Do less; be legible.\n`;
+    }
+    return s;
+  }
+
+  if (id === "appetizer") {
+    return `COURSE LOCK — APPETIZER: Starter scale and pacing — not a full entree, not dessert unless label clearly asks.\n`;
+  }
+  if (id === "entree") {
+    return `COURSE LOCK — ENTREE: Clear main-course identity — satisfying center-of-plate, not a snack or dessert unless basket forces sweet mains.\n`;
+  }
+  if (id === "snack") {
+    return `COURSE LOCK — SNACK: Hand food or casual small plate — not a composed restaurant entree.\n`;
+  }
+  if (id === "drink") {
+    return `COURSE LOCK — COCKTAIL / DRINK: Primary deliverable is a drinkable beverage in glass/coupe — food garnish only as supporter.\n`;
+  }
+  if (id === "elevate" || id === "recreate") {
+    const L = String((ch.ctype && ch.ctype.label) || id).toUpperCase();
+    return `COURSE LOCK — ${L}: Deliver the promise of the challenge name in one readable sentence — no genre drift.\n`;
+  }
+  return "";
+}
+
 async function generateRecipe() {
   const ch=state.challenge;
   try {
@@ -933,6 +976,7 @@ async function generateRecipe() {
     const productSweetNote=sig.processedSweet
       ?` PROCESSED SWEET ALERT: At least one required item is shelf-sweet. It must read as that product in use (squeeze, scoop, from bottle) — not re-labeled as artisan chocolate. Keep it a supporting player unless dessert.`
       :"";
+    const courseBlock=courseEnforcementBlock(ch,sig);
     const m=ch.totalTime;
     const techniquePolicy=m<=30
       ?`TECHNIQUE vs TIME (${m} min, tight): Nothing is "banned." Finicky work (foam/aeration, spherification, fluid gels, LN2, long-setting gels) may ONLY appear if your step times prove each stage fits inside Prep+Cook with a realistic buffer. If the math is doubtful, use a simpler method (crema, reduction, melted cheese, pan sauce, vinaigrette).`
@@ -946,6 +990,7 @@ REQUIRED BASKET (each must CARRY the dish, not garnish-only): ${ch.required.join
 PANTRY you may use (only these + basics like salt/oil/water): ${pantryLines}
 ${res} ${fe} ${re} ${bl} ${tw}
 
+${courseBlock}
 ${executionMode}
 ${productSweetNote}
 
@@ -964,6 +1009,7 @@ STRUCTURE / ONE BASE (control creativity — avoid "AI fusion" that fights itsel
 - ONE PRIMARY STARCH OR GRAIN ANCHOR for the plate body: do not run two full starch systems as co-equal bases (e.g. arborio risotto + pizza crust both bulking the "rice"; pasta + potato both the chew; rice + big bread chunks in the same cohesive base). Judges get gummy, heavy, or confused textures. Pick ONE path OR make the second element clearly minor (thin crumble, crisp topper, dust) and state in balance.complete why it will not turn stodgy.
 - If the basket supplies items that imply two starches (pizza + rice): choose a SINGLE cleaner story — e.g. crisped crust with beer-braised veg and sauce OR a true risotto with only a whisper of crust; not "risotto that is also loaded with bread."
 - LIMIT COMPOUND CLEVERNESS: at most ONE high-concept move per dish (the big idea). Do not stack multiple wow-fusions; prefer what a confident competitor would pitch in one clear sentence — natural beats over-constructed.
+- DISH CLARITY: In one breath, a competitor could say what this IS ("custard tart," "seared fish with X," "composed appetizer"). If you cannot name it plainly, simplify until you can.
 - SWEET LAYERING: dried fruit (prunes, raisins), malty beer, honey/maple/brown sugar are cumulative — do not add extra concentrated sweetness without trimming elsewhere. Default: if prunes anchor the sauce, skip added honey/syrup unless balance.flavor explains the bitter/acid/salt hammer you are using and why it stays savory.
 
 BASKET IDENTITY (no "laundering" ugly or processed items):
