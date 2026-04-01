@@ -1,0 +1,16 @@
+{
+  "name": "pantry-wars",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pantry Wars — competition cooking duel vs AI chef",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

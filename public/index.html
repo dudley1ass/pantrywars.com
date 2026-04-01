@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Pantry Wars</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;color:#0f172a;min-height:100vh;}
+  button{cursor:pointer;font-family:inherit;border:none;outline:none;}
+  input,select,textarea{font-family:inherit;outline:none;}
+  .page{min-height:100vh;background:#f1f5f9;}
+  .dark{min-height:100vh;background:#0f172a;color:#f8fafc;}
+  .hdr{background:#1e293b;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+  .card{background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:12px;}
+  .dcard{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px 16px;margin-bottom:12px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .full{grid-column:1/-1;}
+  .lbl{font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;display:block;margin-bottom:8px;}
+  .tag{border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700;display:inline-block;}
+  .btn{border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;padding:8px 14px;}
+  .chip-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;}
+  .hidden{display:none!important;}
+  .overlay{position:fixed;inset:0;background:rgba(15,23,42,0.7);display:flex;align-items:center;justify-content:center;z-index:999;padding:16px;}
+  .modal{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .spinner{position:relative;width:76px;height:76px;margin:0 auto 18px;}
+  .spinner-ring{position:absolute;inset:0;border-radius:50%;border:4px solid #1e293b;}
+  .spinner-arc{position:absolute;inset:0;border-radius:50%;border:4px solid transparent;border-top-color:#f59e0b;animation:spin 1s linear infinite;}
+  .spinner-icon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:28px;}
+  input[type=range]{width:100%;accent-color:#6366f1;}
+  textarea{width:100%;background:#f8fafc;border:2px solid #e2e8f0;border-radius:8px;padding:8px;font-size:13px;resize:vertical;}
+  @media(max-width:600px){.grid2{grid-template-columns:1fr;}.full{grid-column:1;}}
+  #recipe-compare-grid{display:grid;grid-template-columns:1fr;gap:18px;max-width:1180px;margin:0 auto;}
+  @media(min-width:920px){#recipe-compare-grid{grid-template-columns:1fr 1fr;align-items:start;}}
+</style>
+</head>
+<body>
+
+<!-- SCREENS -->
+<div id="screen-pantry" class="page"></div>
+<div id="screen-build" class="page hidden"></div>
+<div id="screen-recipe" class="dark hidden"></div>
+<div id="screen-active" class="page hidden"></div>
+<div id="screen-score" class="page hidden"></div>
+<div id="modal-overlay" class="overlay hidden"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const CTYPES = [
+  {id:"appetizer",label:"Appetizer",emoji:"🥗"},
+  {id:"entree",label:"Entree",emoji:"🍽️"},
+  {id:"dessert",label:"Dessert",emoji:"🍮"},
+  {id:"snack",label:"Snack",emoji:"🥨"},
+  {id:"drink",label:"Cocktail",emoji:"🍹"},
+  {id:"elevate",label:"Elevate a Cheap Meal",emoji:"⬆️"},
+  {id:"recreate",label:"Recreate a Classic",emoji:"🔄"},
+];
+const EQUIP=["Oven","Stovetop","Air Fryer","Grill","Microwave","Instant Pot","Blender","Food Processor","Cast Iron","Wok","Sous Vide","Torch","Sheet Pan"];
+const RESTRICT=["No Dairy","No Gluten","No Sugar","No Salt","No Pre-made Sauces","No Butter","No Alcohol","No Nuts","Raw Only","Vegetarian","Vegan"];
+const TWISTS=["Add a sweet element","Plate family-style","Swap one required ingredient","Add something crunchy","Serve it cold","Add a fermented component","Add a fresh herb","Change your protein prep","Dish must have a sauce","Lose 5 more minutes"];
+const PANTRY=["Chicken Thigh","Salmon","Ground Beef","Shrimp","Eggs","Butter","Heavy Cream","Garlic","Shallot","Onion","Lemons","Tomatoes","Spinach","Mushrooms","Arborio Rice","Pasta","Chickpeas","Parmesan","Feta","Goat Cheese","Olive Oil","Soy Sauce","Dijon Mustard","Balsamic Vinegar","Capers","Olives","Crushed Tomatoes","Chicken Stock","Coconut Milk","Pine Nuts","Almonds","Dark Chocolate","Honey","Smoked Paprika","Cumin","Thyme","Basil","Ginger","Sweet Potatoes","Cauliflower","Beets","Corn","Avocados","Mango"];
+const DIFF={
+  easy:  {label:"Easy",  emoji:"🟢",req:2,res:0,times:[45,60],forb:0,burners:false,cut:false,twist:false},
+  medium:{label:"Medium",emoji:"🟡",req:3,res:1,times:[30,45],forb:1,burners:false,cut:false,twist:true},
+  hard:  {label:"Hard",  emoji:"🔴",req:4,res:2,times:[25,30],forb:2,burners:true, cut:true, twist:true},
+  insane:{label:"Insane",emoji:"💀",req:5,res:3,times:[20,25],forb:3,burners:true, cut:true, twist:true},
+};
+const FULL_PANTRY = [
+  {id:1,  name:"All-Purpose Flour",   cat:"Baking & Bases",          flavor:["salty"],                texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Essential for dredging, roux, dough, batter."},
+  {id:2,  name:"Butter",              cat:"Baking & Bases",          flavor:["salty","umami"],        texture:["creamy"],            richness:"rich",   acidity:"none", intensity:"medium", notes:"Brown butter = free flavor upgrade on any dish."},
+  {id:3,  name:"Eggs",                cat:"Baking & Bases",          flavor:["umami"],                texture:["soft","creamy"],     richness:"medium", acidity:"none", intensity:"mild",   notes:"Poached egg elevates any composed dish. Emulsifies sauces."},
+  {id:4,  name:"Heavy Cream",         cat:"Baking & Bases",          flavor:["sweet"],                texture:["creamy"],            richness:"rich",   acidity:"none", intensity:"mild",   notes:"Reduces fast to a sauce. Doesn't break like sour cream."},
+  {id:5,  name:"Honey",               cat:"Baking & Bases",          flavor:["sweet"],                texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Reduces to sticky glaze fast. Varietal honey defines flavor."},
+  {id:6,  name:"Maple Syrup",         cat:"Baking & Bases",          flavor:["sweet"],                texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Grade B darker = more flavor for cooking."},
+  {id:7,  name:"Sugar (Brown)",       cat:"Baking & Bases",          flavor:["sweet"],                texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Molasses content adds depth. Great in glazes."},
+  {id:8,  name:"Spaghetti",           cat:"Grains & Legumes",        flavor:["umami"],                texture:["chewy"],             richness:"lean",   acidity:"none", intensity:"mild",   notes:"Salt water aggressively. Reserve pasta water — thickens sauces."},
+  {id:9,  name:"Arborio Rice",        cat:"Grains & Legumes",        flavor:["umami"],                texture:["creamy","chewy"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Never stop stirring. Finish off heat with butter and parm."},
+  {id:10, name:"Quinoa",              cat:"Grains & Legumes",        flavor:["bitter"],               texture:["crunchy","soft"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Toast dry in pan before liquid for nutty depth."},
+  {id:11, name:"Chickpeas",           cat:"Grains & Legumes",        flavor:["umami"],                texture:["creamy","crunchy"],  richness:"lean",   acidity:"none", intensity:"mild",   notes:"Roast canned at 425F for crispy croutons. Puree into hummus."},
+  {id:12, name:"Black Beans",         cat:"Grains & Legumes",        flavor:["umami"],                texture:["creamy","soft"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Smash half for creamy-chunky texture. Bloom cumin first."},
+  {id:13, name:"Garlic",              cat:"Aromatics",               flavor:["umami","bitter"],       texture:["soft"],              richness:"lean",   acidity:"none", intensity:"strong", notes:"Confit in olive oil = sweet mellow paste. Raw = sharp."},
+  {id:14, name:"Shallot",             cat:"Aromatics",               flavor:["sweet","umami"],        texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"More elegant than onion. Use raw in vinaigrettes."},
+  {id:15, name:"Yellow Onion",        cat:"Aromatics",               flavor:["sweet","umami"],        texture:["soft"],              richness:"lean",   acidity:"none", intensity:"medium", notes:"45 min low heat = golden caramelized base."},
+  {id:16, name:"Ginger",              cat:"Aromatics",               flavor:["sour","bitter"],        texture:["soft"],              richness:"lean",   acidity:"mild", intensity:"strong", notes:"Freeze and grate from frozen — no peeling needed."},
+  {id:17, name:"Carrots",             cat:"Aromatics",               flavor:["sweet"],                texture:["crunchy","soft"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Mirepoix base. Roasted whole = stunning caramelized side."},
+  {id:18, name:"Scallions",           cat:"Aromatics",               flavor:["sweet","umami"],        texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"mild",   notes:"Whites for cooking, greens for garnish."},
+  {id:19, name:"Jalapeños",           cat:"Aromatics",               flavor:["bitter","sour"],        texture:["crunchy","soft"],    richness:"lean",   acidity:"mild", intensity:"strong", notes:"Char on open flame for smoky heat. Quick-pickle raw."},
+  {id:20, name:"Tomatoes (Fresh)",    cat:"Vegetables",              flavor:["sweet","sour","umami"], texture:["juicy","soft"],      richness:"lean",   acidity:"high", intensity:"medium", notes:"Cherry tomatoes blister fast. Confit low and slow for depth."},
+  {id:21, name:"Bell Peppers",        cat:"Vegetables",              flavor:["sweet"],                texture:["crunchy","soft"],    richness:"lean",   acidity:"mild", intensity:"mild",   notes:"Char on flame; steam in bag; skins slip right off."},
+  {id:22, name:"Mushrooms",           cat:"Vegetables",              flavor:["umami","bitter"],       texture:["chewy","soft"],      richness:"medium", acidity:"none", intensity:"strong", notes:"Don't crowd the pan — they steam. High heat, patience."},
+  {id:23, name:"Spinach",             cat:"Vegetables",              flavor:["bitter","umami"],       texture:["soft"],              richness:"lean",   acidity:"mild", intensity:"mild",   notes:"1 lb raw = tiny handful cooked. Undersalt before wilting."},
+  {id:24, name:"Cauliflower",         cat:"Vegetables",              flavor:["sweet","umami"],        texture:["crunchy","creamy"],  richness:"lean",   acidity:"none", intensity:"mild",   notes:"Charring transforms it. Steaks for drama. Puree rivals potato."},
+  {id:25, name:"Sweet Potatoes",      cat:"Vegetables",              flavor:["sweet","umami"],        texture:["soft","creamy"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Roasting whole concentrates sweetness. Pairs with miso, maple."},
+  {id:26, name:"Asparagus",           cat:"Vegetables",              flavor:["bitter","umami"],       texture:["crunchy","soft"],    richness:"lean",   acidity:"none", intensity:"medium", notes:"Snap natural break point. Roast at high heat for char."},
+  {id:27, name:"Corn",                cat:"Vegetables",              flavor:["sweet","umami"],        texture:["crunchy","creamy"],  richness:"lean",   acidity:"none", intensity:"medium", notes:"Char the cobs for smoky depth. Corn milk is liquid gold."},
+  {id:28, name:"Beets",               cat:"Vegetables",              flavor:["sweet","umami","bitter"],texture:["soft","juicy"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Wrap in foil and roast; skins slip off. Pairs with goat cheese."},
+  {id:29, name:"Brussels Sprouts",    cat:"Vegetables",              flavor:["bitter","umami"],       texture:["crunchy","soft"],    richness:"lean",   acidity:"none", intensity:"medium", notes:"Halve and roast cut-side down for max caramelization."},
+  {id:30, name:"Kale",                cat:"Vegetables",              flavor:["bitter","umami"],       texture:["chewy","soft"],      richness:"lean",   acidity:"mild", intensity:"medium", notes:"Massage with salt and acid to tenderize raw."},
+  {id:31, name:"Lemons",              cat:"Fruits",                  flavor:["sour"],                 texture:["juicy"],             richness:"lean",   acidity:"high", intensity:"strong", notes:"Zest carries essential oils — more aromatic than juice alone."},
+  {id:32, name:"Limes",               cat:"Fruits",                  flavor:["sour"],                 texture:["juicy"],             richness:"lean",   acidity:"high", intensity:"strong", notes:"Zest has more aroma than juice. Use both."},
+  {id:33, name:"Oranges",             cat:"Fruits",                  flavor:["sweet","sour"],         texture:["juicy"],             richness:"lean",   acidity:"high", intensity:"medium", notes:"Reduce juice to syrup for intensity. Blood orange for drama."},
+  {id:34, name:"Avocados",            cat:"Fruits",                  flavor:["umami"],                texture:["creamy","soft"],     richness:"rich",   acidity:"none", intensity:"mild",   notes:"Best raw. Mash with lime. Add acid immediately to prevent browning."},
+  {id:35, name:"Mango",               cat:"Fruits",                  flavor:["sweet","sour"],         texture:["juicy","soft"],      richness:"lean",   acidity:"mild", intensity:"medium", notes:"Slightly under-ripe is better for savory applications."},
+  {id:36, name:"Apples",              cat:"Fruits",                  flavor:["sweet","sour"],         texture:["crunchy","soft"],    richness:"lean",   acidity:"mild", intensity:"medium", notes:"Granny Smith holds shape best. Toss with lemon to prevent browning."},
+  {id:37, name:"Pomegranate",         cat:"Fruits",                  flavor:["sour","sweet","bitter"],texture:["crunchy","juicy"],   richness:"lean",   acidity:"high", intensity:"medium", notes:"Arils add texture and color. Reduce juice to molasses."},
+  {id:38, name:"Chicken Thigh",       cat:"Proteins",                flavor:["savory","umami"],       texture:["tender","juicy"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Forgiving cut. High fat keeps it moist. Braise or sear and roast."},
+  {id:39, name:"Chicken Breast",      cat:"Proteins",                flavor:["mild","savory"],        texture:["lean","firm"],       richness:"lean",   acidity:"none", intensity:"mild",   notes:"Dries out fast — pound thin or brine before competition."},
+  {id:40, name:"Salmon Fillet",       cat:"Proteins",                flavor:["rich","umami"],         texture:["flaky","silky"],     richness:"rich",   acidity:"none", intensity:"medium", notes:"Skin-side down first. Don't flip until it releases naturally."},
+  {id:41, name:"Ground Beef",         cat:"Proteins",                flavor:["rich","umami","savory"],texture:["loose","tender"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Versatile — burgers, ragu, stuffed veg, meatballs."},
+  {id:42, name:"Shrimp",              cat:"Proteins",                flavor:["sweet","briny"],        texture:["snappy","firm"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Cooks in 90 seconds. C-curve = done; O-curve = overcooked."},
+  {id:43, name:"Scallops",            cat:"Proteins",                flavor:["sweet","briny"],        texture:["silky","dense"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Dry-pack only. Pat very dry. Screaming hot pan. Don't touch."},
+  {id:44, name:"Pork Tenderloin",     cat:"Proteins",                flavor:["mild","sweet"],         texture:["tender","uniform"],  richness:"lean",   acidity:"none", intensity:"medium", notes:"Quick to cook, easy to overcook. Pull at 140F."},
+  {id:45, name:"Duck Breast",         cat:"Proteins",                flavor:["rich","gamey","fatty"], texture:["silky","dense"],     richness:"rich",   acidity:"none", intensity:"strong", notes:"Score fat cap deeply, render low-and-slow, finish high heat."},
+  {id:46, name:"Lamb Chop",           cat:"Proteins",                flavor:["gamey","rich"],         texture:["tender","juicy"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Medium-rare is the sweet spot. French them for elegance."},
+  {id:47, name:"Bacon",               cat:"Proteins",                flavor:["smoky","salty","fatty"],texture:["crispy","chewy"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Renders fat useful for cooking. A cheat code for richness."},
+  {id:48, name:"Parmesan",            cat:"Dairy & Cheese",          flavor:["salty","umami","bitter"],texture:["crunchy","creamy"], richness:"rich",   acidity:"none", intensity:"strong", notes:"Rind adds umami to soups and braises. Save every rind."},
+  {id:49, name:"Goat Cheese",         cat:"Dairy & Cheese",          flavor:["sour","salty","bitter"],texture:["soft","creamy"],    richness:"medium", acidity:"high", intensity:"medium", notes:"Warm rounds breaded and pan-fried = instant elegance."},
+  {id:50, name:"Feta",                cat:"Dairy & Cheese",          flavor:["salty","sour","bitter"],texture:["soft","creamy"],    richness:"medium", acidity:"high", intensity:"strong", notes:"Bake whole until soft for dip. Whipped with olive oil = elegant."},
+  {id:51, name:"Ricotta",             cat:"Dairy & Cheese",          flavor:["sweet","salty"],        texture:["soft","creamy"],    richness:"medium", acidity:"none", intensity:"mild",   notes:"Homemade in 20 min: heat milk to 185F, add lemon, strain."},
+  {id:52, name:"Mozzarella",          cat:"Dairy & Cheese",          flavor:["salty","umami"],        texture:["soft","chewy"],     richness:"medium", acidity:"none", intensity:"mild",   notes:"Fresh: tear and serve. Low-moisture: pizza and baking."},
+  {id:53, name:"Olive Oil",           cat:"Oils & Vinegars",         flavor:["bitter","umami"],       texture:[],                   richness:"rich",   acidity:"none", intensity:"medium", notes:"Use good EVOO as a finish. A drizzle = instant elegance."},
+  {id:54, name:"Balsamic Vinegar",    cat:"Oils & Vinegars",         flavor:["sweet","sour","bitter"],texture:[],                   richness:"lean",   acidity:"high", intensity:"strong", notes:"Reduce cheap balsamic to instant aged syrup — dramatic finish."},
+  {id:55, name:"Soy Sauce",           cat:"Oils & Vinegars",         flavor:["salty","umami"],        texture:[],                   richness:"lean",   acidity:"none", intensity:"strong", notes:"A few drops finish almost anything savory."},
+  {id:56, name:"Dijon Mustard",       cat:"Oils & Vinegars",         flavor:["sour","bitter"],        texture:[],                   richness:"lean",   acidity:"mild", intensity:"strong", notes:"Acts as emulsifier in vinaigrettes. Adds body to cream sauces."},
+  {id:57, name:"Sesame Oil",          cat:"Oils & Vinegars",         flavor:["umami","bitter"],       texture:[],                   richness:"rich",   acidity:"none", intensity:"strong", notes:"Finishing oil ONLY — burns and turns bitter over direct heat."},
+  {id:58, name:"Sriracha",            cat:"Oils & Vinegars",         flavor:["sweet","sour","bitter"],texture:[],                   richness:"lean",   acidity:"mild", intensity:"strong", notes:"Garlic-forward sweet heat. Mix with mayo for aioli."},
+  {id:59, name:"Smoked Paprika",      cat:"Spices & Herbs",          flavor:["sweet","bitter"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"Blooming in oil 30 sec amplifies smokiness dramatically."},
+  {id:60, name:"Cumin",               cat:"Spices & Herbs",          flavor:["bitter","umami"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"Toast whole in dry pan 60 sec before grinding — game changer."},
+  {id:61, name:"Thyme",               cat:"Spices & Herbs",          flavor:["bitter","umami"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"Strip leaves from woody stem. Essential aromatic."},
+  {id:62, name:"Basil",               cat:"Spices & Herbs",          flavor:["sweet","bitter"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"Tear or chiffonade at last second. Loses aroma when cooked."},
+  {id:63, name:"Rosemary",            cat:"Spices & Herbs",          flavor:["bitter","umami"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"strong", notes:"Very strong — use sparingly. Infuse in oil."},
+  {id:64, name:"Cumin",               cat:"Spices & Herbs",          flavor:["bitter","umami"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"Toast whole seeds before grinding for maximum flavor."},
+  {id:65, name:"Cinnamon",            cat:"Spices & Herbs",          flavor:["sweet","bitter"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"A pinch in savory meat braises adds mystique."},
+  {id:66, name:"Crushed Tomatoes",    cat:"Canned & Jarred",         flavor:["sweet","sour","umami"], texture:["soft","juicy"],     richness:"lean",   acidity:"high", intensity:"medium", notes:"San Marzano worth it. Simmer 20 min to sweeten."},
+  {id:67, name:"Tomato Paste",        cat:"Canned & Jarred",         flavor:["umami","sour","sweet"], texture:[],                   richness:"lean",   acidity:"mild", intensity:"strong", notes:"Cook dry in pan until brick red before adding liquid."},
+  {id:68, name:"Chicken Stock",       cat:"Canned & Jarred",         flavor:["umami","salty"],        texture:[],                   richness:"medium", acidity:"none", intensity:"medium", notes:"Reduce by half to intensify. Secret to restaurant-quality sauces."},
+  {id:69, name:"Coconut Milk",        cat:"Canned & Jarred",         flavor:["sweet"],                texture:["creamy"],           richness:"rich",   acidity:"none", intensity:"medium", notes:"Full-fat only for cooking. Cream on top for finishing."},
+  {id:70, name:"Capers",              cat:"Canned & Jarred",         flavor:["sour","salty","bitter"],texture:["crunchy"],          richness:"lean",   acidity:"high", intensity:"strong", notes:"Fry in oil until crispy — stunning garnish with brine and texture."},
+  {id:71, name:"Olives",              cat:"Canned & Jarred",         flavor:["salty","bitter","umami"],texture:["chewy"],           richness:"medium", acidity:"none", intensity:"strong", notes:"Kalamata for boldness; Castelvetrano for buttery sweetness."},
+  {id:72, name:"Anchovies",           cat:"Canned & Jarred",         flavor:["salty","umami"],        texture:["soft"],             richness:"medium", acidity:"none", intensity:"strong", notes:"Melt 2-3 in olive oil with garlic. Invisible umami bomb."},
+  {id:73, name:"Almonds",             cat:"Nuts & Seeds",            flavor:["sweet","bitter"],       texture:["crunchy"],          richness:"rich",   acidity:"none", intensity:"medium", notes:"Toast everything. Blanched, sliced, slivered — each use unique."},
+  {id:74, name:"Pine Nuts",           cat:"Nuts & Seeds",            flavor:["sweet","umami"],        texture:["soft","creamy"],    richness:"rich",   acidity:"none", intensity:"mild",   notes:"Toast on low heat — burns fast. Basis of pesto."},
+  {id:75, name:"Dark Chocolate",      cat:"Sweet Items",             flavor:["bitter","sweet","umami"],texture:["crunchy","creamy"],richness:"rich",   acidity:"none", intensity:"strong", notes:"70%+ for depth. Temper for shine; melt gently for ganache."},
+  {id:76, name:"Caramel",             cat:"Sweet Items",             flavor:["sweet","bitter"],       texture:["soft","creamy"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Dry caramel = more control. Pull darker than you think."},
+];
+
+const CATEGORIES = ["All",...new Set(FULL_PANTRY.map(i=>i.cat))];
+
+const FLAVOR_C={
+  sweet: {bg:"#fef9c3",text:"#713f12",border:"#fde047"},
+  salty: {bg:"#e0f2fe",text:"#0c4a6e",border:"#7dd3fc"},
+  sour:  {bg:"#dcfce7",text:"#14532d",border:"#86efac"},
+  bitter:{bg:"#f3e8ff",text:"#581c87",border:"#c084fc"},
+  umami: {bg:"#ffe4e6",text:"#881337",border:"#fda4af"},
+  savory:{bg:"#fff7ed",text:"#9a3412",border:"#fdba74"},
+  gamey: {bg:"#fdf4ff",text:"#7e22ce",border:"#e879f9"},
+  rich:  {bg:"#fef3c7",text:"#92400e",border:"#fcd34d"},
+  briny: {bg:"#ecfeff",text:"#155e75",border:"#67e8f9"},
+  smoky: {bg:"#f5f5f4",text:"#292524",border:"#a8a29e"},
+  mild:  {bg:"#f8fafc",text:"#475569",border:"#cbd5e1"},
+};
+
+const PHASE_C={PREP:"#3b82f6",COOK:"#ef4444",SAUCE:"#f97316",ASSEMBLE:"#a855f7",PLATE:"#22c55e"};
+
+/** Paste a key here to skip the prompt, or leave blank — on PantryWars.com the host may inject ANTHROPIC_API_KEY instead */
+const BASKET_API_KEY = "";
+
+let _serverAnthropicConfigured = false;
+let _configPromise = null;
+function loadAppConfig() {
+  if (_configPromise) return _configPromise;
+  _configPromise = fetch("/api/config")
+    .then(r => r.json())
+    .then(j => {
+      _serverAnthropicConfigured = !!j.anthropicConfigured;
+    })
+    .catch(() => {
+      _serverAnthropicConfigured = false;
+    });
+  return _configPromise;
+}
+
+function getAnthropicKey() {
+  const fromConst = (typeof BASKET_API_KEY === "string" && BASKET_API_KEY.trim()) ? BASKET_API_KEY.trim() : "";
+  if (fromConst) return fromConst;
+  const stored = (localStorage.getItem("basket_anthropic_key_v1") || "").trim();
+  if (stored) return stored;
+  if (_serverAnthropicConfigured) return "";
+  let k = prompt("Anthropic API key is required for rival chef & Look Up.\n\nCreate one at https://console.anthropic.com\n\nStored only in this browser unless your host already configured the server key.") || "";
+  if (k.trim()) localStorage.setItem("basket_anthropic_key_v1", k.trim());
+  return (k || "").trim();
+}
+
+function pantryPool() { return window.USER_PANTRY && window.USER_PANTRY.length ? window.USER_PANTRY : PANTRY; }
+
+function refreshAfterModalAdd() {
+  if ($("screen-build") && !$("screen-build").classList.contains("hidden")) renderBuild();
+  else renderPantry();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let state = {
+  pantryItems: [],   // ids of items in user's pantry
+  pantrySearch: "",
+  pantryCategory: "All",
+  diff:"medium", ctype:CTYPES[1], customTypes:[],
+  total:30, prep:10, cook:20, cut:false,
+  req:[], res:[], reqEq:[], forbEq:[], lim:false, twist:"",
+  challenge:null, recipe:null,
+  userCookPlan:{dish:"",techniques:"",timing:""},
+  scores:{taste:7,creativity:7,presentation:7,difficulty:7},
+  timerRem:0, timerRunning:false, timerInterval:null,
+  modalType:null,
+};
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+const pick = (arr,n) => [...arr].sort(()=>Math.random()-0.5).slice(0,n);
+const $ = id => document.getElementById(id);
+const el = (tag,attrs={},children=[]) => {
+  const e=document.createElement(tag);
+  Object.entries(attrs).forEach(([k,v])=>{
+    if(k==="style"&&typeof v==="object") Object.assign(e.style,v);
+    else if(k.startsWith("on")) e.addEventListener(k.slice(2).toLowerCase(),v);
+    else e.setAttribute(k,v);
+  });
+  children.forEach(c=>{if(c!=null)e.appendChild(typeof c==="string"?document.createTextNode(c):c);});
+  return e;
+};
+window.$ = $;
+const div=(attrs={},children=[])=>el("div",attrs,children);
+const btn=(text,bg,fg="#fff",extra={},onClick)=>{
+  const b=el("button",{style:{background:bg,color:fg,border:"none",borderRadius:"8px",cursor:"pointer",fontWeight:"700",fontSize:"13px",padding:"8px 14px",...extra}});
+  b.textContent=text;
+  if(onClick) b.addEventListener("click",onClick);
+  return b;
+};
+const showScreen = id => {
+  ["screen-pantry","screen-build","screen-recipe","screen-active","screen-score"].forEach(s=>$(s).classList.add("hidden"));
+  $(id).classList.remove("hidden");
+};
+
+// Extract one JSON object from model text (handles ```json fences, braces inside strings, trailing commas).
+function stripCodeFences(text) {
+  const t = String(text || "").trim();
+  const m = t.match(/```(?:json)?\s*([\s\S]*?)```/);
+  return m ? m[1].trim() : t;
+}
+function stripTrailingCommas(jsonStr) {
+  return jsonStr.replace(/,(\s*[\}\]])/g, "$1");
+}
+function extractBalancedJsonObject(text) {
+  const s = stripCodeFences(text);
+  const start = s.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < s.length; i++) {
+    const c = s[i];
+    if (esc) { esc = false; continue; }
+    if (inStr) {
+      if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) return s.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+function normalizeJsonText(s) {
+  return String(s || "")
+    .replace(/[\u201c\u201d\u00ab\u00bb]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'");
+}
+function parseModelJsonObject(raw) {
+  let candidate = extractBalancedJsonObject(raw);
+  if (!candidate) {
+    const s = String(raw || "").indexOf("{"), e = String(raw || "").lastIndexOf("}");
+    if (s !== -1 && e > s) candidate = String(raw).slice(s, e + 1);
+  }
+  if (!candidate) throw new Error("Model returned no JSON object");
+  candidate = normalizeJsonText(candidate);
+  try {
+    return JSON.parse(candidate);
+  } catch (e1) {
+    try {
+      return JSON.parse(stripTrailingCommas(candidate));
+    } catch (_e2) {
+      throw new Error(e1.message + " — Recipe JSON was malformed or cut off. Click Try Again.");
+    }
+  }
+}
+
+// ── AI CALL ───────────────────────────────────────────────────────────────────
+async function ai(prompt, tokens=300) {
+  await loadAppConfig();
+  const apiKey = getAnthropicKey();
+  if (!apiKey && !_serverAnthropicConfigured) throw new Error("No API key — cancelled or empty");
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const timer = setTimeout(() => { xhr.abort(); reject(new Error("Request timed out (60s)")); }, 60000);
+    xhr.open("POST", "/api/anthropic");
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.onload = () => {
+      clearTimeout(timer);
+      if (xhr.status !== 200) {
+        let detail = xhr.responseText.slice(0, 400);
+        try {
+          const errJ = JSON.parse(xhr.responseText);
+          if (errJ.error && errJ.error.message) detail = errJ.error.message;
+        } catch (_e) {}
+        reject(new Error("HTTP " + xhr.status + (detail ? ": " + detail : "")));
+        return;
+      }
+      try {
+        const d = JSON.parse(xhr.responseText);
+        const txt = (d.content || []).find(b => b.type === "text")?.text || "";
+        if (d.stop_reason === "max_tokens" && txt && !extractBalancedJsonObject(txt))
+          reject(new Error("Response ran out of space — click Try Again, or use fewer required ingredients."));
+        else resolve(parseModelJsonObject(txt));
+      } catch(err) { reject(err); }
+    };
+    xhr.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error("Cannot reach Pantry Wars server — check that the app is running (npm start) or your live site is up."));
+    };
+    xhr.onabort = () => { clearTimeout(timer); reject(new Error("aborted")); };
+    xhr.send(JSON.stringify({
+      api_key: apiKey,
+      payload: {
+        model: "claude-haiku-4-5",
+        max_tokens: tokens,
+        messages: [{ role: "user", content: prompt }]
+      }
+    }));
+  });
+}
+
+// ── PANTRY SCREEN ────────────────────────────────────────────────────────────
+function renderPantry() {
+  const sc = $("screen-pantry");
+  sc.innerHTML = "";
+  const inPantry = id => state.pantryItems.includes(id);
+
+  // Header
+  const hdr = document.createElement("div");
+  hdr.style.cssText = "background:#1e293b;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;";
+  const htxt = document.createElement("div");
+  htxt.innerHTML = `<div style="font-size:16px;font-weight:800;color:#f8fafc">⚔️ PANTRY WARS</div><div style="font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:3px;text-transform:uppercase;margin-top:2px">Stock your pantry</div><div style="font-size:11px;color:#475569;margin-top:4px">${FULL_PANTRY.length} ingredients · Food Attribute Engine</div>`;
+  const hbtns = document.createElement("div");
+  hbtns.style.cssText = "display:flex;gap:8px;";
+  const selAllBtn = document.createElement("button");
+  const allFiltered = FULL_PANTRY.filter(i => (state.pantryCategory === "All" || i.cat === state.pantryCategory) && (!state.pantrySearch || i.name.toLowerCase().includes(state.pantrySearch.toLowerCase()) || i.flavor.some(f=>f.includes(state.pantrySearch.toLowerCase()))));
+  const allSel = allFiltered.length > 0 && allFiltered.every(i => inPantry(i.id));
+  selAllBtn.textContent = allSel ? "Deselect All" : "+ Select All";
+  selAllBtn.style.cssText = `background:${allSel?"#f0fdf4":"#6366f1"};color:${allSel?"#15803d":"#fff"};border:${allSel?"2px solid #22c55e":"none"};border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:13px;`;
+  selAllBtn.onclick = () => {
+    const ids = allFiltered.map(i=>i.id);
+    if (allSel) state.pantryItems = state.pantryItems.filter(id=>!ids.includes(id));
+    else state.pantryItems = [...new Set([...state.pantryItems,...ids])];
+    renderPantry();
+  };
+  const goBtn = document.createElement("button");
+  goBtn.textContent = "To Battle — Build challenge →";
+  goBtn.style.cssText = `background:${state.pantryItems.length===0?"#475569":"#22c55e"};color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:13px;`;
+  goBtn.onclick = () => {
+    // Sync pantry to PANTRY array for challenge builder
+    const names = FULL_PANTRY.filter(i=>state.pantryItems.includes(i.id)).map(i=>i.name);
+    // replace PANTRY global with user's selection
+    window.USER_PANTRY = names.length > 0 ? names : PANTRY;
+    showScreen("screen-build"); renderBuild();
+  };
+  const keyBtn = document.createElement("button");
+  keyBtn.textContent = "API key";
+  keyBtn.title = "Pantry Wars: clear saved API key";
+  keyBtn.style.cssText = "background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer;font-size:12px;";
+  keyBtn.onclick = () => {
+    localStorage.removeItem("basket_anthropic_key_v1");
+    alert("Pantry Wars: saved API key cleared. Next AI lookup or rival chef will ask again.");
+  };
+  hbtns.append(selAllBtn, keyBtn, goBtn);
+  hdr.append(htxt, hbtns);
+  sc.appendChild(hdr);
+
+  // Search + filter bar
+  const bar = document.createElement("div");
+  bar.style.cssText = "background:#fff;border-bottom:1px solid #e2e8f0;padding:10px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;";
+  const inp = document.createElement("input");
+  inp.placeholder = "Search ingredients, flavors, notes...";
+  inp.value = state.pantrySearch;
+  inp.style.cssText = "flex:1 1 200px;background:#f8fafc;border:2px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:13px;outline:none;";
+  inp.oninput = e => { state.pantrySearch = e.target.value; renderPantry(); };
+  const sel = document.createElement("select");
+  sel.style.cssText = "background:#f8fafc;border:2px solid #e2e8f0;border-radius:8px;padding:9px 10px;font-size:13px;cursor:pointer;outline:none;font-weight:600;";
+  CATEGORIES.forEach(cat => {
+    const opt = document.createElement("option");
+    opt.value = cat; opt.textContent = cat;
+    if (cat === state.pantryCategory) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  sel.onchange = e => { state.pantryCategory = e.target.value; renderPantry(); };
+  const cnt = document.createElement("span");
+  cnt.style.cssText = "font-size:12px;color:#64748b;font-weight:600;";
+  cnt.textContent = `${state.pantryItems.length} in pantry · ${allFiltered.length} shown`;
+  bar.append(inp, sel, cnt);
+  sc.appendChild(bar);
+
+  // Item list
+  const list = document.createElement("div");
+  list.style.cssText = "max-width:860px;margin:0 auto;padding:12px 14px;";
+  allFiltered.forEach(item => {
+    const on = inPantry(item.id);
+    const row = document.createElement("div");
+    row.style.cssText = `display:flex;align-items:center;gap:10px;padding:9px 12px;margin-bottom:4px;background:${on?"#f0fdf4":"#fff"};border:2px solid ${on?"#86efac":"#e2e8f0"};border-radius:10px;cursor:pointer;`;
+    const info = document.createElement("div");
+    info.style.cssText = "flex:1;";
+    info.innerHTML = `<div style="font-size:14px;font-weight:700;color:#0f172a">${item.name}</div><div style="font-size:11px;color:#94a3b8;margin-top:1px">${item.cat}</div>`;
+    info.onclick = () => showItemDetail(item);
+    const tags = document.createElement("div");
+    tags.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;";
+    item.flavor.slice(0,2).forEach(f => {
+      const c = FLAVOR_C[f] || {bg:"#f1f5f9",text:"#475569",border:"#cbd5e1"};
+      const t = document.createElement("span");
+      t.style.cssText = `background:${c.bg};color:${c.text};border:1px solid ${c.border};border-radius:5px;padding:2px 7px;font-size:10px;font-weight:700;`;
+      t.textContent = f; tags.appendChild(t);
+    });
+    const addBtn = document.createElement("button");
+    addBtn.textContent = on ? "✓" : "+";
+    addBtn.style.cssText = `background:${on?"#f0fdf4":"#6366f1"};border:2px solid ${on?"#22c55e":"#4f46e5"};border-radius:8px;padding:6px 13px;color:${on?"#15803d":"#fff"};font-size:14px;font-weight:800;cursor:pointer;flex-shrink:0;`;
+    addBtn.onclick = () => {
+      if (on) state.pantryItems = state.pantryItems.filter(id=>id!==item.id);
+      else state.pantryItems.push(item.id);
+      renderPantry();
+    };
+    row.append(info, tags, addBtn);
+    list.appendChild(row);
+  });
+  if (allFiltered.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:60px;color:#94a3b8"><div style="font-size:36px;margin-bottom:8px">🔍</div><div style="font-size:14px;font-weight:700">No results</div></div>`;
+  }
+  sc.appendChild(list);
+}
+
+function showItemDetail(item) {
+  const ov = $("modal-overlay");
+  const c = FLAVOR_C;
+  ov.innerHTML = `<div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+      <div>
+        <div style="font-size:10px;color:#6366f1;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px">${item.cat}</div>
+        <div style="font-size:18px;font-weight:800;color:#0f172a">${item.name}</div>
+      </div>
+      <button onclick="$('modal-overlay').classList.add('hidden')" style="background:#f1f5f9;border:none;border-radius:6px;padding:3px 10px;font-size:18px;cursor:pointer">x</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px">
+      ${item.flavor.map(f=>{const cl=c[f]||{bg:"#f1f5f9",text:"#475569",border:"#cbd5e1"};return `<span style="background:${cl.bg};color:${cl.text};border:1px solid ${cl.border};border-radius:5px;padding:3px 9px;font-size:12px;font-weight:700">${f}</span>`;}).join("")}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      ${[["Richness",item.richness,item.richness==="rich"?"#c2410c":item.richness==="medium"?"#d97706":"#475569"],["Acidity",item.acidity,item.acidity==="high"?"#dc2626":item.acidity==="mild"?"#d97706":"#475569"],["Intensity",item.intensity,item.intensity==="strong"?"#7c3aed":item.intensity==="medium"?"#0369a1":"#475569"]].map(([l,v,col])=>`<div style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;margin-bottom:3px">${l}</div><div style="font-size:12px;font-weight:800;color:${col};text-transform:capitalize">${v}</div></div>`).join("")}
+    </div>
+    <div style="background:#f8fafc;border-left:4px solid #6366f1;border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:14px">
+      <div style="font-size:10px;color:#6366f1;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Chef Notes</div>
+      <div style="font-size:13px;color:#334155;line-height:1.6">${item.notes}</div>
+    </div>
+    <button onclick="toggleFromModal(${item.id})" id="modal-add-btn" style="width:100%;padding:11px;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer;background:${state.pantryItems.includes(item.id)?"#f0fdf4":"#6366f1"};border:2px solid ${state.pantryItems.includes(item.id)?"#22c55e":"#4f46e5"};color:${state.pantryItems.includes(item.id)?"#15803d":"#fff"}">
+      ${state.pantryItems.includes(item.id)?"✓ In Pantry — Remove":"+ Add to Pantry"}
+    </button>
+  </div>`;
+  ov._currentItem = item;
+  ov.classList.remove("hidden");
+}
+
+function toggleFromModal(id) {
+  if (state.pantryItems.includes(id)) state.pantryItems = state.pantryItems.filter(x=>x!==id);
+  else state.pantryItems.push(id);
+  const item = $("modal-overlay")._currentItem;
+  if (item) showItemDetail(item);
+  renderPantry();
+}
+
+// ── BUILD SCREEN ──────────────────────────────────────────────────────────────
+function renderBuild() {
+  const sc=$("screen-build");
+  sc.innerHTML="";
+  const cfg=DIFF[state.diff];
+
+  // Header
+  const hdr=div({style:{background:"#1e293b",padding:"14px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:"10px"}});
+  const htitle=div({style:{color:"#f8fafc",fontSize:"16px",fontWeight:"800"}});
+  htitle.textContent="PANTRY WARS";
+  const hsub=div({style:{color:"#475569",fontSize:"11px"}});
+  hsub.textContent="Battle builder — set your challenge";
+  const hleft=div({},[htitle,hsub]);
+  const hbtns=div({style:{display:"flex",gap:"8px"}});
+  const randBtn=btn("🎲 Randomize","#f59e0b","#fff",{},()=>{doRandomize();renderBuild();});
+  const launchBtn=btn("Launch →",state.req.length===0?"#475569":"#6366f1","#fff",{cursor:state.req.length===0?"not-allowed":"pointer"},()=>{if(state.req.length>0)doLaunch();});
+  hbtns.append(randBtn,launchBtn);
+  hdr.append(hleft,hbtns);
+  sc.appendChild(hdr);
+
+  const wrap=div({style:{maxWidth:"820px",margin:"0 auto",padding:"14px 12px"}});
+
+  // DIFFICULTY
+  const diffCard=div({class:"card full"});
+  const dlbl=el("span",{class:"lbl"});dlbl.textContent="Difficulty";
+  diffCard.appendChild(dlbl);
+  const drow=div({style:{display:"flex",gap:"8px",flexWrap:"wrap"}});
+  Object.entries(DIFF).forEach(([k,d])=>{
+    const b=el("button",{style:{flex:"1",minWidth:"80px",background:state.diff===k?"#1e293b":"#f8fafc",border:"2px solid "+(state.diff===k?"#6366f1":"#e2e8f0"),borderRadius:"10px",padding:"9px 6px",cursor:"pointer",textAlign:"center"}});
+    b.innerHTML=`<div style="font-size:17px;margin-bottom:2px">${d.emoji}</div><div style="font-size:12px;font-weight:800;color:${state.diff===k?"#fff":"#0f172a"}">${d.label}</div><div style="font-size:10px;color:#94a3b8">${d.req} items · ${d.res} restrict</div>`;
+    b.addEventListener("click",()=>{state.diff=k;renderBuild();});
+    drow.appendChild(b);
+  });
+  diffCard.appendChild(drow);
+  wrap.appendChild(diffCard);
+
+  const grid=div({class:"grid2"});
+
+  // CHALLENGE TYPE
+  const ctCard=div({class:"card"});
+  const ctHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
+  const ctlbl=el("span",{class:"lbl",style:{marginBottom:"0"}});ctlbl.textContent="Challenge Type";
+  const ctAdd=btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("type"));
+  ctHead.append(ctlbl,ctAdd);
+  ctCard.appendChild(ctHead);
+  const ctList=div({style:{display:"flex",flexDirection:"column",gap:"4px",maxHeight:"220px",overflowY:"auto"}});
+  [...CTYPES,...state.customTypes].forEach(ct=>{
+    const b=el("button",{style:{display:"flex",alignItems:"center",gap:"7px",padding:"7px 9px",background:state.ctype.id===ct.id?"#eef2ff":"#f8fafc",border:"2px solid "+(state.ctype.id===ct.id?"#818cf8":"#e2e8f0"),borderRadius:"8px",cursor:"pointer",textAlign:"left",width:"100%"}});
+    b.innerHTML=`<span style="font-size:14px">${ct.emoji}</span><span style="font-size:12px;font-weight:700;color:#0f172a">${ct.label}</span>${ct.custom?'<span style="margin-left:auto;font-size:9px;color:#6366f1;font-weight:800">CUSTOM</span>':""}`;
+    b.addEventListener("click",()=>{state.ctype=ct;renderBuild();});
+    ctList.appendChild(b);
+  });
+  ctCard.appendChild(ctList);
+  grid.appendChild(ctCard);
+
+  // TIME
+  const tCard=div({class:"card"});
+  const tlbl=el("span",{class:"lbl"});tlbl.textContent="Time";
+  tCard.appendChild(tlbl);
+  const trow=div({style:{marginBottom:"10px"}});
+  const tval=div({style:{fontSize:"12px",fontWeight:"700",color:"#0f172a",marginBottom:"4px"}});
+  tval.innerHTML=`Total: <span style="color:#6366f1">${state.total} min</span>`;
+  const tslider=el("input",{type:"range",min:"15",max:"90",step:"5",value:state.total,style:{width:"100%","accent-color":"#6366f1"}});
+  tslider.addEventListener("input",e=>{state.total=+e.target.value;state.prep=Math.round(state.total*0.35);state.cook=Math.round(state.total*0.65);renderBuild();});
+  trow.append(tval,tslider);
+  tCard.appendChild(trow);
+  const pcrow=div({style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"10px"}});
+  [["Prep",state.prep,(v)=>{state.prep=v;renderBuild();}],["Cook",state.cook,(v)=>{state.cook=v;renderBuild();}]].forEach(([l,v,fn])=>{
+    const box=div({});
+    const lv=div({style:{fontSize:"11px",fontWeight:"700",color:"#64748b",marginBottom:"3px"}});lv.textContent=l;
+    const row=div({style:{display:"flex",alignItems:"center",gap:"5px"}});
+    const dm=btn("-","#f1f5f9","#0f172a",{border:"2px solid #e2e8f0",padding:"3px 8px"},()=>fn(Math.max(0,v-5)));
+    const vd=div({style:{fontSize:"13px",fontWeight:"800",color:"#0f172a",minWidth:"36px",textAlign:"center"}});vd.textContent=v+"m";
+    const dp=btn("+","#f1f5f9","#0f172a",{border:"2px solid #e2e8f0",padding:"3px 8px"},()=>fn(Math.min(state.total,v+5)));
+    row.append(dm,vd,dp);box.append(lv,row);pcrow.appendChild(box);
+  });
+  tCard.appendChild(pcrow);
+  const cutLbl=el("label",{style:{display:"flex",alignItems:"center",gap:"7px",cursor:"pointer",padding:"7px 9px",background:state.cut?"#f3e8ff":"#f8fafc",border:"2px solid "+(state.cut?"#c084fc":"#e2e8f0"),borderRadius:"8px"}});
+  const cutCb=el("input",{type:"checkbox"});cutCb.checked=state.cut;cutCb.addEventListener("change",e=>{state.cut=e.target.checked;renderBuild();});
+  const cutTxt=el("span",{style:{fontSize:"12px",fontWeight:"700",color:state.cut?"#7c3aed":"#475569"}});cutTxt.textContent="Surprise Time Cut (-10 min)";
+  cutLbl.append(cutCb,cutTxt);tCard.appendChild(cutLbl);
+  grid.appendChild(tCard);
+
+  // REQUIRED INGREDIENTS
+  const rCard=div({class:"card"});
+  const rHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
+  const rlbl=el("span",{class:"lbl",style:{marginBottom:"0"}});rlbl.textContent="Required Ingredients";
+  const rbtns=div({style:{display:"flex",gap:"4px"}});
+  rbtns.append(btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("ingredient")),btn("Random "+cfg.req,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{state.req=pick(pantryPool(),cfg.req);renderBuild();}));
+  rHead.append(rlbl,rbtns);rCard.appendChild(rHead);
+  if(state.req.length===0){const e=div({style:{fontSize:"11px",color:"#94a3b8",fontStyle:"italic",marginBottom:"6px"}});e.textContent="None selected";rCard.appendChild(e);}
+  const reqChips=div({class:"chip-row"});
+  state.req.forEach(r=>{
+    const ch=div({style:{display:"flex",alignItems:"center",gap:"4px",background:"#eef2ff",border:"2px solid #818cf8",borderRadius:"5px",padding:"2px 8px",fontSize:"11px",fontWeight:"700",color:"#3730a3"}});
+    ch.textContent=r;
+    const x=el("button",{style:{background:"none",border:"none",color:"#818cf8",cursor:"pointer",fontSize:"12px",padding:"0",lineHeight:"1",marginLeft:"2px"}});x.textContent="x";
+    x.addEventListener("click",()=>{state.req=state.req.filter(i=>i!==r);renderBuild();});
+    ch.appendChild(x);reqChips.appendChild(ch);
+  });
+  rCard.appendChild(reqChips);
+  const pantryScroll=div({style:{maxHeight:"90px",overflowY:"auto",display:"flex",flexWrap:"wrap",gap:"3px"}});
+  (window.USER_PANTRY||PANTRY).filter(p=>!state.req.includes(p)).forEach(p=>{
+    const b=el("button",{style:{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"2px 6px",fontSize:"10px",cursor:"pointer",color:"#475569"}});
+    b.textContent="+"+p;b.addEventListener("click",()=>{state.req.push(p);renderBuild();});
+    pantryScroll.appendChild(b);
+  });
+  rCard.appendChild(pantryScroll);
+  grid.appendChild(rCard);
+
+  // RESTRICTIONS
+  const resCard=div({class:"card"});
+  const resHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
+  const reslbl=el("span",{class:"lbl",style:{marginBottom:"0"}});reslbl.textContent="Restrictions";
+  const resbtns=div({style:{display:"flex",gap:"4px"}});
+  resbtns.append(btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("restriction")),btn("Random "+cfg.res,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{state.res=pick(RESTRICT,cfg.res);renderBuild();}));
+  resHead.append(reslbl,resbtns);resCard.appendChild(resHead);
+  const resChips=div({style:{display:"flex",flexWrap:"wrap",gap:"4px"}});
+  [...RESTRICT,...state.res.filter(r=>!RESTRICT.includes(r))].forEach(r=>{
+    const on=state.res.includes(r);
+    const b=el("button",{style:{background:on?"#fef2f2":"#f8fafc",border:"2px solid "+(on?"#fca5a5":"#e2e8f0"),borderRadius:"6px",padding:"3px 7px",fontSize:"11px",cursor:"pointer",color:on?"#b91c1c":"#475569",fontWeight:on?"700":"500"}});
+    b.textContent=(on?"X ":"")+r;
+    b.addEventListener("click",()=>{state.res=on?state.res.filter(x=>x!==r):[...state.res,r];renderBuild();});
+    resChips.appendChild(b);
+  });
+  resCard.appendChild(resChips);
+  grid.appendChild(resCard);
+
+  // EQUIPMENT
+  const eqCard=div({class:"card"});
+  const eqHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
+  const eqlbl=el("span",{class:"lbl",style:{marginBottom:"0"}});eqlbl.textContent="Equipment";
+  eqHead.append(eqlbl,btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("equipment")));
+  eqCard.appendChild(eqHead);
+  const mustlbl=div({style:{fontSize:"11px",fontWeight:"700",color:"#166534",marginBottom:"4px"}});mustlbl.textContent="Must use";
+  eqCard.appendChild(mustlbl);
+  const mustChips=div({style:{display:"flex",flexWrap:"wrap",gap:"3px",marginBottom:"10px"}});
+  [...EQUIP,...state.reqEq.filter(e=>!EQUIP.includes(e))].forEach(e=>{
+    const on=state.reqEq.includes(e);
+    const b=el("button",{style:{background:on?"#f0fdf4":"#f8fafc",border:"2px solid "+(on?"#86efac":"#e2e8f0"),borderRadius:"6px",padding:"2px 6px",fontSize:"10px",cursor:"pointer",color:on?"#15803d":"#475569"}});
+    b.textContent=(on?"✓ ":"")+e;b.addEventListener("click",()=>{state.reqEq=on?state.reqEq.filter(x=>x!==e):[...state.reqEq,e];renderBuild();});
+    mustChips.appendChild(b);
+  });
+  eqCard.appendChild(mustChips);
+  const forblbl=div({style:{fontSize:"11px",fontWeight:"700",color:"#b91c1c",marginBottom:"4px"}});forblbl.textContent="Forbidden";
+  eqCard.appendChild(forblbl);
+  const forbChips=div({style:{display:"flex",flexWrap:"wrap",gap:"3px",marginBottom:"8px"}});
+  EQUIP.forEach(e=>{
+    const on=state.forbEq.includes(e);
+    const b=el("button",{style:{background:on?"#fef2f2":"#f8fafc",border:"2px solid "+(on?"#fca5a5":"#e2e8f0"),borderRadius:"6px",padding:"2px 6px",fontSize:"10px",cursor:"pointer",color:on?"#b91c1c":"#475569"}});
+    b.textContent=(on?"X ":"")+e;b.addEventListener("click",()=>{state.forbEq=on?state.forbEq.filter(x=>x!==e):[...state.forbEq,e];renderBuild();});
+    forbChips.appendChild(b);
+  });
+  eqCard.appendChild(forbChips);
+  const limLbl=el("label",{style:{display:"flex",alignItems:"center",gap:"7px",cursor:"pointer",padding:"6px 9px",background:state.lim?"#fff7ed":"#f8fafc",border:"2px solid "+(state.lim?"#fdba74":"#e2e8f0"),borderRadius:"8px"}});
+  const limCb=el("input",{type:"checkbox"});limCb.checked=state.lim;limCb.addEventListener("change",e=>{state.lim=e.target.checked;renderBuild();});
+  const limTxt=el("span",{style:{fontSize:"11px",fontWeight:"700",color:state.lim?"#c2410c":"#475569"}});limTxt.textContent="1 burner only";
+  limLbl.append(limCb,limTxt);eqCard.appendChild(limLbl);
+  grid.appendChild(eqCard);
+
+  // TWIST
+  const twCard=div({class:"card"});
+  const twHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
+  const twlbl=el("span",{class:"lbl",style:{marginBottom:"0"}});twlbl.textContent="Mid-Challenge Twist";
+  twHead.append(twlbl,btn("Random","#f3e8ff","#7c3aed",{border:"2px solid #c084fc",padding:"3px 7px",fontSize:"11px"},()=>{state.twist=TWISTS[Math.floor(Math.random()*TWISTS.length)];renderBuild();}));
+  twCard.appendChild(twHead);
+  const twList=div({style:{display:"flex",flexDirection:"column",gap:"3px"}});
+  TWISTS.forEach(t=>{
+    const on=state.twist===t;
+    const b=el("button",{style:{background:on?"#f3e8ff":"#f8fafc",border:"2px solid "+(on?"#c084fc":"#e2e8f0"),borderRadius:"6px",padding:"6px 9px",fontSize:"11px",fontWeight:on?"800":"500",color:on?"#7c3aed":"#475569",cursor:"pointer",textAlign:"left",width:"100%"}});
+    b.textContent=(on?"⚡ ":"")+t;b.addEventListener("click",()=>{state.twist=on?"":t;renderBuild();});
+    twList.appendChild(b);
+  });
+  twCard.appendChild(twList);
+  grid.appendChild(twCard);
+
+  wrap.appendChild(grid);
+
+  // LAUNCH BUTTON
+  const launchWrap=div({style:{marginTop:"0"}});
+  const lb=el("button",{style:{width:"100%",padding:"13px",fontSize:"14px",fontWeight:"900",borderRadius:"12px",cursor:state.req.length===0?"not-allowed":"pointer",background:state.req.length===0?"#94a3b8":"#6366f1",color:"#fff",border:"none"}});
+  lb.textContent=state.req.length===0?"Add required ingredients to launch":`Launch — ${state.ctype.emoji} ${state.ctype.label} · ${state.total} min · ${state.diff.toUpperCase()}`;
+  lb.addEventListener("click",()=>{if(state.req.length>0)doLaunch();});
+  launchWrap.appendChild(lb);
+  wrap.appendChild(launchWrap);
+  sc.appendChild(wrap);
+}
+
+// ── LAUNCH ────────────────────────────────────────────────────────────────────
+function doLaunch() {
+  const pool = pantryPool();
+  state.challenge={diff:state.diff,ctype:state.ctype,totalTime:state.total,prepTime:state.prep,cookTime:state.cook,surpriseCut:state.cut,required:state.req,restrictions:state.res,reqEquip:state.reqEq,forbEquip:state.forbEq,limitBurners:state.lim,twist:state.twist,pantry:pool.filter(p=>!state.req.includes(p))};
+  state.userCookPlan={dish:"",techniques:"",timing:""};
+  showScreen("screen-recipe");
+  renderRecipe();
+}
+
+function userCookPlanPanelHtml() {
+  const t=state.challenge?state.challenge.totalTime:"—";
+  return `<div style="background:#0f172a;border:1px solid #334155;border-radius:12px;padding:14px;height:fit-content">
+    <div style="font-size:10px;font-weight:900;color:#f8fafc;margin-bottom:2px;letter-spacing:2px;text-transform:uppercase">Pantry Wars</div>
+    <div style="font-size:11px;font-weight:900;color:#f59e0b;margin-bottom:4px;letter-spacing:1.5px;text-transform:uppercase">Your battle plan</div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:12px;line-height:1.45">Pantry Wars · same mystery haul · ${t} min. Fill while AI Chef runs—or after. Judges compare honestly.</div>
+    <label style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;display:block;margin-bottom:5px">What I'd cook</label>
+    <textarea id="user-plan-dish" rows="4" placeholder="Dish name + what's on the plate — how each mystery item shows up" style="width:100%;min-height:88px;background:#1e293b;border:1px solid #475569;border-radius:8px;padding:10px;color:#f8fafc;font-size:13px;margin-bottom:12px;resize:vertical;box-sizing:border-box"></textarea>
+    <label style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;display:block;margin-bottom:5px">Techniques</label>
+    <textarea id="user-plan-tech" rows="4" placeholder="Sear, braise, reduction, pickle, purée… what you'd actually execute" style="width:100%;min-height:88px;background:#1e293b;border:1px solid #475569;border-radius:8px;padding:10px;color:#f8fafc;font-size:13px;margin-bottom:12px;resize:vertical;box-sizing:border-box"></textarea>
+    <label style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;display:block;margin-bottom:5px">Order & timing</label>
+    <textarea id="user-plan-time" rows="3" placeholder="What you fire first, what runs in parallel, rough minutes" style="width:100%;min-height:64px;background:#1e293b;border:1px solid #475569;border-radius:8px;padding:10px;color:#f8fafc;font-size:13px;margin-bottom:12px;resize:vertical;box-sizing:border-box"></textarea>
+    <div style="padding-top:12px;border-top:1px solid #334155;font-size:11px;color:#64748b;line-height:1.5"><strong style="color:#94a3b8">Pantry Wars scorecard:</strong> Haul honesty · parts on the plate · sweet control · real minutes.</div>
+  </div>`;
+}
+
+function wireUserCookPlanForm() {
+  const d=$("user-plan-dish"),t=$("user-plan-tech"),tm=$("user-plan-time");
+  if(!d||!t||!tm)return;
+  d.value=state.userCookPlan.dish||"";
+  t.value=state.userCookPlan.techniques||"";
+  tm.value=state.userCookPlan.timing||"";
+  d.oninput=()=>{state.userCookPlan.dish=d.value;};
+  t.oninput=()=>{state.userCookPlan.techniques=t.value;};
+  tm.oninput=()=>{state.userCookPlan.timing=tm.value;};
+}
+
+// ── RECIPE SCREEN ─────────────────────────────────────────────────────────────
+function renderRecipe() {
+  const sc=$("screen-recipe");
+  sc.innerHTML=`
+    <div style="background:#1e293b;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-size:10px;color:#64748b;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px">${state.challenge.ctype.emoji} ${state.challenge.ctype.label} · ${state.challenge.diff.toUpperCase()} · ${state.challenge.totalTime} MIN</div>
+        <div id="recipe-title" style="font-size:18px;font-weight:900;color:#f8fafc">Pantry Wars — Rival chef at work…</div>
+        <div id="recipe-tagline" style="font-size:12px;color:#94a3b8;font-style:italic;margin-top:2px"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="showScreen('screen-build');renderBuild();" style="background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Back</button>
+        <button id="cook-btn" onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;display:none">Start battle clock</button>
+      </div>
+    </div>
+    <div id="recipe-body" style="padding:8px 12px 20px">
+      <p style="text-align:center;font-size:12px;color:#64748b;max-width:640px;margin:8px auto 14px;line-height:1.45"><strong style="color:#f8fafc;font-size:11px;letter-spacing:2px">PANTRY WARS</strong> · <strong style="color:#94a3b8">Duel mode:</strong> write <strong style="color:#f59e0b">Your plan</strong> while <strong style="color:#818cf8">AI Chef</strong> fires—then compare at the judges' table.</p>
+      <div id="recipe-compare-grid">
+        <div id="recipe-ai-panel">
+          <div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:280px;padding:24px">
+            <div class="spinner"><div class="spinner-ring"></div><div class="spinner-arc"></div><div class="spinner-icon">👨‍🍳</div></div>
+            <div style="font-size:16px;font-weight:900;color:#f8fafc;margin-top:14px;margin-bottom:6px">Summoning rival chef…</div>
+            <div style="font-size:12px;color:#64748b;text-align:center">Pantry Wars · flavor · haul · timing</div>
+          </div>
+        </div>
+        ${userCookPlanPanelHtml()}
+      </div>
+    </div>`;
+  wireUserCookPlanForm();
+  generateRecipe();
+}
+
+function analyzeBasketForRecipe(required) {
+  const low = required.map(s => String(s).toLowerCase());
+  const junkRx = /\b(frosting|icing|chocolate\s*syrup|corn\s*syrup|candy|marshmallow|soda|cola|potato\s*chips|cereal|pizza\b|snack|twinkie|pop[\s-]?tart|spray\s*cheese|velveeta|cool\s*whip|hot\s*fudge|nesquik|hershey'?s?\s*syrup)\b/;
+  const sweetShelfRx = /\b(frosting|icing|chocolate\s*syrup|syrup|candy|marshmallow|hot\s*fudge)\b/;
+  const junkHits = low.filter(s => junkRx.test(s)).length;
+  const processedSweet = low.some(s => sweetShelfRx.test(s));
+  const hardBasket = junkHits >= 2 || required.length >= 5 || (junkHits >= 1 && required.length >= 4);
+  const cleanBasket = junkHits === 0 && required.length <= 4;
+  return { hardBasket, cleanBasket, processedSweet, junkHits };
+}
+
+async function generateRecipe() {
+  const ch=state.challenge;
+  try {
+    const res=ch.restrictions.length?`Avoid: ${ch.restrictions.join(", ")}.`:"";
+    const fe=ch.forbEquip.length?`Forbidden: ${ch.forbEquip.join(", ")}.`:"";
+    const re=ch.reqEquip.length?`Must use equipment: ${ch.reqEquip.join(", ")}.`:"";
+    const bl=ch.limitBurners?"1 burner only.":"";
+    const tw=ch.twist?`Twist: "${ch.twist}".`:"";
+    const pantryLines=ch.pantry.length<=35?ch.pantry.join(", "):ch.pantry.slice(0,35).join(", ")+", …";
+    const sig=analyzeBasketForRecipe(ch.required);
+    let maxSteps=Math.min(8,Math.max(5,Math.floor(ch.totalTime/4)));
+    if(sig.hardBasket) maxSteps=Math.min(maxSteps,7);
+    const maxComponents=ch.totalTime<=35?3:ch.totalTime<=50?4:5;
+    const simplicityGoal=sig.hardBasket
+      ?Math.min(3,maxComponents)
+      :sig.cleanBasket
+        ?Math.min(ch.totalTime<=35?3:4,maxComponents)
+        :Math.min(4,maxComponents);
+    let executionMode="";
+    if(sig.cleanBasket)
+      executionMode=`EXECUTION MODE — CLEAN CLASSIC: Basket reads like a natural pairing. Execute cleanly with textbook technique. Prefer ${simplicityGoal} on-plate elements (max ${maxComponents}). Do NOT force fusion, stunts, or extra texture layers — trust the ingredients.`;
+    else if(sig.hardBasket)
+      executionMode=`EXECUTION MODE — HARD / CHAOTIC BASKET: Simplify aggressively. Target ${simplicityGoal} on-plate elements (never more than ${maxComponents}). ONE idea only — do NOT add bonus structure (extra cakes, grains, nested bases) to "save" a weird basket. Lean into clarity; downshift cleverness. If junk-food or shelf-sweet items are present, use them in SUPPORTING roles (accent, small glaze, restrained dose) — not as the dish's identity unless the challenge is dessert.`;
+    else
+      executionMode=`EXECUTION MODE — STANDARD: Prefer ${simplicityGoal} clear components (cap ${maxComponents}). One starring technique max.`;
+    const productSweetNote=sig.processedSweet
+      ?` PROCESSED SWEET ALERT: At least one required item is shelf-sweet. It must read as that product in use (squeeze, scoop, from bottle) — not re-labeled as artisan chocolate. Keep it a supporting player unless dessert.`
+      :"";
+    const m=ch.totalTime;
+    const techniquePolicy=m<=30
+      ?`TECHNIQUE vs TIME (${m} min, tight): Nothing is "banned." Finicky work (foam/aeration, spherification, fluid gels, LN2, long-setting gels) may ONLY appear if your step times prove each stage fits inside Prep+Cook with a realistic buffer. If the math is doubtful, use a simpler method (crema, reduction, melted cheese, pan sauce, vinaigrette).`
+      :m<=45
+        ?`TECHNIQUE vs TIME (${m} min, moderate): Advanced techniques are fine when step durations add up honestly and the dish still respects the component budget. If a foam or refined emulsion is marginal on time, prefer a stable sauce that delivers the same flavor intent.`
+        :`TECHNIQUE vs TIME (${m} min, generous): Full cheffy range is allowed — foams, refined emulsions, more layers — as long as the timeline proves feasibility (no fantasy minutes). Technique must earn its place; avoid empty showboating.`;
+    const prompt=`CHOPPED-style competition recipe. ONE valid JSON object only — no markdown, no code fences, no extra text. ASCII quotes. No trailing commas. Step "how" max ~90 chars.
+
+CHALLENGE: ${ch.ctype.label} | DIFFICULTY: ${ch.diff} | TIME: ${ch.totalTime}min (Prep ${ch.prepTime}, Cook ${ch.cookTime})
+REQUIRED BASKET (each must CARRY the dish, not garnish-only): ${ch.required.join(", ")}
+PANTRY you may use (only these + basics like salt/oil/water): ${pantryLines}
+${res} ${fe} ${re} ${bl} ${tw}
+
+${executionMode}
+${productSweetNote}
+
+FOOD PRODUCT TRUTH (material honesty — not vocabulary checks):
+- Naming a required ingredient is NOT enough. For EACH required item: (1) ingredients[] must list it in the honest starting form from the store (or a clear portion of that package); (2) at least one step must show physical handling of that real product (squeeze bottle, scoop from tub, tear crust, chop whole fruit, grate from block).
+- balance.basket must include one concrete sensory/material note per required item (too sweet, thin vs thick, fake vanilla, waxy chocolate, salty pickle brine, etc.) so a judge recognizes the actual SKU — not a re-branded "chef version" with only the label in common.
+- The dish fails if a competitor could swap in a finer product without changing your steps — steps must be specific to what was in the basket.
+
+BASKET INTEGRITY (mandatory):
+- The plate's STAR (main story: protein/starch/veg focal point) must come from REQUIRED + PANTRY above. Do NOT add a new centerpiece (chicken, beef, pork, salmon, etc.) unless that exact protein appears in REQUIRED or PANTRY.
+- Each REQUIRED item: name its PRIMARY role (filling, crust, sauce base, relish, main veg, etc.).
+- Prefer one bold coherent idea — at most ${maxSteps} steps before PLATE, believable in ${ch.totalTime} min.
+- RICHNESS: oily fish + aged cheese + heavy cream is usually overload; choose at most one fat-forward anchor unless you explicitly lighten the others.
+
+STRUCTURE / ONE BASE (control creativity — avoid "AI fusion" that fights itself):
+- ONE PRIMARY STARCH OR GRAIN ANCHOR for the plate body: do not run two full starch systems as co-equal bases (e.g. arborio risotto + pizza crust both bulking the "rice"; pasta + potato both the chew; rice + big bread chunks in the same cohesive base). Judges get gummy, heavy, or confused textures. Pick ONE path OR make the second element clearly minor (thin crumble, crisp topper, dust) and state in balance.complete why it will not turn stodgy.
+- If the basket supplies items that imply two starches (pizza + rice): choose a SINGLE cleaner story — e.g. crisped crust with beer-braised veg and sauce OR a true risotto with only a whisper of crust; not "risotto that is also loaded with bread."
+- LIMIT COMPOUND CLEVERNESS: at most ONE high-concept move per dish (the big idea). Do not stack multiple wow-fusions; prefer what a confident competitor would pitch in one clear sentence — natural beats over-constructed.
+- SWEET LAYERING: dried fruit (prunes, raisins), malty beer, honey/maple/brown sugar are cumulative — do not add extra concentrated sweetness without trimming elsewhere. Default: if prunes anchor the sauce, skip added honey/syrup unless balance.flavor explains the bitter/acid/salt hammer you are using and why it stays savory.
+
+BASKET IDENTITY (no "laundering" ugly or processed items):
+- Do not silently upgrade a required item into a fancier product. If the basket says chocolate frosting, canned soup, neon candy, etc., the ingredients list and at least one step must name that real starter. You may transform it — but a judge must see you used what was in the basket, not conceptually swapped it for couverture or demi-glace.
+- If a required item is very sweet or artificial-vanilla-heavy (frosting, icing, candy), balance.richness MUST be realistic: supermarket sweetness does not fully vanish — spell out limits (thin sauce, small amount, bitter/acid/salt forward, taste as you go). Avoid magical wording like "kill all sweetness" without concrete guardrails. If the combo could still read dessert-heavy, say what you'd watch for at the pass.
+
+PLAIN LANGUAGE (kitchen dock, not press release):
+- No purple prose or packaging clichés. Avoid terms like: "flavor arc", "cream liaison", "controlled pool", "jewel-toned", "symphony", "tapestry", "nest the...", "hero element", "elevate", "celebrate the ingredient" when plain words work.
+- tagline, step labels ("what"), plating, and step "how" lines: short, direct, competitor voice — like you're calling it to the judges' table, not writing a press kit.
+
+TIMELINE REALISM:
+- The work in your steps must honestly fit ~${ch.totalTime} min total challenge time (your ${ch.prepTime} prep + ${ch.cookTime} cook narrative). If tasks run in parallel, say so. Do not compress a full entrée into a obviously too-short window unless timing is explained.
+- Do not oversell "easy" or relaxed pacing when the sequence is tight — tip or balance.complete may note that the clock is aggressive but doable with parallel work (if true).
+
+REAL COOK / TIME-FIRST (judges hate fantasy timing, not ambition):
+${techniquePolicy}
+- COMPONENT BUDGET: at most ${maxComponents} on-plate elements for this clock — PREFER FEWER when the story still works. Each element must earn its place (see CLEAN PLATE).
+- CLEAN PLATE / MINIMALISM: Default to the smallest set of parts that still honors every REQUIRED item. In balance.texture, briefly justify each texture (sauce body, veg snap, steak crust) — not "adds interest." Do NOT bolt on bonus crunch (extra toasted grain, random crumb, second fried starch) unless it is clearly tied to a REQUIRED or central pantry item OR you state in balance.complete why the dish would fail without it — judges punish "crunch for crunch's sake."
+- If the basket is already LOUD (sardine, aged cheese, chile, raw onion family): simplify elsewhere — fewer competing sharp layers.
+- Charring fruit/veg (e.g. watermelon): prefer SOME raw + SOME lightly charred for freshness when you use heat.
+- "tip": one sentence on clock fit ${ch.totalTime} min (advanced steps + minutes if any). If tight, say so plainly — not false calm.
+
+BALANCE (honest):
+- Let basket supply flavor/texture; no extra components just to sound cheffy.
+- Completeness from basket+allowed pantry — never "rescue protein."
+
+JSON keys (fill all):
+{"title":"","tagline":"","serves":"2","balance":{"flavor":"","basket":"","texture":"","richness":"","visual":"","complete":""},"ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"time":"0:00","dur":"","phase":"PREP","what":"","how":""}],"plating":"","tip":""}
+balance.basket: 2-4 sentences — stars vs hides; name each REQUIRED item and its starring role. If something is store-bought or messy, say you're using THAT item, not a posh substitute.
+balance.flavor: name sweet drivers (fruit, beer malt, honey, etc.) and confirm you did not stack them blindly — one clear sweet spine max unless you explain the counterweight.
+balance.complete: single starch/body choice (or explain minor vs major); component count vs ${maxComponents}; timing honesty for ${ch.totalTime} min; optional "purer plate" omission; flag dual-base or gumminess risks if you bent the rule.
+balance.richness: if any REQUIRED item is sugary/processed, concrete sweetness limits + residual-sugar realism (see BASKET IDENTITY).
+balance.texture: each texture choice tied to a reason; no orphan crunch layers.
+Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
+    const data=await ai(prompt,8192);
+    state.recipe=data;
+    showRecipeData(data);
+  } catch(e) {
+    console.error("Recipe generation failed:", e);
+    const err=`<div style="text-align:center;padding:32px 16px;color:#f87171">Failed: ${escapeHtml(e.message)}<br><br><small style="color:#94a3b8">Use <code>npm start</code> or your deployed URL (not file://). HTTP 401 = bad API key.</small><br><br><button type="button" onclick="generateRecipe()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:700">Try Again</button></div>`;
+    const ap=$("recipe-ai-panel");
+    if(ap) ap.innerHTML='<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>'+err;
+    else $("recipe-body").innerHTML=err;
+  }
+}
+
+function showRecipeData(r) {
+  $("recipe-title").textContent=r.title||"Your Recipe";
+  if(r.tagline) $("recipe-tagline").textContent=r.tagline;
+  const cb=$("cook-btn");
+  if(cb) cb.style.display="block";
+  const ch=state.challenge;
+  let html=`
+    <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:12px 14px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+      <span style="font-size:10px;color:#64748b;font-weight:800;letter-spacing:1px;text-transform:uppercase">MUST USE</span>
+      ${ch.required.map(i=>`<span style="background:#312e81;border:1px solid #4f46e5;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700;color:#a5b4fc">${i}</span>`).join("")}
+      ${ch.restrictions.map(r=>`<span style="background:#450a0a;border:1px solid #dc2626;border-radius:5px;padding:2px 8px;font-size:11px;font-weight:700;color:#f87171">NO ${r}</span>`).join("")}
+    </div>`;
+  if(r.balance){
+    html+=`<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:8px">Balance Check</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">
+        ${[["Flavor","flavor","#818cf8"],["Haul integrity","basket","#e879f9"],["Texture","texture","#fb923c"],["Richness","richness","#f87171"],["Visual","visual","#34d399"],["Complete","complete","#fbbf24"]].map(([l,k,c])=>r.balance[k]?`<div style="background:#0f172a;border-radius:8px;padding:8px"><div style="font-size:11px;font-weight:800;color:${c};margin-bottom:2px">${l}</div><div style="font-size:11px;color:#94a3b8;line-height:1.4">${r.balance[k]}</div></div>`:"").join("")}
+      </div></div>`;
+  }
+  html+=`<div style="display:grid;grid-template-columns:1fr 1.4fr;gap:14px">
+    <div>
+      <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:8px">Ingredients</div>
+      ${(r.ingredients||[]).map(ing=>`<div style="padding:6px 0;border-bottom:1px solid #1e293b;display:flex;gap:10px"><div style="min-width:50px;font-size:11px;font-weight:800;color:#f59e0b">${ing.amount}</div><div><div style="font-size:12px;font-weight:700;color:#f8fafc">${ing.item}</div>${ing.prep?`<div style="font-size:10px;color:#64748b;margin-top:1px">${ing.prep}</div>`:""}</div></div>`).join("")}
+      ${r.tip?`<div style="margin-top:12px;background:#1e293b;border-left:3px solid #f59e0b;border-radius:0 10px 10px 0;padding:10px 12px"><div style="font-size:10px;color:#f59e0b;font-weight:800;text-transform:uppercase;margin-bottom:3px">Chef Tip</div><div style="font-size:11px;color:#cbd5e1;line-height:1.5">${r.tip}</div></div>`:""}
+    </div>
+    <div>
+      <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:8px">Timeline</div>
+      ${(r.steps||[]).map((s,i)=>{const col=({"PREP":"#3b82f6","COOK":"#ef4444","SAUCE":"#f97316","ASSEMBLE":"#a855f7","PLATE":"#22c55e"})[s.phase]||"#64748b";return`<div style="display:flex;gap:10px;margin-bottom:10px"><div style="text-align:right;min-width:36px;padding-top:2px;flex-shrink:0"><div style="font-size:11px;font-weight:800;color:#f59e0b">${s.time}</div><div style="font-size:10px;color:#475569">${s.dur}</div></div><div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="width:10px;height:10px;border-radius:50%;background:${s.phase==="PLATE"?col:"#334155"};border:2px solid ${col};margin-top:3px"></div>${i<(r.steps.length-1)?`<div style="width:2px;flex:1;background:#1e293b;min-height:12px;margin-top:2px"></div>`:""}</div><div style="flex:1"><div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><span style="background:${col}22;color:${col};border:1px solid ${col}55;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800">${s.phase}</span><span style="font-size:12px;font-weight:800;color:#f8fafc">${s.what}</span></div><div style="font-size:11px;color:#94a3b8;line-height:1.4">${s.how}</div></div></div>`}).join("")}
+      ${r.plating?`<div style="margin-top:6px;background:#052e16;border:1px solid #166534;border-radius:10px;padding:10px 12px"><div style="font-size:10px;color:#22c55e;font-weight:800;text-transform:uppercase;margin-bottom:3px">Plating</div><div style="font-size:11px;color:#bbf7d0;line-height:1.5">${r.plating}</div></div>`:""}
+    </div>
+  </div>
+  <div style="margin-top:16px;text-align:center">
+    <button onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:12px;padding:12px 32px;font-size:14px;font-weight:900;cursor:pointer">Pantry Wars — Start ${ch.totalTime} min clock</button>
+  </div>`;
+  const aiPanel=$("recipe-ai-panel");
+  const aiHead='<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>';
+  if(aiPanel) aiPanel.innerHTML=aiHead+html;
+  else $("recipe-body").innerHTML=aiHead+html;
+  wireUserCookPlanForm();
+}
+
+// ── ACTIVE SCREEN ─────────────────────────────────────────────────────────────
+function startCooking() {
+  const ch=state.challenge;
+  state.timerRem=ch.totalTime*60;
+  state.timerRunning=false;
+  if(state.timerInterval) clearInterval(state.timerInterval);
+  showScreen("screen-active");
+  renderActive();
+}
+
+function renderActive() {
+  const ch=state.challenge;
+  const sc=$("screen-active");
+  sc.innerHTML=`
+    <div style="background:#1e293b;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <button onclick="showScreen('screen-recipe');renderRecipeDisplay()" style="background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Recipe</button>
+      <div style="text-align:center"><div style="font-size:9px;font-weight:800;color:#64748b;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px">Pantry Wars</div><div style="font-size:17px;font-weight:900;color:#f8fafc">${ch.ctype.emoji} ${ch.ctype.label}</div><div style="font-size:11px;color:#94a3b8">${DIFF[ch.diff].emoji} ${ch.diff.toUpperCase()}</div></div>
+      <button onclick="showScreen('screen-score');renderScore()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Score</button>
+    </div>
+    <div id="timeup-banner" style="display:none;background:#ef4444;padding:12px;text-align:center;font-size:17px;font-weight:900;color:#fff">PANTRY WARS — HANDS OFF THE PLATE!</div>
+    <div style="max-width:640px;margin:0 auto;padding:12px">
+      <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:14px;margin-bottom:10px;text-align:center">
+        <div id="timer-display" style="font-size:64px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1;color:#22c55e">${formatTime(state.timerRem)}</div>
+        <div style="background:#334155;border-radius:999px;height:6px;margin:10px 0 14px;overflow:hidden"><div id="timer-bar" style="background:#22c55e;height:100%;width:100%;transition:width 1s linear;border-radius:999px"></div></div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          <button id="timer-toggle" onclick="toggleTimer()" style="background:#22c55e;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Start</button>
+          <button onclick="resetTimer()" style="background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Reset</button>
+          ${ch.surpriseCut?`<button onclick="cutTime()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">-10 min</button>`:""}
+          <button onclick="fireTwist()" style="background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">🎲 Twist</button>
+        </div>
+      </div>
+      <div id="twist-banner" style="display:none;background:#7c3aed;border-radius:10px;padding:12px;margin-bottom:10px;text-align:center;color:#fff;font-size:14px;font-weight:800"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div style="background:#fff;border:2px solid #e2e8f0;border-radius:10px;padding:10px 12px">
+          ${["PREP","COOK","TOTAL"].map((l,i)=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f1f5f9"><span style="font-size:10px;font-weight:700;color:#94a3b8">${l}</span><span style="font-size:13px;font-weight:800;color:#0f172a">${[ch.prepTime,ch.cookTime,ch.totalTime][i]}m</span></div>`).join("")}
+          <div style="margin-top:10px;font-size:10px;font-weight:800;color:#6366f1;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Must Use</div>
+          ${ch.required.map(i=>`<div style="padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:700;color:#0f172a">☐ ${i}</div>`).join("")}
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${ch.restrictions.length?`<div style="background:#fef2f2;border:2px solid #fecaca;border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:800;color:#dc2626;text-transform:uppercase;margin-bottom:6px">Restricted</div>${ch.restrictions.map(r=>`<div style="font-size:11px;font-weight:700;color:#b91c1c">X ${r}</div>`).join("")}</div>`:""}
+          ${(ch.reqEquip.length||ch.forbEquip.length||ch.limitBurners)?`<div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:800;color:#c2410c;text-transform:uppercase;margin-bottom:6px">Equipment</div>${ch.reqEquip.map(e=>`<div style="font-size:11px;font-weight:700;color:#166534">✓ ${e}</div>`).join("")}${ch.forbEquip.map(e=>`<div style="font-size:11px;font-weight:700;color:#b91c1c">X ${e}</div>`).join("")}${ch.limitBurners?`<div style="font-size:11px;font-weight:700;color:#c2410c">1 burner only</div>`:""}</div>`:""}
+        </div>
+      </div>
+      ${ch.twist?`<div style="background:#f3e8ff;border:2px solid #c084fc;border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:800;color:#7c3aed;text-transform:uppercase;margin-bottom:4px">Twist</div><div style="font-size:13px;font-weight:700;color:#581c87">${ch.twist}</div></div>`:""}
+    </div>`;
+}
+
+function renderRecipeDisplay() {
+  if(state.recipe) { showScreen("screen-recipe"); showRecipeData(state.recipe); }
+}
+
+function formatTime(s){const m=Math.floor(s/60),sec=s%60;return String(m).padStart(2,"0")+":"+String(sec).padStart(2,"0");}
+
+function toggleTimer(){
+  if(state.timerRunning){clearInterval(state.timerInterval);state.timerRunning=false;$("timer-toggle").textContent="Resume";$("timer-toggle").style.background="#22c55e";}
+  else{
+    state.timerRunning=true;$("timer-toggle").textContent="Pause";$("timer-toggle").style.background="#ef4444";
+    const total=state.challenge.totalTime*60;
+    state.timerInterval=setInterval(()=>{
+      state.timerRem=Math.max(0,state.timerRem-1);
+      const pct=state.timerRem/total;
+      const col=pct>0.5?"#22c55e":pct>0.25?"#f59e0b":"#ef4444";
+      const td=$("timer-display");const tb=$("timer-bar");
+      if(td){td.textContent=formatTime(state.timerRem);td.style.color=col;}
+      if(tb){tb.style.width=(pct*100)+"%";tb.style.background=col;}
+      if(state.timerRem===0){clearInterval(state.timerInterval);state.timerRunning=false;const tu=$("timeup-banner");if(tu)tu.style.display="block";}
+    },1000);
+  }
+}
+function resetTimer(){clearInterval(state.timerInterval);state.timerRunning=false;state.timerRem=state.challenge.totalTime*60;const td=$("timer-display");const tb=$("timer-bar");if(td){td.textContent=formatTime(state.timerRem);td.style.color="#22c55e";}if(tb){tb.style.width="100%";tb.style.background="#22c55e";}$("timer-toggle").textContent="Start";$("timer-toggle").style.background="#22c55e";}
+function cutTime(){state.timerRem=Math.max(0,state.timerRem-600);const td=$("timer-display");if(td)td.textContent=formatTime(state.timerRem);}
+function fireTwist(){const tb=$("twist-banner");if(tb){tb.textContent="TWIST: "+TWISTS[Math.floor(Math.random()*TWISTS.length)];tb.style.display="block";setTimeout(()=>{tb.style.display="none";},6000);}}
+
+// ── SCORE SCREEN ──────────────────────────────────────────────────────────────
+function renderScore(){
+  const ch=state.challenge;
+  const sc=$("screen-score");
+  sc.innerHTML=`
+    <div style="background:#1e293b;padding:14px 16px;display:flex;align-items:center;gap:10px">
+      <button onclick="showScreen('screen-active');renderActive()" style="background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Back</button>
+      <div style="font-size:16px;font-weight:800;color:#f8fafc">Pantry Wars — Judges' scores</div>
+    </div>
+    <div style="max-width:480px;margin:0 auto;padding:16px 12px">
+      ${(()=>{const uc=state.userCookPlan;const has=(uc.dish||"").trim()||(uc.techniques||"").trim()||(uc.timing||"").trim();if(!has)return"";const aiT=state.recipe&&state.recipe.title?state.recipe.title:"—";return`<div style="background:#fff7ed;border:2px solid #fdba74;border-radius:12px;padding:14px;margin-bottom:14px;text-align:left">
+        <div style="font-size:10px;font-weight:900;color:#c2410c;text-transform:uppercase;margin-bottom:8px">Pantry Wars · Duel recap</div>
+        <div style="font-size:12px;color:#0f172a;margin-bottom:8px"><span style="color:#6366f1;font-weight:800">AI</span> · ${escapeHtml(aiT)}</div>
+        <div style="font-size:11px;color:#44403c;line-height:1.5;margin-bottom:6px"><span style="color:#f59e0b;font-weight:800">You</span> · ${escapeHtml((uc.dish||"").slice(0,220))}${(uc.dish||"").length>220?"…":""}</div>
+        ${(uc.techniques||"").trim()?`<div style="font-size:10px;color:#57534e;line-height:1.45"><strong>Your techniques:</strong> ${escapeHtml((uc.techniques||"").slice(0,160))}${(uc.techniques||"").length>160?"…":""}</div>`:""}
+      </div>`;})()}
+      ${[{k:"taste",l:"Taste",w:"35%"},{k:"creativity",l:"Creativity",w:"25%"},{k:"presentation",l:"Presentation",w:"20%"},{k:"difficulty",l:"Difficulty",w:"20%"}].map(cat=>`
+        <div style="background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <div style="font-size:13px;font-weight:800;color:#0f172a">${cat.l} <span style="font-size:10px;color:#94a3b8">(${cat.w})</span></div>
+            <div id="score-val-${cat.k}" style="font-size:26px;font-weight:900;color:#6366f1">${state.scores[cat.k]}</div>
+          </div>
+          <input type="range" min="1" max="10" value="${state.scores[cat.k]}" oninput="updateScore('${cat.k}',this.value)" style="width:100%;accent-color:#6366f1">
+        </div>`).join("")}
+      <div style="background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700;color:#0f172a;margin-bottom:6px">Judge Notes</div>
+        <textarea id="judge-notes" placeholder="What worked? What to fix?" rows="3"></textarea>
+      </div>
+      <div id="score-display" style="background:#1e293b;border-radius:12px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"></div>
+      <button onclick="submitScore()" style="width:100%;padding:12px;font-size:14px;font-weight:900;border-radius:10px;background:#6366f1;color:#fff;border:none;cursor:pointer">Submit — Pantry Wars</button>
+    </div>`;
+  updateScoreDisplay();
+}
+
+function updateScore(k,v){state.scores[k]=+v;$("score-val-"+k).textContent=v;updateScoreDisplay();}
+function calcTotal(){const s=state.scores;return Math.round(s.taste*3.5+s.creativity*2.5+s.presentation*2+s.difficulty*2);}
+function updateScoreDisplay(){
+  const t=calcTotal();const g=t>=90?"A+":t>=80?"A":t>=70?"B":t>=60?"C":"D";
+  const gc=t>=80?"#22c55e":t>=60?"#f59e0b":"#ef4444";
+  const sd=$("score-display");
+  if(sd) sd.innerHTML=`<div><div style="font-size:10px;color:#64748b;font-weight:700">SCORE</div><div style="font-size:28px;font-weight:900;color:${gc}">${t}/100</div></div><div style="font-size:44px;font-weight:900;color:${gc}">${g}</div>`;
+}
+function submitScore(){
+  const t=calcTotal();const g=t>=90?"A+":t>=80?"A":t>=70?"B":t>=60?"C":"D";
+  const gc=t>=80?"#22c55e":t>=60?"#f59e0b":"#ef4444";
+  const notes=$("judge-notes")?.value||"";
+  const s=state.scores;
+  $("screen-score").innerHTML=`
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#f1f5f9">
+      <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:32px;max-width:400px;width:100%;text-align:center">
+        <div style="font-size:52px;margin-bottom:8px">🏆</div>
+        <div style="font-size:11px;font-weight:900;color:#6366f1;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px">Pantry Wars</div>
+        <div style="font-size:52px;font-weight:900;color:${gc}">${g}</div>
+        <div style="font-size:20px;font-weight:800;color:#0f172a">${t}/100</div>
+        <div style="font-size:12px;color:#94a3b8;margin-bottom:18px">${state.challenge.ctype.label} · ${state.challenge.diff.toUpperCase()}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;text-align:left">
+          ${[["Taste",s.taste],["Creativity",s.creativity],["Presentation",s.presentation],["Difficulty",s.difficulty]].map(([l,v])=>`<div style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:8px;padding:10px"><div style="font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase">${l}</div><div style="font-size:22px;font-weight:900;color:#0f172a">${v}<span style="font-size:11px;color:#94a3b8">/10</span></div></div>`).join("")}
+        </div>
+        ${notes?`<div style="background:#f8fafc;border-radius:8px;padding:10px;font-size:12px;color:#334155;text-align:left;margin-bottom:14px">${notes}</div>`:""}
+        <button onclick="state.scores={taste:7,creativity:7,presentation:7,difficulty:7};showScreen('screen-pantry');renderPantry();" style="width:100%;padding:12px;font-size:13px;font-weight:800;border-radius:10px;background:#6366f1;color:#fff;border:none;cursor:pointer">Pantry Wars — Play again</button>
+      </div>
+    </div>`;
+}
+
+// ── AI MODAL ──────────────────────────────────────────────────────────────────
+const MODAL_PROMPTS={
+  type:      i=>`Culinary expert. "${i}" as a cooking competition challenge type. Return ONLY JSON no markdown: {"label":"name","emoji":"emoji","description":"1 sentence","tags":["keywords"]}`,
+  ingredient:i=>`Culinary expert. User typed: "${i}". Return ONLY compact JSON with keys name, notes, tags — no markdown, no extra text.
+"name": STANDARD ENGLISH pantry label (US grocery / competition basket), Title Case — e.g. Chicken, Chicken Breast, Boneless Skinless Chicken Breast. NEVER translate (no Poulet, Suprema de Pollo, etc.) unless the user's text was in that language. Match specificity: vague input → simple name (chicken → Chicken); specific cut → that cut in English.
+"notes": 1-2 sentence competition tip.
+"tags": array of flavor tags (salty, umami, etc.).`,
+  restriction:i=>`Culinary expert. "${i}" as a cooking restriction. Return ONLY JSON no markdown: {"label":"short name","description":"what it eliminates","tags":["affected"]}`,
+  equipment: i=>`Culinary expert. "${i}" as kitchen equipment. Return ONLY JSON no markdown: {"label":"equipment name","description":"how it affects cooking","tags":["techniques"]}`,
+};
+
+function openModal(type){
+  state.modalType=type;
+  const titles={type:"Add Challenge Type",ingredient:"Add Ingredient",restriction:"Add Restriction",equipment:"Add Equipment"};
+  const placeholders={type:"e.g. Diner Food, Brunch...",ingredient:"e.g. Kohlrabi, Wagyu Beef...",restriction:"e.g. No Frying, Kosher...",equipment:"e.g. Tagine, Pizza Stone..."};
+  const ov=$("modal-overlay");
+  ov.innerHTML=`
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-size:15px;font-weight:800;color:#0f172a">${titles[type]}</div>
+        <button onclick="closeModal()" style="background:#f1f5f9;border:none;border-radius:6px;padding:3px 10px;font-size:18px;cursor:pointer">x</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input id="modal-input" placeholder="${placeholders[type]}" style="flex:1;background:#f8fafc;border:2px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:13px;color:#0f172a">
+        <button id="modal-lookup-btn" onclick="doModalLookup()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Look Up</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>`;
+  ov.classList.remove("hidden");
+  const inp=$("modal-input");
+  inp.focus();
+  inp.addEventListener("keydown",e=>{if(e.key==="Enter")doModalLookup();});
+}
+
+function closeModal(){$("modal-overlay").classList.add("hidden");}
+
+async function doModalLookup(){
+  const inp=$("modal-input");
+  const val=inp?.value?.trim();
+  if(!val) return;
+  const mb=$("modal-body");
+  const lb=$("modal-lookup-btn");
+  mb.innerHTML=`<div style="text-align:center;padding:14px 0;color:#6366f1;font-size:13px;font-weight:700">Looking up ${val}...<br><button onclick="document.getElementById('modal-body').innerHTML=''" style="background:#f1f5f9;border:2px solid #e2e8f0;border-radius:6px;padding:5px 12px;margin-top:8px;cursor:pointer;font-size:11px">Cancel</button></div>`;
+  lb.disabled=true;lb.style.background="#94a3b8";
+  try{
+    const data=await ai(MODAL_PROMPTS[state.modalType](val));
+    lb.disabled=false;lb.style.background="#6366f1";
+    window.__basketPendingModal = data;
+    const name=data.label||data.name||val;
+    const desc=data.description||data.notes||"";
+    const tags=(data.tags||[]).map(t=>`<span style="background:#eff6ff;border:1px solid #93c5fd;border-radius:5px;padding:2px 7px;font-size:11px;font-weight:700;color:#1d4ed8;margin:2px">${escapeHtml(t)}</span>`).join("");
+    mb.innerHTML=`<div style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:10px;padding:12px">
+      <div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:3px">${data.emoji||""} ${escapeHtml(String(name))}</div>
+      ${desc?`<div style="font-size:12px;color:#475569;margin-bottom:8px;line-height:1.5">${escapeHtml(desc)}</div>`:""}
+      ${tags?`<div style="margin-bottom:10px">${tags}</div>`:""}
+      <button type="button" onclick="doModalAddFromPending()" style="width:100%;padding:9px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer">Add</button>
+    </div>`;
+  } catch(e){
+    lb.disabled=false;lb.style.background="#6366f1";
+    mb.innerHTML=`<div style="background:#fef2f2;border:2px solid #fecaca;border-radius:8px;padding:10px;font-size:12px;font-weight:700;color:#b91c1c">
+      Error: ${escapeHtml(e.message)}<br><br>
+      <small style="font-weight:500;color:#6b7280">The app must be served over HTTP(S) so <code>/api/anthropic</code> works. Locally: <code>npm start</code> then open the URL shown. HTTP 401 = bad key. Clear saved key: <code style="font-size:11px">localStorage.removeItem(&quot;basket_anthropic_key_v1&quot;)</code></small><br><br>
+      <button type="button" onclick="doModalLookup()" style="background:#fff;border:2px solid #fecaca;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:11px">Try Again</button>
+    </div>`;
+    console.error("AI lookup failed:", e);
+  }
+}
+
+function doModalAdd(data){
+  const t=state.modalType;
+  if(t==="type"){const nt={id:"c"+Date.now(),label:data.label||data.name,emoji:data.emoji||"🍴",custom:true};state.customTypes.push(nt);state.ctype=nt;}
+  else if(t==="ingredient"){const n=data.name||data.label;if(n&&!state.req.includes(n))state.req.push(n);}
+  else if(t==="restriction"){const n=data.label;if(n&&!state.res.includes(n))state.res.push(n);}
+  else if(t==="equipment"){const n=data.label;if(n&&!state.reqEq.includes(n))state.reqEq.push(n);}
+  closeModal();refreshAfterModalAdd();
+}
+
+function doModalAddFromPending(){
+  const data=window.__basketPendingModal;
+  delete window.__basketPendingModal;
+  if(data) doModalAdd(data);
+}
+
+function doRandomize(){
+  const d=DIFF[state.diff];
+  state.req=pick(window.USER_PANTRY||PANTRY,d.req);state.res=pick(RESTRICT,d.res);state.forbEq=pick(EQUIP,d.forb);
+  state.lim=d.burners;state.cut=d.cut;
+  const t=d.times[Math.floor(Math.random()*d.times.length)];
+  state.total=t;state.prep=Math.round(t*0.35);state.cook=Math.round(t*0.65);
+  state.ctype=CTYPES[Math.floor(Math.random()*CTYPES.length)];
+  state.twist=d.twist?TWISTS[Math.floor(Math.random()*TWISTS.length)]:"";
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+loadAppConfig().then(() => renderPantry());
+</script>
+</body>
+</html>

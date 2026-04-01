@@ -1,0 +1,14 @@
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: pantry-wars
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: ANTHROPIC_API_KEY
+        sync: false
