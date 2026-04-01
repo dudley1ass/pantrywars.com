@@ -69,7 +69,6 @@ const CTYPES = [
   {id:"entree",label:"Entree",emoji:"🍽️"},
   {id:"dessert",label:"Dessert",emoji:"🍮"},
   {id:"snack",label:"Snack",emoji:"🥨"},
-  {id:"drink",label:"Cocktail",emoji:"🍹"},
   {id:"elevate",label:"Elevate a Cheap Meal",emoji:"⬆️"},
   {id:"recreate",label:"Recreate a Classic",emoji:"🔄"},
 ];
@@ -1103,6 +1102,16 @@ function renderRecipe() {
     <div id="recipe-body" style="padding:8px 12px 20px">
       <p style="text-align:center;font-size:12px;color:#64748b;max-width:640px;margin:8px auto 14px;line-height:1.45"><strong style="color:#f8fafc;font-size:11px;letter-spacing:2px">PANTRY WARS</strong> · <strong style="color:#94a3b8">Duel:</strong> write <strong style="color:#f59e0b">Your plan</strong> while <strong style="color:#818cf8">Rival chef</strong> loads—then tap <strong style="color:#fbbf24">Battle</strong> for side-by-side scorecards (or run the clock first).</p>
       ${battleConstraintsHtml(state.challenge)}
+      <div id="contest-plan-row" style="max-width:1180px;margin:0 auto 14px;padding:0 12px">
+        <div style="background:linear-gradient(145deg,#312e81 0%,#1e1b4b 100%);border:2px solid #a855f7;border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px">
+          <div style="flex:1;min-width:220px">
+            <div style="font-size:10px;font-weight:900;color:#e9d5ff;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Real cook-off — competition game plan</div>
+            <div style="font-size:13px;color:#c4b5fd;line-height:1.5">What AI would cook <strong style="color:#fff">on the line</strong> for this basket: timed, judge-ready, execution-first. Works anytime — you don’t need to wait for the rival recipe.</div>
+          </div>
+          <button type="button" id="contest-live-btn" onclick="generateContestRecipe()" style="flex-shrink:0;background:linear-gradient(180deg,#a855f7,#7c3aed);color:#fff;border:none;border-radius:12px;padding:14px 22px;font-size:13px;font-weight:900;cursor:pointer;box-shadow:0 6px 20px rgba(124,58,237,0.4);white-space:nowrap">🔴 Competition game plan</button>
+        </div>
+        <div id="contest-recipe-inline" style="margin-top:10px"></div>
+      </div>
       <div id="recipe-compare-grid">
         <div id="recipe-ai-panel">
           <div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>
@@ -1116,6 +1125,7 @@ function renderRecipe() {
       </div>
     </div>`;
   wireUserCookPlanForm();
+  renderContestRecipeBox();
   generateRecipe();
 }
 
@@ -1162,9 +1172,6 @@ function courseEnforcementBlock(ch, sig) {
   }
   if (id === "snack") {
     return `COURSE LOCK — SNACK: Hand food or casual small plate — not a composed restaurant entree.\n`;
-  }
-  if (id === "drink") {
-    return `COURSE LOCK — COCKTAIL / DRINK: Primary deliverable is a drinkable beverage in glass/coupe — food garnish only as supporter.\n`;
   }
   if (id === "elevate" || id === "recreate") {
     const L = String((ch.ctype && ch.ctype.label) || id).toUpperCase();
@@ -1285,7 +1292,7 @@ function contestRecipeHtml(cr){
   const ing=(cr.ingredients||[]).map(i=>`<div style="font-size:11px;color:#e9d5ff;padding:4px 0;border-bottom:1px solid #4c1d95"><span style="color:#fbbf24;font-weight:700">${escapeHtml(i.amount||"")}</span> ${escapeHtml(i.item||"")}${i.prep?` <span style="color:#94a3b8;font-size:10px">(${escapeHtml(i.prep)})</span>`:""}</div>`).join("");
   const steps=(cr.steps||[]).map(s=>`<div style="margin-bottom:8px"><span style="font-size:9px;font-weight:800;color:#a78bfa">${escapeHtml(s.phase||"")}</span> <strong style="color:#fff;font-size:12px">${escapeHtml(s.what||"")}</strong><div style="font-size:11px;color:#c4b5fd;margin-top:2px;line-height:1.4">${escapeHtml(s.how||"")}</div></div>`).join("");
   return `<div id="contest-recipe-box" style="margin-bottom:14px;background:linear-gradient(160deg,#1e1b4b 0%,#0f172a 100%);border:2px solid #a855f7;border-radius:14px;padding:14px 16px">
-    <div style="font-size:10px;font-weight:900;color:#e9d5ff;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">On the line — real competition run</div>
+    <div style="font-size:10px;font-weight:900;color:#e9d5ff;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Competition game plan</div>
     <div style="font-size:17px;font-weight:900;color:#fff;margin-bottom:4px">${escapeHtml(cr.title||"Your winning run")}</div>
     ${cr.tagline?`<div style="font-size:12px;color:#c4b5fd;margin-bottom:10px;font-style:italic">${escapeHtml(cr.tagline)}</div>`:""}
     ${cr.atThePass?`<div style="font-size:11px;color:#e2e8f0;line-height:1.5;margin-bottom:8px"><strong style="color:#94a3b8">Plate:</strong> ${escapeHtml(cr.atThePass)}</div>`:""}
@@ -1296,21 +1303,29 @@ function contestRecipeHtml(cr){
   </div>`;
 }
 
+function renderContestRecipeBox(){
+  const box=$("contest-recipe-inline");
+  if(box) box.innerHTML=state.contestRecipe?contestRecipeHtml(state.contestRecipe):"";
+}
+
 async function generateContestRecipe(){
   const ch=state.challenge;
-  if(!ch||!state.recipe){alert("Wait for the rival chef recipe first.");return;}
+  if(!ch||!(ch.required&&ch.required.length)){alert("Launch a challenge with required ingredients first.");return;}
   const btn=$("contest-live-btn");
   if(btn){btn.disabled=true;btn.innerHTML="⏳ Calling the pass…";}
   try{
     const pantryLines=ch.pantry.length<=28?ch.pantry.join(", "):ch.pantry.slice(0,28).join(", ")+", …";
     const rr=state.recipe;
-    const prompt=`You are a competition cooking coach for a timed TV-style cook-off. The cook will REALLY make this dish on the clock.
-Write a WINNING, execution-tight plan — not a copy of the rival recipe. Different angles, clearer priorities, fewer moving parts.
-
-CONTEXT (rival recipe — do not plagiarize; beat it on clarity and clock fit):
+    const rivalBlock=rr
+      ? `RIVAL DRAFT (do not plagiarize; out-execute on clarity and clock fit):
 Title: ${(rr.title||"").slice(0,120)}
 Tagline: ${(rr.tagline||"").slice(0,160)}
+`
+      : `No rival draft loaded yet — build the plan from the basket and rules only.\n`;
+    const prompt=`You are a competition cooking coach for a timed TV-style FOOD cook-off. The cook will REALLY cook this on the clock — edible plate only, not drinks-only.
+Write a WINNING, execution-tight plan — not a copy of any rival draft. Different angles, clearer priorities, fewer moving parts.
 
+${rivalBlock}
 MUST USE: ${ch.required.join(", ")}
 RESTRICTIONS: ${(ch.restrictions||[]).join(", ")||"none"}
 EQUIPMENT: must ${(ch.reqEquip||[]).join(", ")||"—"} · forbidden ${(ch.forbEquip||[]).join(", ")||"—"}${ch.limitBurners?" · 1 burner only":""}
@@ -1322,11 +1337,12 @@ Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short stri
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE and every restriction.`;
     const data=await ai(prompt,4096);
     state.contestRecipe=data;
-    showRecipeData(state.recipe);
+    renderContestRecipeBox();
+    if(state.recipe) showRecipeData(state.recipe);
   }catch(e){
-    alert("On the line recipe failed: "+e.message);
+    alert("Competition game plan failed: "+e.message);
   }finally{
-    if(btn){btn.disabled=false;btn.innerHTML="🔴 On the line — cook to win";}
+    if(btn){btn.disabled=false;btn.innerHTML="🔴 Competition game plan";}
   }
 }
 
@@ -1357,10 +1373,8 @@ function showRecipeData(r) {
       ${(r.steps||[]).map((s,i)=>{const col=({"PREP":"#3b82f6","COOK":"#ef4444","SAUCE":"#f97316","ASSEMBLE":"#a855f7","PLATE":"#22c55e"})[s.phase]||"#64748b";return`<div style="display:flex;gap:10px;margin-bottom:10px"><div style="text-align:right;min-width:36px;padding-top:2px;flex-shrink:0"><div style="font-size:11px;font-weight:800;color:#f59e0b">${s.time}</div><div style="font-size:10px;color:#475569">${s.dur}</div></div><div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="width:10px;height:10px;border-radius:50%;background:${s.phase==="PLATE"?col:"#334155"};border:2px solid ${col};margin-top:3px"></div>${i<(r.steps.length-1)?`<div style="width:2px;flex:1;background:#1e293b;min-height:12px;margin-top:2px"></div>`:""}</div><div style="flex:1"><div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><span style="background:${col}22;color:${col};border:1px solid ${col}55;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800">${s.phase}</span><span style="font-size:12px;font-weight:800;color:#f8fafc">${s.what}</span></div><div style="font-size:11px;color:#94a3b8;line-height:1.4">${s.how}</div></div></div>`}).join("")}
     </div>
   </div>
-  ${state.contestRecipe?contestRecipeHtml(state.contestRecipe):""}
   <div style="margin-top:16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px">
-    <button type="button" id="contest-live-btn" onclick="generateContestRecipe()" style="background:linear-gradient(180deg,#a855f7,#7c3aed);color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:13px;font-weight:900;cursor:pointer;width:100%;max-width:420px;box-shadow:0 6px 20px rgba(124,58,237,0.35)">🔴 On the line — cook to win</button>
-    <div style="font-size:11px;color:#94a3b8;max-width:420px;line-height:1.45">For when you’re <strong style="color:#c4b5fd">actually cooking</strong> this basket — a tighter, competition-focused game plan (not the same as the rival draft above).</div>
+    <div style="font-size:11px;color:#94a3b8;max-width:420px;line-height:1.45">Competition game plan lives <strong style="color:#c4b5fd">above</strong> — tap it anytime.</div>
     <button type="button" id="battle-btn" onclick="openBattleScorecards()" disabled style="background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#0f172a;border:none;border-radius:12px;padding:12px 28px;font-size:14px;font-weight:900;cursor:not-allowed;box-shadow:0 6px 20px rgba(245,158,11,0.35);width:100%;max-width:380px">⚔ Battle — compare & scorecards</button>
     <div id="battle-hint" style="font-size:11px;color:#94a3b8;text-align:center;max-width:400px;line-height:1.45">Describe what you’d cook in <strong style="color:#f59e0b">Your battle plan</strong> (left column). Then tap <strong style="color:#fbbf24">Battle</strong> to judge both dishes side by side — or start the clock and cook first.</div>
     <button type="button" onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:12px;padding:12px 32px;font-size:14px;font-weight:900;cursor:pointer">Pantry Wars — Start ${ch.totalTime} min clock</button>
@@ -1369,6 +1383,7 @@ function showRecipeData(r) {
   const aiHead='<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>';
   if(aiPanel) aiPanel.innerHTML=aiHead+html;
   else $("recipe-body").innerHTML=aiHead+html;
+  renderContestRecipeBox();
   wireUserCookPlanForm();
   updateBattleButtonState();
 }
