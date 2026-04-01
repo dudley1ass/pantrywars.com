@@ -38,16 +38,17 @@
   @keyframes rndSpin{0%{opacity:.35;transform:translateY(6px) scale(.98)}100%{opacity:1;transform:translateY(0) scale(1)}}
   @keyframes rndShine{0%{background-position:0% 50%}100%{background-position:200% 50%}}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-  #randomize-overlay{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 20%,#1e293b 0%,#0f172a 55%,#020617 100%);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn .25s ease}
-  #randomize-overlay .rnd-panel{max-width:420px;width:100%;background:linear-gradient(145deg,#334155,#1e293b);border:2px solid #f59e0b;border-radius:20px;padding:24px 22px;text-align:center;box-shadow:0 25px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08)}
-  #randomize-overlay .rnd-title{font-size:11px;font-weight:900;letter-spacing:4px;color:#94a3b8;text-transform:uppercase;margin-bottom:8px}
-  #randomize-overlay .rnd-h{font-size:22px;font-weight:900;color:#f8fafc;margin-bottom:6px;line-height:1.2}
-  #randomize-overlay .rnd-slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin:12px 0;width:100%}
-  #randomize-overlay .rnd-slot{min-height:46px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fbbf24;padding:10px 8px;background:#0f172a;border-radius:10px;border:1px solid #475569;text-align:center;line-height:1.25;animation:rndSpin .12s ease}
-  #randomize-overlay .rnd-slot.rnd-done{color:#a5b4fc;border-color:#6366f1}
-  #randomize-overlay .rnd-sub{font-size:12px;color:#94a3b8;line-height:1.45;margin-top:8px}
-  #randomize-overlay .rnd-bar{height:4px;border-radius:999px;background:#334155;overflow:hidden;margin-top:14px}
-  #randomize-overlay .rnd-bar>i{display:block;height:100%;width:30%;background:linear-gradient(90deg,#f59e0b,#fbbf24,#f59e0b);background-size:200% 100%;animation:rndShine .8s linear infinite;border-radius:999px}
+  #spin-host .basket-spin-wrap{max-width:100%;background:#fff;border:2px solid #f59e0b;border-radius:14px;padding:14px 12px;margin-bottom:12px;box-shadow:0 8px 24px rgba(15,23,42,.08);animation:fadeIn .2s ease}
+  #spin-host .basket-spin-h{font-size:13px;font-weight:900;color:#0f172a;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  #spin-host .basket-spin-slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+  #spin-host .basket-spin-cell{display:flex;flex-direction:column;gap:4px;min-width:0}
+  #spin-host .basket-spin-lbl{font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:#64748b}
+  #spin-host .rnd-slot{min-height:44px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#b45309;padding:8px 6px;background:#fffbeb;border-radius:10px;border:1px solid #fde68a;text-align:center;line-height:1.2;word-break:break-word;animation:rndSpin .12s ease}
+  #spin-host .rnd-slot.rnd-done-ing{color:#3730a3;border-color:#818cf8;background:#eef2ff}
+  #spin-host .rnd-slot.rnd-done-res{color:#b91c1c;border-color:#fca5a5;background:#fef2f2}
+  #spin-host .rnd-slot.rnd-done-ct{color:#0f172a;border-color:#fbbf24;background:#fffbeb}
+  #spin-host .basket-spin-bar{height:3px;border-radius:999px;background:#e2e8f0;overflow:hidden;margin-top:10px}
+  #spin-host .basket-spin-bar>i{display:block;height:100%;width:30%;background:linear-gradient(90deg,#f59e0b,#fbbf24,#f59e0b);background-size:200% 100%;animation:rndShine .8s linear infinite;border-radius:999px}
 </style>
 </head>
 <body>
@@ -74,13 +75,11 @@ const CTYPES = [
 ];
 const EQUIP=["Oven","Stovetop","Air Fryer","Grill","Microwave","Instant Pot","Blender","Food Processor","Cast Iron","Wok","Sous Vide","Torch","Sheet Pan"];
 const RESTRICT=["No Dairy","No Gluten","No Sugar","No Salt","No Pre-made Sauces","No Butter","No Alcohol","No Nuts","Raw Only","Vegetarian","Vegan"];
-const TWISTS=["Add a sweet element","Plate family-style","Swap one required ingredient","Add something crunchy","Serve it cold","Add a fermented component","Add a fresh herb","Change your protein prep","Dish must have a sauce","Lose 5 more minutes"];
-const PANTRY=["Chicken Thigh","Salmon","Ground Beef","Shrimp","Eggs","Butter","Heavy Cream","Garlic","Shallot","Onion","Lemons","Tomatoes","Spinach","Mushrooms","Arborio Rice","Pasta","Chickpeas","Parmesan","Feta","Goat Cheese","Olive Oil","Soy Sauce","Dijon Mustard","Balsamic Vinegar","Capers","Olives","Crushed Tomatoes","Chicken Stock","Coconut Milk","Pine Nuts","Almonds","Dark Chocolate","Honey","Smoked Paprika","Cumin","Thyme","Basil","Ginger","Sweet Potatoes","Cauliflower","Beets","Corn","Avocados","Mango"];
 const DIFF={
-  easy:  {label:"Easy",  emoji:"🟢",req:2,res:0,times:[45,60],forb:0,burners:false,cut:false,twist:false},
-  medium:{label:"Medium",emoji:"🟡",req:3,res:1,times:[30,45],forb:1,burners:false,cut:false,twist:true},
-  hard:  {label:"Hard",  emoji:"🔴",req:4,res:2,times:[25,30],forb:2,burners:true, cut:true, twist:true},
-  insane:{label:"Insane",emoji:"💀",req:5,res:3,times:[20,25],forb:3,burners:true, cut:true, twist:true},
+  easy:  {label:"Easy",  emoji:"🟢",req:2,res:0,times:[45,60],forb:0,burners:false,cut:false},
+  medium:{label:"Medium",emoji:"🟡",req:3,res:1,times:[30,45],forb:1,burners:false,cut:false},
+  hard:  {label:"Hard",  emoji:"🔴",req:4,res:2,times:[25,30],forb:2,burners:true, cut:true},
+  insane:{label:"Insane",emoji:"💀",req:5,res:3,times:[20,25],forb:3,burners:true, cut:true},
 };
 const FULL_PANTRY = [
   {id:1,  name:"All-Purpose Flour",   cat:"Baking & Bases",          flavor:["salty"],                texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Essential for dredging, roux, dough, batter."},
@@ -146,7 +145,7 @@ const FULL_PANTRY = [
   {id:61, name:"Thyme",               cat:"Spices & Herbs",          flavor:["bitter","umami"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"Strip leaves from woody stem. Essential aromatic."},
   {id:62, name:"Basil",               cat:"Spices & Herbs",          flavor:["sweet","bitter"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"Tear or chiffonade at last second. Loses aroma when cooked."},
   {id:63, name:"Rosemary",            cat:"Spices & Herbs",          flavor:["bitter","umami"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"strong", notes:"Very strong — use sparingly. Infuse in oil."},
-  {id:64, name:"Cumin",               cat:"Spices & Herbs",          flavor:["bitter","umami"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"Toast whole seeds before grinding for maximum flavor."},
+  {id:64, name:"Oregano (Dried)",     cat:"Spices & Herbs",          flavor:["bitter","umami"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"Bloom in oil; pairs with tomato, lamb, beans."},
   {id:65, name:"Cinnamon",            cat:"Spices & Herbs",          flavor:["sweet","bitter"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"A pinch in savory meat braises adds mystique."},
   {id:66, name:"Crushed Tomatoes",    cat:"Canned & Jarred",         flavor:["sweet","sour","umami"], texture:["soft","juicy"],     richness:"lean",   acidity:"high", intensity:"medium", notes:"San Marzano worth it. Simmer 20 min to sweeten."},
   {id:67, name:"Tomato Paste",        cat:"Canned & Jarred",         flavor:["umami","sour","sweet"], texture:[],                   richness:"lean",   acidity:"mild", intensity:"strong", notes:"Cook dry in pan until brick red before adding liquid."},
@@ -159,7 +158,183 @@ const FULL_PANTRY = [
   {id:74, name:"Pine Nuts",           cat:"Nuts & Seeds",            flavor:["sweet","umami"],        texture:["soft","creamy"],    richness:"rich",   acidity:"none", intensity:"mild",   notes:"Toast on low heat — burns fast. Basis of pesto."},
   {id:75, name:"Dark Chocolate",      cat:"Sweet Items",             flavor:["bitter","sweet","umami"],texture:["crunchy","creamy"],richness:"rich",   acidity:"none", intensity:"strong", notes:"70%+ for depth. Temper for shine; melt gently for ganache."},
   {id:76, name:"Caramel",             cat:"Sweet Items",             flavor:["sweet","bitter"],       texture:["soft","creamy"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Dry caramel = more control. Pull darker than you think."},
+  {id:77, name:"Broccoli Rabe",       cat:"Vegetables",              flavor:["bitter","umami"],       texture:["crunchy","soft"],    richness:"lean",   acidity:"none", intensity:"strong", notes:"Blanch then sauté with garlic; classic Italian side."},
+  {id:78, name:"Romanesco",           cat:"Vegetables",              flavor:["sweet","nutty"],        texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"mild",   notes:"Fractal florets roast beautifully whole."},
+  {id:79, name:"Kohlrabi",            cat:"Vegetables",              flavor:["sweet","peppery"],      texture:["crunchy","juicy"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"Peel; raw in slaw or roast wedges."},
+  {id:80, name:"Sunchoke",            cat:"Vegetables",              flavor:["sweet","nutty"],        texture:["crunchy","creamy"],  richness:"lean",   acidity:"none", intensity:"medium", notes:"Jerusalem artichoke — purée or chips; watch portion (inulin)."},
+  {id:81, name:"Fennel Bulb",         cat:"Vegetables",              flavor:["sweet","anise"],        texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"medium", notes:"Shave raw; braise; fronds = garnish."},
+  {id:82, name:"Celery Root",         cat:"Vegetables",              flavor:["earthy","bitter"],      texture:["firm","creamy"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Celeriac purée rivals potato with more depth."},
+  {id:83, name:"Rutabaga",            cat:"Vegetables",              flavor:["sweet","earthy"],       texture:["firm","soft"],      richness:"lean",   acidity:"none", intensity:"mild",   notes:"Roast with maple; mash with butter."},
+  {id:84, name:"Taro Root",           cat:"Vegetables",              flavor:["earthy","sweet"],       texture:["starchy","creamy"],  richness:"lean",   acidity:"none", intensity:"mild",   notes:"Cook thoroughly; chips or coconut stew."},
+  {id:85, name:"Lotus Root",          cat:"Vegetables",              flavor:["mild","sweet"],         texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"mild",   notes:"Slice for chips; starch stays crisp."},
+  {id:86, name:"Bok Choy",            cat:"Vegetables",              flavor:["mild","bitter"],       texture:["crunchy","juicy"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"Separate stems and leaves; high-heat sear."},
+  {id:87, name:"Napa Cabbage",        cat:"Vegetables",              flavor:["sweet","mild"],         texture:["crunchy","soft"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Kimchi, hot pot, quick stir-fry."},
+  {id:88, name:"Savoy Cabbage",       cat:"Vegetables",              flavor:["sweet","mild"],         texture:["tender"],            richness:"lean",   acidity:"none", intensity:"mild",   notes:"Lighter than green cabbage; rolls and slaw."},
+  {id:89, name:"Collard Greens",      cat:"Vegetables",              flavor:["bitter","umami"],       texture:["chewy","soft"],      richness:"lean",   acidity:"none", intensity:"medium", notes:"Low braise with smoke; sturdy wraps."},
+  {id:90, name:"Swiss Chard",         cat:"Vegetables",              flavor:["bitter","earthy"],      texture:["tender"],            richness:"lean",   acidity:"none", intensity:"medium", notes:"Stems cook longer than leaves."},
+  {id:91, name:"Mustard Greens",      cat:"Vegetables",              flavor:["peppery","bitter"],     texture:["chewy"],             richness:"lean",   acidity:"none", intensity:"strong", notes:"Balance with acid and fat."},
+  {id:92, name:"Dandelion Greens",    cat:"Vegetables",              flavor:["bitter"],               texture:["chewy"],             richness:"lean",   acidity:"none", intensity:"strong", notes:"Wilts fast; bitter salad counterpoint."},
+  {id:93, name:"Watercress",          cat:"Vegetables",              flavor:["peppery","bitter"],     texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"medium", notes:"Last-second garnish; peppery bite."},
+  {id:94, name:"Endive",              cat:"Vegetables",              flavor:["bitter","fresh"],       texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"medium", notes:"Boats for composed bites; grill halves."},
+  {id:95, name:"Radicchio",           cat:"Vegetables",              flavor:["bitter","winey"],       texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"strong", notes:"Grill wedges; tame with sweet dressing."},
+  {id:96, name:"Escarole",            cat:"Vegetables",              flavor:["bitter","mild"],        texture:["leafy","soft"],      richness:"lean",   acidity:"none", intensity:"medium", notes:"Bean soups; wilted with garlic."},
+  {id:97, name:"Pea Shoots",          cat:"Vegetables",              flavor:["sweet","fresh"],       texture:["tender"],            richness:"lean",   acidity:"none", intensity:"mild",   notes:"Stir-fry at end; no long cook."},
+  {id:98, name:"Snap Peas",           cat:"Vegetables",              flavor:["sweet"],               texture:["crunchy","juicy"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"String if needed; blister in pan."},
+  {id:99, name:"Sugar Snap Peas",     cat:"Vegetables",              flavor:["sweet"],               texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"mild",   notes:"Eat pod and all; quick sauté."},
+  {id:100,name:"English Peas",        cat:"Vegetables",              flavor:["sweet","umami"],       texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Shell fresh; mint and butter classic."},
+  {id:101,name:"Edamame",             cat:"Vegetables",              flavor:["sweet","umami"],       texture:["firm"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Blanch pods; salt; or shelled in salad."},
+  {id:102,name:"Green Beans",         cat:"Vegetables",              flavor:["sweet","grassy"],       texture:["snappy"],            richness:"lean",   acidity:"none", intensity:"mild",   notes:"Haricots verts — blister or almond brown butter."},
+  {id:103,name:"Okra",                cat:"Vegetables",              flavor:["grassy","mild"],        texture:["slimy","crispy"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"High heat or pickle to control slime."},
+  {id:104,name:"Eggplant",            cat:"Vegetables",              flavor:["bitter","umami"],       texture:["creamy"],            richness:"lean",   acidity:"none", intensity:"medium", notes:"Salt drain optional; roast whole for baba."},
+  {id:105,name:"Japanese Eggplant",   cat:"Vegetables",              flavor:["mild","sweet"],         texture:["creamy","tender"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"Faster cooking; miso glaze."},
+  {id:106,name:"Zucchini",            cat:"Vegetables",              flavor:["mild","sweet"],         texture:["firm","soft"],       richness:"lean",   acidity:"none", intensity:"mild",   notes:"Ribbon raw; avoid watery if overcooked."},
+  {id:107,name:"Pattypan Squash",     cat:"Vegetables",              flavor:["nutty","sweet"],        texture:["firm","tender"],     richness:"lean",   acidity:"none", intensity:"mild",   notes:"Stuff or sear; summer showpiece."},
+  {id:108,name:"Acorn Squash",        cat:"Vegetables",              flavor:["sweet","nutty"],        texture:["firm","creamy"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Roast halves; maple and chili."},
+  {id:109,name:"Butternut Squash",    cat:"Vegetables",              flavor:["sweet","earthy"],       texture:["firm","creamy"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Soup, risotto, roast cubes."},
+  {id:110,name:"Delicata Squash",     cat:"Vegetables",              flavor:["sweet","corny"],        texture:["creamy"],            richness:"lean",   acidity:"none", intensity:"mild",   notes:"Skin edible; rings roast fast."},
+  {id:111,name:"Pumpkin",             cat:"Vegetables",              flavor:["sweet","earthy"],       texture:["firm","soft"],       richness:"lean",   acidity:"none", intensity:"medium", notes:"Sugar pumpkins for cooking — not jack-o’."},
+  {id:112,name:"Celery",              cat:"Vegetables",              flavor:["fresh","bitter"],       texture:["crunchy","juicy"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"Mirepoix backbone; leaves = herb."},
+  {id:113,name:"Radishes",            cat:"Vegetables",              flavor:["peppery","fresh"],     texture:["crunchy","juicy"],   richness:"lean",   acidity:"none", intensity:"medium", notes:"Roast mellows heat; pickle pink."},
+  {id:114,name:"Watermelon Radish",   cat:"Vegetables",              flavor:["mild","peppery"],      texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"mild",   notes:"Shave for color; milder than red."},
+  {id:115,name:"Turnips",             cat:"Vegetables",              flavor:["peppery","sweet"],      texture:["firm","soft"],       richness:"lean",   acidity:"none", intensity:"medium", notes:"Roast with tops; mash with potato."},
+  {id:116,name:"Parsnips",            cat:"Vegetables",              flavor:["sweet","earthy"],       texture:["firm","creamy"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Roast until caramel; soup with apple."},
+  {id:117,name:"Jerusalem Artichoke", cat:"Vegetables",              flavor:["sweet","nutty"],        texture:["crunchy","creamy"],  richness:"lean",   acidity:"none", intensity:"medium", notes:"Same as sunchoke — chips or purée."},
+  {id:118,name:"Leeks",               cat:"Aromatics",               flavor:["sweet","onion"],        texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Wash grit between layers; gentle sweat."},
+  {id:119,name:"Red Onion",           cat:"Aromatics",               flavor:["sweet","sharp"],        texture:["crunchy","soft"],    richness:"lean",   acidity:"none", intensity:"medium", notes:"Quick pickle; raw on tacos."},
+  {id:120,name:"Pearl Onions",        cat:"Aromatics",               flavor:["sweet","mild"],        texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Blanch and peel; glaze for bourguignon."},
+  {id:121,name:"Fresno Chile",        cat:"Aromatics",               flavor:["fruity","heat"],        texture:["crunchy","soft"],    richness:"lean",   acidity:"none", intensity:"strong", notes:"Milder than jalapeño; pickle or char."},
+  {id:122,name:"Serrano Pepper",      cat:"Aromatics",               flavor:["bright","heat"],        texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"strong", notes:"Finer dice than jalapeño; raw heat."},
+  {id:123,name:"Poblano Pepper",      cat:"Vegetables",              flavor:["earthy","mild"],        texture:["firm","soft"],       richness:"lean",   acidity:"none", intensity:"medium", notes:"Roast and peel; rajas or relleno."},
+  {id:124,name:"Shishito Peppers",    cat:"Vegetables",              flavor:["sweet","smoky"],        texture:["thin","blistered"],  richness:"lean",   acidity:"none", intensity:"mild",   notes:"Blister whole; 1 in 10 hot."},
+  {id:125,name:"Cherry Tomatoes",     cat:"Vegetables",              flavor:["sweet","acid"],         texture:["juicy","burst"],    richness:"lean",   acidity:"high", intensity:"medium", notes:"Blister in pan; confit slow."},
+  {id:126,name:"Heirloom Tomatoes",   cat:"Vegetables",              flavor:["sweet","umami"],       texture:["juicy","meaty"],     richness:"lean",   acidity:"high", intensity:"medium", notes:"Slice; salt; minimal prep."},
+  {id:127,name:"Roma Tomatoes",       cat:"Vegetables",              flavor:["umami","acid"],         texture:["firm","meaty"],      richness:"lean",   acidity:"high", intensity:"medium", notes:"Sauce and paste workhorse."},
+  {id:128,name:"Potatoes (Yukon)",    cat:"Vegetables",              flavor:["earthy","buttery"],     texture:["creamy","fluffy"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"All-purpose mash and roast."},
+  {id:129,name:"Fingerling Potatoes", cat:"Vegetables",              flavor:["nutty","earthy"],       texture:["firm","creamy"],     richness:"lean",   acidity:"none", intensity:"mild",   notes:"Roast whole; crisp skin."},
+  {id:130,name:"Purple Potato",       cat:"Vegetables",              flavor:["earthy","nutty"],       texture:["firm","waxy"],       richness:"lean",   acidity:"none", intensity:"mild",   notes:"Color holds; salad or roast."},
+  {id:131,name:"Artichoke Hearts",    cat:"Vegetables",              flavor:["sweet","nutty"],        texture:["meaty","tender"],    richness:"lean",   acidity:"none", intensity:"medium", notes:"Grill; barigole; dip leaves."},
+  {id:132,name:"Hearts of Palm",      cat:"Vegetables",              flavor:["mild","sweet"],         texture:["crunchy","stringy"], richness:"lean",   acidity:"none", intensity:"mild",   notes:"Salad veg crab analog; quick pickle."},
+  {id:133,name:"Jicama",              cat:"Vegetables",              flavor:["sweet","fresh"],        texture:["crunchy","juicy"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"Peel; slaw; stays crisp."},
+  {id:134,name:"Daikon Radish",       cat:"Vegetables",              flavor:["mild","peppery"],      texture:["crunchy","juicy"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"Pickle; oden; milder than red."},
+  {id:135,name:"Broccoli",            cat:"Vegetables",              flavor:["bitter","sweet"],       texture:["firm","tender"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"High-heat roast; stems peel and use."},
+  {id:136,name:"Broccolini",          cat:"Vegetables",              flavor:["sweet","mild"],         texture:["tender","snappy"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"Whole stalk sear; faster than broccoli."},
+  {id:137,name:"Green Cabbage",       cat:"Vegetables",              flavor:["sweet","peppery"],      texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"mild",   notes:"Slaw, stir-fry, ferment."},
+  {id:138,name:"Red Cabbage",         cat:"Vegetables",              flavor:["peppery","sweet"],     texture:["crunchy","juicy"],   richness:"lean",   acidity:"none", intensity:"medium", notes:"Pickle pink with acid."},
+  {id:139,name:"Turkey Breast",       cat:"Proteins",                flavor:["mild","savory"],        texture:["lean","firm"],       richness:"lean",   acidity:"none", intensity:"mild",   notes:"Brine; don’t overcook — dry fast."},
+  {id:140,name:"Whole Chicken",       cat:"Proteins",                flavor:["rich","savory"],        texture:["juicy","varied"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Spatchcock for even roast; stock bones."},
+  {id:141,name:"Chicken Wings",       cat:"Proteins",                flavor:["rich","savory"],        texture:["crispy","juicy"],    richness:"medium", acidity:"none", intensity:"medium", notes:"High heat; sauce at end."},
+  {id:142,name:"Cornish Hen",         cat:"Proteins",                flavor:["mild","gamey"],        texture:["tender","small"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Individual plates; fast roast."},
+  {id:143,name:"Ground Turkey",       cat:"Proteins",                flavor:["mild","savory"],        texture:["loose"],             richness:"lean",   acidity:"none", intensity:"mild",   notes:"Season boldly; burgers and ragu."},
+  {id:144,name:"Ground Pork",         cat:"Proteins",                flavor:["rich","sweet"],        texture:["loose","juicy"],     richness:"medium", acidity:"none", intensity:"medium", notes:"Meatballs; dumpling filling."},
+  {id:145,name:"Pork Belly",          cat:"Proteins",                flavor:["rich","sweet"],         texture:["crispy","tender"],   richness:"rich",   acidity:"none", intensity:"strong", notes:"Low roast; crackling; braise."},
+  {id:146,name:"Pork Chop",           cat:"Proteins",                flavor:["mild","sweet"],         texture:["juicy","firm"],      richness:"medium", acidity:"none", intensity:"medium", notes:"Brine; pull at 145F with rest."},
+  {id:147,name:"Baby Back Ribs",      cat:"Proteins",                flavor:["rich","smoky"],        texture:["tender","sticky"],   richness:"rich",   acidity:"none", intensity:"strong", notes:"Low and slow; foil wrap stall."},
+  {id:148,name:"Beef Short Rib",      cat:"Proteins",                flavor:["rich","beefy"],        texture:["tender","silky"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Braise until fork-tender."},
+  {id:149,name:"Ribeye Steak",        cat:"Proteins",                flavor:["rich","beefy"],        texture:["juicy","tender"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Hot sear; rest; fat cap flavor."},
+  {id:150,name:"Flank Steak",         cat:"Proteins",                flavor:["beefy","minerally"],    texture:["firm","fibrous"],    richness:"medium", acidity:"none", intensity:"strong", notes:"Slice across grain; marinade helps."},
+  {id:151,name:"Skirt Steak",         cat:"Proteins",                flavor:["beefy","minerally"],    texture:["loose","juicy"],     richness:"medium", acidity:"none", intensity:"strong", notes:"High heat; rare; tacos."},
+  {id:152,name:"Brisket",             cat:"Proteins",                flavor:["beefy","smoky"],        texture:["tender","shreddy"],  richness:"rich",   acidity:"none", intensity:"strong", notes:"Smoke or braise; rest sliced."},
+  {id:153,name:"Oxtail",              cat:"Proteins",                flavor:["rich","beefy"],        texture:["gelatinous","tender"], richness:"rich",   acidity:"none", intensity:"strong", notes:"Long braise; collagen richness."},
+  {id:154,name:"Halibut Fillet",      cat:"Proteins",                flavor:["mild","sweet"],         texture:["firm","flaky"],      richness:"lean",   acidity:"none", intensity:"mild",   notes:"Don’t overcook; brown butter capers."},
+  {id:155,name:"Cod Fillet",          cat:"Proteins",                flavor:["mild","sweet"],         texture:["flaky","delicate"],  richness:"lean",   acidity:"none", intensity:"mild",   notes:"Fish and chips; gentle poach."},
+  {id:156,name:"Sea Bass",            cat:"Proteins",                flavor:["mild","sweet"],         texture:["buttery","flaky"],   richness:"medium", acidity:"none", intensity:"mild",   notes:"Crispy skin; Asian steam."},
+  {id:157,name:"Mahi Mahi",           cat:"Proteins",                flavor:["mild","sweet"],         texture:["firm","steaky"],     richness:"lean",   acidity:"none", intensity:"mild",   notes:"Grill; holds up to salsa."},
+  {id:158,name:"Swordfish Steak",     cat:"Proteins",                flavor:["mild","meaty"],         texture:["firm","steaky"],     richness:"medium", acidity:"none", intensity:"medium", notes:"Grill like steak; don’t dry out."},
+  {id:159,name:"Tuna Steak",          cat:"Proteins",                flavor:["rich","meaty"],         texture:["dense","steaky"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Sear rare; slice thin."},
+  {id:160,name:"Mussels",             cat:"Proteins",                flavor:["briny","sweet"],        texture:["tender","juicy"],    richness:"lean",   acidity:"none", intensity:"medium", notes:"Steam open; discard unopened."},
+  {id:161,name:"Clams",               cat:"Proteins",                flavor:["briny","sweet"],        texture:["tender"],            richness:"lean",   acidity:"none", intensity:"medium", notes:"Purge sand; quick steam."},
+  {id:162,name:"Lobster Tail",        cat:"Proteins",                flavor:["sweet","rich"],        texture:["firm","bouncy"],     richness:"rich",   acidity:"none", intensity:"medium", notes:"Butter baste; don’t overcook."},
+  {id:163,name:"Crab Meat",           cat:"Proteins",                flavor:["sweet","briny"],        texture:["flaky","delicate"],  richness:"lean",   acidity:"none", intensity:"medium", notes:"Fold gently; cakes and salad."},
+  {id:164,name:"Squid",               cat:"Proteins",                flavor:["mild","briny"],         texture:["snappy","tender"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"30 seconds high heat or low braise."},
+  {id:165,name:"Octopus",             cat:"Proteins",                flavor:["sweet","briny"],        texture:["tender","snappy"],   richness:"lean",   acidity:"none", intensity:"medium", notes:"Tenderize; char on grill."},
+  {id:166,name:"Tofu (Firm)",       cat:"Proteins",                flavor:["mild","nutty"],         texture:["firm","crispy"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Press; cornstarch dredge for crunch."},
+  {id:167,name:"Tofu (Silken)",     cat:"Proteins",                flavor:["mild","creamy"],        texture:["silky","soft"],      richness:"lean",   acidity:"none", intensity:"mild",   notes:"Soups; mapo; gentle heat."},
+  {id:168,name:"Tempeh",              cat:"Proteins",                flavor:["nutty","earthy"],       texture:["firm","crumbly"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Steam slice; marinate; sear."},
+  {id:169,name:"Seitan",              cat:"Proteins",                flavor:["savory","meaty"],       texture:["chewy","firm"],      richness:"lean",   acidity:"none", intensity:"strong", notes:"Wheat gluten — braise or fry."},
+  {id:170,name:"Kidney Beans",        cat:"Grains & Legumes",        flavor:["earthy","umami"],       texture:["creamy","soft"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Chili classic; cook until creamy."},
+  {id:171,name:"Navy Beans",          cat:"Grains & Legumes",        flavor:["mild","creamy"],       texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Boston baked; white chili."},
+  {id:172,name:"Pinto Beans",         cat:"Grains & Legumes",        flavor:["earthy","umami"],       texture:["creamy"],            richness:"lean",   acidity:"none", intensity:"medium", notes:"Refried; ranch beans."},
+  {id:173,name:"Cannellini Beans",    cat:"Grains & Legumes",        flavor:["nutty","creamy"],      texture:["soft","creamy"],     richness:"lean",   acidity:"none", intensity:"mild",   notes:"White bean stew; mash for dip."},
+  {id:174,name:"Great Northern Beans",cat:"Grains & Legumes",        flavor:["mild","creamy"],       texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Soup bean; holds shape."},
+  {id:175,name:"Red Lentils",         cat:"Grains & Legumes",        flavor:["earthy","sweet"],       texture:["soft","mushy"],      richness:"lean",   acidity:"none", intensity:"mild",   notes:"Dal — cooks fast; watch foam."},
+  {id:176,name:"Green Lentils",       cat:"Grains & Legumes",        flavor:["peppery","earthy"],     texture:["firm","bite"],      richness:"lean",   acidity:"none", intensity:"medium", notes:"Du Puy — salad and side."},
+  {id:177,name:"Split Peas",          cat:"Grains & Legumes",        flavor:["sweet","earthy"],       texture:["soft","thick"],      richness:"lean",   acidity:"none", intensity:"mild",   notes:"Soup; no soak needed."},
+  {id:178,name:"Farro",               cat:"Grains & Legumes",        flavor:["nutty","wheaty"],       texture:["chewy"],             richness:"lean",   acidity:"none", intensity:"medium", notes:"Toss in salads; risotto-style."},
+  {id:179,name:"Barley (Pearl)",      cat:"Grains & Legumes",        flavor:["mild","earthy"],       texture:["chewy","creamy"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Soup and risotto; long simmer."},
+  {id:180,name:"Couscous",            cat:"Grains & Legumes",        flavor:["mild","wheaty"],       texture:["fluffy","soft"],     richness:"lean",   acidity:"none", intensity:"mild",   notes:"Steam; fluff; North African tagines."},
+  {id:181,name:"Polenta",             cat:"Grains & Legumes",        flavor:["corny","sweet"],        texture:["creamy","crispy"],   richness:"medium", acidity:"none", intensity:"mild",   notes:"Whisk; chill slice and fry."},
+  {id:182,name:"Gnocchi",             cat:"Grains & Legumes",        flavor:["savory","potato"],     texture:["soft","pillowy"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Brown butter sage; light touch on flour."},
+  {id:183,name:"Rice Noodles",        cat:"Grains & Legumes",        flavor:["mild"],                 texture:["soft","slippery"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"Soak; pad thai; pho."},
+  {id:184,name:"Soba Noodles",        cat:"Grains & Legumes",        flavor:["nutty","toasty"],       texture:["firm","chewy"],      richness:"lean",   acidity:"none", intensity:"medium", notes:"Rinse cold; dipping sauce."},
+  {id:185,name:"Udon Noodles",        cat:"Grains & Legumes",        flavor:["mild","wheaty"],       texture:["chewy","thick"],     richness:"lean",   acidity:"none", intensity:"mild",   notes:"Hearty broths; yaki udon."},
+  {id:186,name:"Tortillas (Corn)",    cat:"Grains & Legumes",        flavor:["corny","toasty"],       texture:["soft","pliable"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Char on flame; double for strength."},
+  {id:187,name:"Panko Breadcrumbs",   cat:"Baking & Bases",          flavor:["neutral"],              texture:["crispy","light"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Japanese cutlet crunch; don’t overpack."},
+  {id:188,name:"Cornstarch",          cat:"Baking & Bases",          flavor:["neutral"],              texture:[],                    richness:"lean",   acidity:"none", intensity:"none",   notes:"Slurry; velveting; crispy tofu coat."},
+  {id:189,name:"Miso Paste",            cat:"Canned & Jarred",         flavor:["salty","umami"],        texture:["smooth"],            richness:"medium", acidity:"none", intensity:"strong", notes:"White vs red — sweet vs bold."},
+  {id:190,name:"Gochujang",             cat:"Canned & Jarred",         flavor:["spicy","sweet","umami"],texture:["thick"],             richness:"medium", acidity:"none", intensity:"strong", notes:"Korean heat; glaze and marinade."},
+  {id:191,name:"Fish Sauce",            cat:"Oils & Vinegars",         flavor:["funky","salty"],        texture:[],                    richness:"lean",   acidity:"none", intensity:"strong", notes:"In drops; Southeast Asian depth."},
+  {id:192,name:"Rice Vinegar",          cat:"Oils & Vinegars",         flavor:["mild","sweet"],         texture:[],                    richness:"lean",   acidity:"mild", intensity:"mild",   notes:"Sushi rice; pickles."},
+  {id:193,name:"Sherry Vinegar",        cat:"Oils & Vinegars",         flavor:["nutty","complex"],      texture:[],                    richness:"lean",   acidity:"high", intensity:"medium", notes:"Salads; reduction glaze."},
+  {id:194,name:"White Wine",            cat:"Oils & Vinegars",         flavor:["fruity","acid"],        texture:[],                    richness:"lean",   acidity:"high", intensity:"medium", notes:"Deglaze; poach; risotto (if allowed)."},
+  {id:195,name:"Tahini",                cat:"Nuts & Seeds",            flavor:["bitter","nutty"],       texture:["creamy"],            richness:"rich",   acidity:"none", intensity:"medium", notes:"Whisk with lemon; hummus base."},
+  {id:196,name:"Pumpkin Seeds",         cat:"Nuts & Seeds",            flavor:["nutty","earthy"],       texture:["crunchy"],           richness:"medium", acidity:"none", intensity:"medium", notes:"Pepitas — toast; mole; salad."},
+  {id:197,name:"Sesame Seeds",          cat:"Nuts & Seeds",            flavor:["nutty","toasty"],       texture:["crunchy"],           richness:"rich",   acidity:"none", intensity:"medium", notes:"Toast; furikake; crust."},
+  {id:198,name:"Walnuts",               cat:"Nuts & Seeds",            flavor:["bitter","sweet"],       texture:["crunchy","buttery"], richness:"rich",   acidity:"none", intensity:"medium", notes:"Toast; pestos; brittle."},
+  {id:199,name:"Pecans",                cat:"Nuts & Seeds",            flavor:["sweet","buttery"],      texture:["crunchy"],           richness:"rich",   acidity:"none", intensity:"medium", notes:"Pie; candied salad."},
+  {id:200,name:"Cashews",               cat:"Nuts & Seeds",            flavor:["sweet","creamy"],       texture:["soft","crunchy"],    richness:"rich",   acidity:"none", intensity:"mild",   notes:"Soak for cream; stir-fry."},
+  {id:201,name:"Sage (Fresh)",          cat:"Spices & Herbs",          flavor:["earthy","bitter"],       texture:["soft","leafy"],      richness:"lean",   acidity:"none", intensity:"strong", notes:"Brown butter; poultry classic."},
+  {id:202,name:"Tarragon",              cat:"Spices & Herbs",          flavor:["anise","sweet"],        texture:["soft"],              richness:"lean",   acidity:"none", intensity:"medium", notes:"Bearnaise; chicken; fines herbes."},
+  {id:203,name:"Marjoram",              cat:"Spices & Herbs",          flavor:["sweet","pine"],         texture:[],                    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Milder oregano; pork and beans."},
+  {id:204,name:"Bay Leaves",            cat:"Spices & Herbs",          flavor:["woody","bitter"],       texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Remove before serve; stocks and braises."},
+  {id:205,name:"Star Anise",            cat:"Spices & Herbs",          flavor:["sweet","licorice"],     texture:[],                    richness:"lean",   acidity:"none", intensity:"strong", notes:"Pho; Chinese braise; remove whole."},
+  {id:206,name:"Cardamom",              cat:"Spices & Herbs",          flavor:["citrus","spice"],       texture:[],                    richness:"lean",   acidity:"none", intensity:"strong", notes:"Toast pods; sweet and savory."},
+  {id:207,name:"Sumac",                 cat:"Spices & Herbs",          flavor:["sour","fruity"],        texture:[],                    richness:"lean",   acidity:"high", intensity:"medium", notes:"Za’atar; lemon replacement."},
+  {id:208,name:"Za’atar",               cat:"Spices & Herbs",          flavor:["herb","sesame"],        texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Oil dip; flatbread topping."},
+  {id:209,name:"Furikake",              cat:"Spices & Herbs",          flavor:["umami","savory"],       texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Rice seasoning; popcorn."},
+  {id:210,name:"Nutritional Yeast",     cat:"Spices & Herbs",          flavor:["cheesy","umami"],       texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Vegan parm; popcorn."},
+  {id:211,name:"Greek Yogurt",          cat:"Dairy & Cheese",          flavor:["tangy","creamy"],       texture:["thick","creamy"],    richness:"medium", acidity:"high", intensity:"medium", notes:"Marinade; tzatziki; labneh-style drain."},
+  {id:212,name:"Crème Fraîche",         cat:"Dairy & Cheese",          flavor:["tangy","rich"],         texture:["creamy"],            richness:"rich",   acidity:"mild", intensity:"medium", notes:"Finish sauces; dollop on soup."},
+  {id:213,name:"Mascarpone",            cat:"Dairy & Cheese",          flavor:["sweet","rich"],         texture:["creamy","thick"],    richness:"rich",   acidity:"none", intensity:"mild",   notes:"Tiramisu; savory whip."},
+  {id:214,name:"Blue Cheese",           cat:"Dairy & Cheese",          flavor:["salty","funky"],        texture:["creamy","crumbly"],  richness:"rich",   acidity:"none", intensity:"strong", notes:"Wedge salad; melt into sauce."},
+  {id:215,name:"Gruyère",               cat:"Dairy & Cheese",          flavor:["nutty","sweet"],        texture:["firm","melty"],      richness:"rich",   acidity:"none", intensity:"strong", notes:"French onion; gratins."},
+  {id:216,name:"Pecorino Romano",       cat:"Dairy & Cheese",          flavor:["salty","sheepy"],       texture:["hard","grainy"],     richness:"rich",   acidity:"none", intensity:"strong", notes:"Cacio e pepe; salty finish."},
+  {id:217,name:"Paneer",                cat:"Dairy & Cheese",          flavor:["mild","milky"],         texture:["firm","crumbly"],    richness:"medium", acidity:"none", intensity:"mild",   notes:"Doesn’t melt — sear and curry."},
+  {id:218,name:"Halloumi",              cat:"Dairy & Cheese",          flavor:["salty","squeaky"],      texture:["firm","crispy"],   richness:"medium", acidity:"none", intensity:"strong", notes:"Grill; squeak when hot."},
+  {id:219,name:"Prosciutto",            cat:"Proteins",                flavor:["salty","rich"],         texture:["silky","tender"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Wrap melon; crisp for garnish."},
+  {id:220,name:"Chorizo",               cat:"Proteins",                flavor:["smoky","spicy"],       texture:["firm","crumbly"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Render fat; flavor oil."},
+  {id:221,name:"Italian Sausage",       cat:"Proteins",                flavor:["fennel","rich"],       texture:["juicy","crumbly"],   richness:"rich",   acidity:"none", intensity:"strong", notes:"Remove casing; crumble brown."},
+  {id:222,name:"Andouille",             cat:"Proteins",                flavor:["smoky","spicy"],       texture:["firm","chewy"],      richness:"rich",   acidity:"none", intensity:"strong", notes:"Gumbo; dirty rice."},
+  {id:223,name:"Kielbasa",              cat:"Proteins",                flavor:["garlic","smoky"],      texture:["firm","snappy"],     richness:"medium", acidity:"none", intensity:"strong", notes:"Sear slices; pierogi side."},
+  {id:224,name:"Blood Orange",          cat:"Fruits",                  flavor:["sweet","tart"],        texture:["juicy","segmented"], richness:"lean",   acidity:"high", intensity:"medium", notes:"Drama color; salad and dessert."},
+  {id:225,name:"Grapefruit",            cat:"Fruits",                  flavor:["bitter","sour"],        texture:["juicy"],             richness:"lean",   acidity:"high", intensity:"strong", notes:"Supreme; brûlée top; vinaigrette."},
+  {id:226,name:"Persimmon",             cat:"Fruits",                  flavor:["honey","spice"],        texture:["firm","jelly"],      richness:"lean",   acidity:"none", intensity:"medium", notes:"Fuyu vs Hachiya — know your type."},
+  {id:227,name:"Fig",                   cat:"Fruits",                  flavor:["honey","jammy"],        texture:["soft","seedy"],      richness:"medium", acidity:"none", intensity:"medium", notes:"Prosciutto; roast with cheese."},
+  {id:228,name:"Date",                  cat:"Fruits",                  flavor:["caramel","sweet"],      texture:["chewy","soft"],      richness:"medium", acidity:"none", intensity:"strong", notes:"Pit; bacon wrap; smoothies."},
+  {id:229,name:"Plum",                  cat:"Fruits",                  flavor:["sweet","tart"],         texture:["juicy","firm"],      richness:"lean",   acidity:"high", intensity:"medium", notes:"Tarte; chutney; grill halves."},
+  {id:230,name:"Pear",                  cat:"Fruits",                  flavor:["sweet","floral"],       texture:["juicy","soft"],      richness:"lean",   acidity:"mild", intensity:"mild",   notes:"Poach wine; blue cheese pairing."},
+  {id:231,name:"Coconut (Fresh)",       cat:"Fruits",                  flavor:["sweet","nutty"],        texture:["crunchy","juicy"],   richness:"rich",   acidity:"none", intensity:"medium", notes:"Toast flakes; water in curry."},
+  {id:232,name:"Plantain",              cat:"Fruits",                  flavor:["starchy","sweet"],       texture:["firm","soft"],       richness:"lean",   acidity:"none", intensity:"mild",   notes:"Green fry; ripe caramelize."},
+  {id:233,name:"Yuzu",                  cat:"Fruits",                  flavor:["sour","floral"],         texture:["juicy"],             richness:"lean",   acidity:"high", intensity:"strong", notes:"Zest perfume; juice sparingly."},
+  {id:234,name:"Kiwi",                  cat:"Fruits",                  flavor:["sweet","tart"],         texture:["juicy","soft"],      richness:"lean",   acidity:"high", intensity:"medium", notes:"Actinidin — tenderize carefully."},
+  {id:235,name:"Sourdough Starter",     cat:"Baking & Bases",          flavor:["sour"],                 texture:[],                    richness:"lean",   acidity:"high", intensity:"medium", notes:"Discard pancakes; flavor depth."},
+  {id:236,name:"Puff Pastry",           cat:"Baking & Bases",          flavor:["buttery"],              texture:["flaky","crisp"],     richness:"rich",   acidity:"none", intensity:"medium", notes:"Cold dough; hot oven puff."},
+  {id:237,name:"Phyllo Dough",          cat:"Baking & Bases",          flavor:["neutral"],              texture:["crisp","layered"],   richness:"lean",   acidity:"none", intensity:"none", notes:"Brush butter; work fast; dry = crack."},
+  {id:238,name:"Cornmeal",              cat:"Baking & Bases",          flavor:["corny","earthy"],        texture:["gritty","crisp"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Polenta; cornbread; fry dredge."},
+  {id:239,name:"Coconut Oil",           cat:"Oils & Vinegars",         flavor:["sweet","coconut"],      texture:[],                    richness:"rich",   acidity:"none", intensity:"medium", notes:"High smoke refined; virgin = finish."},
+  {id:240,name:"Grapeseed Oil",         cat:"Oils & Vinegars",         flavor:["neutral"],              texture:[],                    richness:"lean",   acidity:"none", intensity:"none", notes:"High smoke; neutral fry."},
+  {id:241,name:"Vegetable Stock",       cat:"Canned & Jarred",         flavor:["mild","savory"],        texture:[],                    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Universal deglaze; risotto base."},
+  {id:242,name:"Beef Stock",            cat:"Canned & Jarred",         flavor:["rich","meaty"],         texture:[],                    richness:"medium", acidity:"none", intensity:"strong", notes:"Demi shortcut; onion soup."},
+  {id:243,name:"Kimchi",                cat:"Canned & Jarred",         flavor:["funky","spicy"],        texture:["crunchy","juicy"],   richness:"lean",   acidity:"high", intensity:"strong", notes:"Jjigae; pancake; fried rice."},
+  {id:244,name:"Pickles (Dill)",        cat:"Canned & Jarred",         flavor:["sour","garlic"],        texture:["crunchy"],           richness:"lean",   acidity:"high", intensity:"medium", notes:"Brine in dressings; chop relish."},
+  {id:245,name:"Roasted Red Peppers",   cat:"Canned & Jarred",         flavor:["sweet","smoky"],        texture:["soft","juicy"],      richness:"lean",   acidity:"mild", intensity:"medium", notes:"Jar; dip; sandwich layer."},
+  {id:246,name:"Chipotle in Adobo",     cat:"Canned & Jarred",         flavor:["smoky","spicy"],       texture:["soft"],              richness:"medium", acidity:"none", intensity:"strong", notes:"A little goes far; freeze extra."},
+  {id:247,name:"Sardines",              cat:"Canned & Jarred",         flavor:["fishy","rich"],         texture:["soft","flaky"],      richness:"rich",   acidity:"none", intensity:"strong", notes:"Toast; pasta puttanesca vibe."},
+  {id:248,name:"White Chocolate",       cat:"Sweet Items",             flavor:["sweet","buttery"],      texture:["creamy"],            richness:"rich",   acidity:"none", intensity:"medium", notes:"Burns easy; ganache and mousse."},
+  {id:249,name:"Marshmallow",           cat:"Sweet Items",             flavor:["sweet","vanilla"],      texture:["soft","springy"],    richness:"lean",   acidity:"none", intensity:"medium", notes:"Torch; cereal bars; fluff."},
+  {id:250,name:"Vanilla Bean",          cat:"Sweet Items",             flavor:["sweet","floral"],       texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Split; scrape; pod in cream."},
 ];
+
+const PANTRY = FULL_PANTRY.map(i => i.name);
 
 const CUSTOM_PANTRY_CAT = "My pantry";
 
@@ -233,7 +408,7 @@ let state = {
   pantryCategory: "All",
   diff:"medium", ctype:CTYPES[1], customTypes:[],
   total:30, prep:10, cook:20, cut:false,
-  req:[], res:[], reqEq:[], forbEq:[], lim:false, twist:"",
+  req:[], res:[], reqEq:[], forbEq:[], lim:false,
   challenge:null, recipe:null, contestRecipe:null,
   userCookPlan:{dish:"",techniques:"",timing:""},
   scoresYou:{taste:7,creativity:7,presentation:7,difficulty:7},
@@ -579,8 +754,9 @@ function renderBuild() {
 
   const wrap=div({style:{maxWidth:"820px",margin:"0 auto",padding:"14px 12px"}});
   const flowHint=div({style:{background:"#eff6ff",border:"2px solid #bfdbfe",borderRadius:"10px",padding:"10px 12px",marginBottom:"12px",fontSize:"12px",color:"#1e3a8a",lineHeight:"1.55"}});
-  flowHint.innerHTML="<strong>Mystery haul</strong> — ingredients respect your <strong>restrictions</strong> (no dairy + heavy cream, etc.). Use <strong>Spin mystery basket</strong> for a show-style reveal or pick below.";
+  flowHint.innerHTML="<strong>Spin mystery basket</strong> — rolls <strong>every required ingredient</strong>, <strong>each restriction</strong>, and <strong>challenge type</strong> in one place (no pop-up). Or set everything manually below.";
   wrap.appendChild(flowHint);
+  wrap.appendChild(el("div",{id:"spin-host"}));
 
   // DIFFICULTY
   const diffCard=div({class:"card full"});
@@ -601,7 +777,7 @@ function renderBuild() {
   // CHALLENGE TYPE
   const ctCard=div({class:"card"});
   const ctHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
-  const ctlbl=el("span",{class:"lbl",style:{marginBottom:"0"}});ctlbl.textContent="Challenge Type";
+  const ctlbl=el("span",{class:"lbl",style:{marginBottom:"0"}});ctlbl.textContent="Challenge type";
   const ctAdd=btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("type"));
   ctHead.append(ctlbl,ctAdd);
   ctCard.appendChild(ctHead);
@@ -726,22 +902,6 @@ function renderBuild() {
   limLbl.append(limCb,limTxt);eqCard.appendChild(limLbl);
   grid.appendChild(eqCard);
 
-  // TWIST
-  const twCard=div({class:"card"});
-  const twHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
-  const twlbl=el("span",{class:"lbl",style:{marginBottom:"0"}});twlbl.textContent="Mid-Challenge Twist";
-  twHead.append(twlbl,btn("Random","#f3e8ff","#7c3aed",{border:"2px solid #c084fc",padding:"3px 7px",fontSize:"11px"},()=>{state.twist=TWISTS[Math.floor(Math.random()*TWISTS.length)];renderBuild();}));
-  twCard.appendChild(twHead);
-  const twList=div({style:{display:"flex",flexDirection:"column",gap:"3px"}});
-  TWISTS.forEach(t=>{
-    const on=state.twist===t;
-    const b=el("button",{style:{background:on?"#f3e8ff":"#f8fafc",border:"2px solid "+(on?"#c084fc":"#e2e8f0"),borderRadius:"6px",padding:"6px 9px",fontSize:"11px",fontWeight:on?"800":"500",color:on?"#7c3aed":"#475569",cursor:"pointer",textAlign:"left",width:"100%"}});
-    b.textContent=(on?"⚡ ":"")+t;b.addEventListener("click",()=>{state.twist=on?"":t;renderBuild();});
-    twList.appendChild(b);
-  });
-  twCard.appendChild(twList);
-  grid.appendChild(twCard);
-
   wrap.appendChild(grid);
 
   // LAUNCH BUTTON
@@ -766,7 +926,7 @@ function doLaunch() {
     return;
   }
   const pool = pantryPool();
-  state.challenge={diff:state.diff,ctype:state.ctype,totalTime:state.total,prepTime:state.prep,cookTime:state.cook,surpriseCut:state.cut,required:state.req,restrictions:state.res,reqEquip:state.reqEq,forbEquip:state.forbEq,limitBurners:state.lim,twist:state.twist,pantry:pool.filter(p=>!state.req.includes(p))};
+  state.challenge={diff:state.diff,ctype:state.ctype,totalTime:state.total,prepTime:state.prep,cookTime:state.cook,surpriseCut:state.cut,required:state.req,restrictions:state.res,reqEquip:state.reqEq,forbEquip:state.forbEq,limitBurners:state.lim,pantry:pool.filter(p=>!state.req.includes(p))};
   state.userCookPlan={dish:"",techniques:"",timing:""};
   state.contestRecipe=null;
   showScreen("screen-recipe");
@@ -912,7 +1072,6 @@ function battleConstraintsHtml(ch){
   (ch.forbEquip||[]).forEach(e=>eq.push(`<span style="background:#450a0a;border:1px solid #991b1b;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#fecaca">Forbidden: ${escapeHtml(e)}</span>`));
   if(ch.limitBurners) eq.push(`<span style="background:#9a3412;border:1px solid #f97316;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#ffedd5">1 burner only</span>`);
   if(eq.length) blocks.push(`<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:800;color:#fdba74;margin-bottom:6px">Equipment</div><div style="display:flex;flex-wrap:wrap;gap:6px">${eq.join("")}</div></div>`);
-  if(ch.twist) blocks.push(`<div style="margin-bottom:8px"><div style="font-size:11px;font-weight:800;color:#c084fc;margin-bottom:6px">Mid-challenge twist</div><div style="font-size:12px;color:#e9d5ff;line-height:1.45">${escapeHtml(ch.twist)}</div></div>`);
   if(ch.surpriseCut) blocks.push(`<div style="font-size:11px;color:#a78bfa;font-weight:700">⚡ Surprise time cut (−10 min) is on.</div>`);
   return `<div id="battle-constraints" style="max-width:1180px;margin:0 auto 14px;padding:0 12px">
     <div style="background:#0f172a;border:2px solid #475569;border-radius:14px;padding:14px 16px">
@@ -1021,7 +1180,6 @@ async function generateRecipe() {
     const fe=ch.forbEquip.length?`Forbidden: ${ch.forbEquip.join(", ")}.`:"";
     const re=ch.reqEquip.length?`Must use equipment: ${ch.reqEquip.join(", ")}.`:"";
     const bl=ch.limitBurners?"1 burner only.":"";
-    const tw=ch.twist?`Twist: "${ch.twist}".`:"";
     const pantryLines=ch.pantry.length<=35?ch.pantry.join(", "):ch.pantry.slice(0,35).join(", ")+", …";
     const sig=analyzeBasketForRecipe(ch.required);
     let maxSteps=Math.min(8,Math.max(5,Math.floor(ch.totalTime/4)));
@@ -1054,7 +1212,7 @@ async function generateRecipe() {
 CHALLENGE: ${ch.ctype.label} | DIFFICULTY: ${ch.diff} | TIME: ${ch.totalTime}min (Prep ${ch.prepTime}, Cook ${ch.cookTime})
 REQUIRED BASKET (each must CARRY the dish, not garnish-only): ${ch.required.join(", ")}
 PANTRY you may use (only these + basics like salt/oil/water): ${pantryLines}
-${res} ${fe} ${re} ${bl} ${tw}
+${res} ${fe} ${re} ${bl}
 
 ${courseBlock}
 ${executionMode}
@@ -1243,10 +1401,8 @@ function renderActive() {
           <button id="timer-toggle" onclick="toggleTimer()" style="background:#22c55e;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Start</button>
           <button onclick="resetTimer()" style="background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Reset</button>
           ${ch.surpriseCut?`<button onclick="cutTime()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">-10 min</button>`:""}
-          <button onclick="fireTwist()" style="background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">🎲 Twist</button>
         </div>
       </div>
-      <div id="twist-banner" style="display:none;background:#7c3aed;border-radius:10px;padding:12px;margin-bottom:10px;text-align:center;color:#fff;font-size:14px;font-weight:800"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div style="background:#fff;border:2px solid #e2e8f0;border-radius:10px;padding:10px 12px">
           ${["PREP","COOK","TOTAL"].map((l,i)=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f1f5f9"><span style="font-size:10px;font-weight:700;color:#94a3b8">${l}</span><span style="font-size:13px;font-weight:800;color:#0f172a">${[ch.prepTime,ch.cookTime,ch.totalTime][i]}m</span></div>`).join("")}
@@ -1258,7 +1414,6 @@ function renderActive() {
           ${(ch.reqEquip.length||ch.forbEquip.length||ch.limitBurners)?`<div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:800;color:#c2410c;text-transform:uppercase;margin-bottom:6px">Equipment</div>${ch.reqEquip.map(e=>`<div style="font-size:11px;font-weight:700;color:#166534">✓ ${e}</div>`).join("")}${ch.forbEquip.map(e=>`<div style="font-size:11px;font-weight:700;color:#b91c1c">X ${e}</div>`).join("")}${ch.limitBurners?`<div style="font-size:11px;font-weight:700;color:#c2410c">1 burner only</div>`:""}</div>`:""}
         </div>
       </div>
-      ${ch.twist?`<div style="background:#f3e8ff;border:2px solid #c084fc;border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:800;color:#7c3aed;text-transform:uppercase;margin-bottom:4px">Twist</div><div style="font-size:13px;font-weight:700;color:#581c87">${ch.twist}</div></div>`:""}
     </div>`;
 }
 
@@ -1293,7 +1448,6 @@ function toggleTimer(){
 }
 function resetTimer(){clearInterval(state.timerInterval);state.timerRunning=false;state.timerRem=state.challenge.totalTime*60;const td=$("timer-display");const tb=$("timer-bar");if(td){td.textContent=formatTime(state.timerRem);td.style.color="#22c55e";}if(tb){tb.style.width="100%";tb.style.background="#22c55e";}$("timer-toggle").textContent="Start";$("timer-toggle").style.background="#22c55e";}
 function cutTime(){state.timerRem=Math.max(0,state.timerRem-600);const td=$("timer-display");if(td)td.textContent=formatTime(state.timerRem);}
-function fireTwist(){const tb=$("twist-banner");if(tb){tb.textContent="TWIST: "+TWISTS[Math.floor(Math.random()*TWISTS.length)];tb.style.display="block";setTimeout(()=>{tb.style.display="none";},6000);}}
 
 // ── SCORE SCREEN ──────────────────────────────────────────────────────────────
 function renderScore(){
@@ -1602,8 +1756,12 @@ function classifyRequiredBucket(name){
   // Cheese / cream / butter = flavor driver — NOT the "protein" basket slot (meat/fish/eggs/beans).
   if(/dairy\s*&\s*cheese|dairy|cheese/.test(cat) || /\b(butter|cream|milk|yogurt|mozzarella|feta|parmesan|pecorino|goat cheese|ricotta|cheddar|brie|halloumi|crema)\b/.test(n)) return "flavor";
 
-  // Primary protein: center-of-plate animal/plant protein (Chopped sense), not dairy cheese.
-  const primaryRx=/\b(chicken|beef|pork|lamb|turkey|duck|salmon|tuna|cod|halibut|trout|fish|shrimp|prawn|crab|lobster|scallop|mussel|clam|tofu|tempeh|egg|eggs|chickpeas|chickpea|black beans|lentils|anchovy|anchovies|ground beef|steak|bacon|sausage)\b/;
+  // Pulses / legumes: basket "vegetable" slot — not the animal/tofu/egg protein slot (Chopped-style).
+  const legumeRx=/\b(chickpea|chickpeas|garbanzo|black bean|black beans|kidney bean|kidney beans|navy bean|navy beans|pinto bean|pinto beans|cannellini|great northern beans|white beans|lima bean|lima beans|fava bean|fava beans|lentil|lentils|split pea|split peas)\b/i;
+  if(legumeRx.test(n)) return "produce";
+
+  // Primary protein: meat, seafood, eggs, tofu/tempeh/seitan — not legumes (handled above).
+  const primaryRx=/\b(chicken|beef|pork|lamb|turkey|duck|salmon|tuna|cod|halibut|trout|fish|shrimp|prawn|crab|lobster|scallop|mussel|clam|tofu|tempeh|seitan|egg|eggs|anchovy|anchovies|ground beef|steak|bacon|sausage|prosciutto|chorizo|kielbasa|andouille)\b/;
   if(cat==="proteins" || /seafood|meat|poultry/.test(cat) || primaryRx.test(n)) return "protein";
 
   // Produce: veg, fruit, aromatics (onion family, etc.)
@@ -1646,28 +1804,36 @@ function pickRequiredPattern(pool,count,resList){
 }
 
 function runMysteryRandomize(){
+  const host=$("spin-host");
+  if(!host)return;
   const pool=(window.USER_PANTRY&&window.USER_PANTRY.length)?window.USER_PANTRY:PANTRY;
-  const need=DIFF[state.diff].req;
-  const diffLabel=DIFF[state.diff].label;
-  const slotCells=Array.from({length:need},(_,i)=>`<div class="rnd-slot" data-slot="${i}" aria-label="Ingredient ${i+1}">—</div>`).join("");
-  const ov=el("div",{id:"randomize-overlay"});
-  ov.innerHTML=`<div class="rnd-panel">
-    <div class="rnd-title">Pantry Wars</div>
-    <div class="rnd-h">🎰 Mystery basket</div>
-    <div class="rnd-sub" id="rnd-subline"><strong style="color:#fbbf24">${need} ingredients</strong> · ${escapeHtml(diffLabel)} difficulty — spinning…</div>
-    <div class="rnd-slots" id="rnd-slots">${slotCells}</div>
-    <div class="rnd-bar"><i></i></div>
-    <div class="rnd-sub" id="rnd-foot" style="margin-top:10px;font-size:11px">Each slot = one spot on your plate. Same rules as the big shows.</div>
+  const cfg=DIFF[state.diff];
+  const need=cfg.req;
+  const nRes=cfg.res;
+  const ctypePool=[...CTYPES,...state.customTypes];
+  const totalSlots=need+nRes+1;
+  const slotMeta=[];
+  for(let i=0;i<need;i++) slotMeta.push({kind:"ing",lbl:"Basket "+(i+1)});
+  for(let j=0;j<nRes;j++) slotMeta.push({kind:"res",lbl:"Restriction "+(j+1)});
+  slotMeta.push({kind:"ct",lbl:"Challenge"});
+  const cells=slotMeta.map((m,i)=>`<div class="basket-spin-cell" data-i="${i}"><span class="basket-spin-lbl">${m.lbl}</span><div class="rnd-slot" data-kind="${m.kind}" aria-label="${escapeHtml(m.lbl)}">—</div></div>`).join("");
+  host.innerHTML=`<div class="basket-spin-wrap">
+    <div class="basket-spin-h"><span>🎰 Mystery basket</span><span style="font-size:11px;font-weight:700;color:#64748b">${escapeHtml(cfg.label)} · spinning…</span></div>
+    <div class="basket-spin-slots" id="rnd-slots">${cells}</div>
+    <div class="basket-spin-bar"><i></i></div>
   </div>`;
-  document.body.appendChild(ov);
-  const slots=[...ov.querySelectorAll(".rnd-slot")];
+  try{ host.scrollIntoView({behavior:"smooth",block:"nearest"}); }catch(_e){}
+  const slots=[...host.querySelectorAll(".rnd-slot")];
   let ticks=0;
-  const tickMs=52;
-  const maxTicks=38+need*5;
+  const tickMs=48;
+  const maxTicks=36+totalSlots*4;
   const iv=setInterval(()=>{
     ticks++;
-    slots.forEach(s=>{
-      s.textContent=pool[Math.floor(Math.random()*pool.length)];
+    slots.forEach((s,idx)=>{
+      const k=slotMeta[idx].kind;
+      if(k==="ing") s.textContent=pool[Math.floor(Math.random()*pool.length)];
+      else if(k==="res") s.textContent=RESTRICT[Math.floor(Math.random()*RESTRICT.length)];
+      else { const ct=ctypePool[Math.floor(Math.random()*ctypePool.length)]; s.textContent=ct.emoji+" "+ct.label; }
       s.style.animation="none";
       void s.offsetWidth;
       s.style.animation="rndSpin .1s ease";
@@ -1675,23 +1841,25 @@ function runMysteryRandomize(){
     if(ticks>=maxTicks){
       clearInterval(iv);
       doRandomize();
-      const got=state.req.length;
-      slots.forEach((s,i)=>{
-        const name=state.req[i];
-        if(name){
-          s.textContent=name;
-          s.classList.add("rnd-done");
-        } else {
-          s.textContent="—";
-          s.style.opacity="0.5";
-        }
-      });
-      const sub=$("rnd-subline");
-      if(sub) sub.innerHTML=`<strong style="color:#22c55e">${got} mystery items</strong> · ${escapeHtml(diffLabel)} — locked in`;
-      const sum=$("rnd-foot");
-      if(sum) sum.innerHTML=`<strong style="color:#fbbf24">${state.ctype.emoji} ${escapeHtml(state.ctype.label)}</strong> · ${state.diff.toUpperCase()} · ${state.total} min<br>
-        <span style="color:#94a3b8">Restrictions:</span> ${state.res.length?state.res.map(x=>escapeHtml(x)).join(" · "):"none"}`;
-      setTimeout(()=>{ov.remove();renderBuild();},1800);
+      let si=0;
+      for(;si<need;si++){
+        const s=slots[si];
+        const name=state.req[si];
+        if(name){ s.textContent=name; s.classList.add("rnd-done-ing"); }
+        else { s.textContent="—"; s.style.opacity="0.5"; }
+      }
+      for(let r=0;r<nRes;r++){
+        const s=slots[need+r];
+        const txt=state.res[r]||"";
+        s.textContent=txt||"—";
+        s.classList.add("rnd-done-res");
+      }
+      const sCt=slots[slots.length-1];
+      sCt.textContent=state.ctype.emoji+" "+state.ctype.label;
+      sCt.classList.add("rnd-done-ct");
+      const bar=host.querySelector(".basket-spin-h span:last-child");
+      if(bar) bar.textContent=cfg.label+" · locked in · "+state.total+" min";
+      setTimeout(()=>{renderBuild();},1400);
     }
   },tickMs);
 }
@@ -1705,8 +1873,8 @@ function doRandomize(){
   state.req=pickRequiredPattern(pool,d.req,state.res);
   const t=d.times[Math.floor(Math.random()*d.times.length)];
   state.total=t;state.prep=Math.round(t*0.35);state.cook=Math.round(t*0.65);
-  state.ctype=CTYPES[Math.floor(Math.random()*CTYPES.length)];
-  state.twist=d.twist?TWISTS[Math.floor(Math.random()*TWISTS.length)]:"";
+  const allTypes=[...CTYPES,...state.customTypes];
+  state.ctype=allTypes[Math.floor(Math.random()*allTypes.length)];
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
