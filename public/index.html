@@ -485,21 +485,35 @@ function renderLanding() {
   const sc = $("screen-landing");
   sc.innerHTML = `
     <div style="min-height:100vh;background:linear-gradient(160deg,#0f172a 0%,#1e293b 45%,#334155 100%);color:#f8fafc;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 18px;text-align:center">
-      <div style="max-width:520px;width:100%">
-        <div style="font-size:11px;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:#94a3b8;margin-bottom:12px">Pantry Wars</div>
-        <h1 style="font-size:clamp(26px,5vw,36px);font-weight:900;line-height:1.15;margin:0 0 10px;color:#fff"><span style="color:#f59e0b">Can you beat AI?</span></h1>
-        <p style="font-size:17px;font-weight:800;color:#e2e8f0;margin:0 0 16px">Take the challenge.</p>
-        <p style="font-size:15px;color:#cbd5e1;line-height:1.55;margin:0 0 22px">Same mystery basket. AI shows what it would plate — you say what you’d plate (this is “what would you cook?”, not homework in the kitchen). Playing along with food TV? Use the same haul and compare. <strong style="color:#e2e8f0">Can you beat AI?</strong></p>
-        <div style="text-align:left;background:rgba(15,23,42,0.55);border:1px solid #475569;border-radius:14px;padding:18px;margin-bottom:26px">
-          <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:12px">Step by step</div>
-          <ol style="margin:0;padding-left:20px;color:#e2e8f0;font-size:14px;line-height:1.65">
-            <li style="margin-bottom:10px"><strong style="color:#fff">Pick your pantry.</strong> Choose ingredients from the list (only those can appear in your battle). Shortcut: set <strong>Category: All</strong>, clear search, tap <strong>+ Select All</strong> to use the app’s big starter pantry.</li>
-            <li style="margin-bottom:10px"><strong style="color:#fff">Pick your battle level.</strong> Easy = 2 mystery ingredients &amp; no restrictions; harder levels add more basket items and restriction slots.</li>
-            <li style="margin-bottom:10px"><strong style="color:#fff">Fill the basket.</strong> Tap <strong>Spin mystery basket</strong> to randomize ingredients + restrictions + course type, <em>or</em> tap chips to choose from your pantry and the pre-loaded restriction list.</li>
-            <li style="margin-bottom:10px"><strong style="color:#fff">Launch &amp; compare.</strong> See the rival-chef recipe, type <strong>your</strong> idea in <strong>Your battle plan</strong>, then <strong>Battle</strong> for scorecards.</li>
-            <li><strong style="color:#fff">Food-show mode.</strong> Watching Chopped-style TV? Pick or type the same haul they’re using and see what AI would put on the pass.</li>
+      <div style="max-width:560px;width:100%">
+        <h1 style="font-size:clamp(22px,4.5vw,30px);font-weight:900;line-height:1.2;margin:0 0 14px;color:#fff">🍽️ Pantry Wars — How It Works</h1>
+        <p style="font-size:15px;color:#e2e8f0;line-height:1.55;margin:0 0 8px">Same mystery basket. Two approaches.</p>
+        <p style="font-size:15px;color:#cbd5e1;line-height:1.55;margin:0 0 8px">AI shows what it would plate — you decide what you’d cook.</p>
+        <p style="font-size:15px;color:#cbd5e1;line-height:1.55;margin:0 0 14px">This isn’t about actually cooking — it’s about the idea.</p>
+        <p style="font-size:18px;font-weight:800;color:#f59e0b;margin:0 0 22px">Think you can beat the AI?</p>
+        <div style="text-align:left;background:rgba(15,23,42,0.55);border:1px solid #475569;border-radius:14px;padding:18px;margin-bottom:16px">
+          <div style="font-size:13px;font-weight:800;color:#f8fafc;margin-bottom:12px">🔪 Step-by-Step</div>
+          <ol style="margin:0;padding-left:20px;color:#e2e8f0;font-size:14px;line-height:1.65;list-style-position:outside">
+            <li style="margin-bottom:14px"><strong style="color:#fff">Pick Your Pantry</strong><br><span style="color:#cbd5e1">Choose ingredients from the list — only these can be used in your battle.</span><br><span style="color:#94a3b8;font-size:13px;display:block;margin-top:6px"><strong style="color:#e2e8f0">Shortcut:</strong></span><ul style="margin:6px 0 0;padding-left:18px;color:#cbd5e1;font-size:13px;line-height:1.6">
+              <li>Set Category to All</li>
+              <li>Clear the search</li>
+              <li>Tap <strong>Select All</strong> to use the full starter pantry</li>
+            </ul></li>
+            <li style="margin-bottom:14px"><strong style="color:#fff">Choose Your Battle Level</strong><br><span style="color:#cbd5e1">Easy: 2 mystery ingredients, no restrictions<br>Medium/Hard: more ingredients + added restrictions</span></li>
+            <li style="margin-bottom:14px"><strong style="color:#fff">Build the Basket</strong><br><span style="color:#cbd5e1">Tap <strong>Spin Mystery Basket</strong> to randomize ingredients, restrictions, and course type</span><br><span style="color:#94a3b8;font-size:13px">OR</span><br><span style="color:#cbd5e1">Manually pick ingredients from your pantry<br>Add optional restrictions (no oven, vegan, etc.)</span></li>
+            <li style="margin-bottom:0"><strong style="color:#fff">Launch &amp; Compare</strong><br><span style="color:#cbd5e1">View the AI Rival Chef dish<br>Enter your idea in <strong>Your Battle Plan</strong><br>Tap <strong>Battle</strong> to get scored</span></li>
           </ol>
         </div>
+        <div style="text-align:left;background:rgba(15,23,42,0.45);border:1px solid #475569;border-radius:14px;padding:16px 18px;margin-bottom:22px">
+          <div style="font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:8px">📺 Food Show Mode</div>
+          <p style="margin:0 0 8px;color:#cbd5e1;font-size:14px;line-height:1.55">Watching something like <strong style="color:#fff">Chopped</strong>?</p>
+          <ul style="margin:0;padding-left:18px;color:#cbd5e1;font-size:14px;line-height:1.6">
+            <li>Enter the same basket they’re using</li>
+            <li>See what AI would create</li>
+            <li>Compare it to your idea</li>
+          </ul>
+        </div>
+        <p style="font-size:17px;font-weight:800;color:#e2e8f0;margin:0 0 20px">👉 Can you beat the judges?</p>
         <button type="button" id="landing-start-btn" style="width:100%;max-width:320px;padding:16px 20px;font-size:16px;font-weight:900;border-radius:12px;background:#22c55e;color:#0f172a;border:none;cursor:pointer;box-shadow:0 8px 30px rgba(34,197,94,0.3)">Take the challenge — Step 1: Pantry</button>
         <p style="margin-top:16px;font-size:12px;color:#64748b">Bring your own Anthropic API key, or the host may supply one.</p>
       </div>
