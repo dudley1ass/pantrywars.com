@@ -215,6 +215,31 @@ const CTYPES = [
 ];
 const EQUIP=["Oven","Stovetop","Air Fryer","Grill","Microwave","Instant Pot","Blender","Food Processor","Cast Iron","Wok","Sous Vide","Torch","Sheet Pan"];
 const RESTRICT=["No Dairy","No Gluten","No Sugar","No Salt","No Pre-made Sauces","No Butter","No Alcohol","No Nuts","Raw Only","Vegetarian","Vegan"];
+/** Collapse "No No …" from duplicated prefixes (e.g. AI returns "No No Butter") and match built-in casing. */
+function normalizeRestrictionKey(s){
+  let t=String(s==null?"":s).trim();
+  if(!t) return t;
+  while(/^no\s+no(\s|$)/i.test(t)) t=t.replace(/^no\s+/i,"").trim();
+  const low=t.toLowerCase();
+  for(const r of RESTRICT) if(r.toLowerCase()===low) return r;
+  return t;
+}
+function sanitizeRestrictionList(arr){
+  const out=[], seen=new Set();
+  for(const x of arr||[]){
+    const k=normalizeRestrictionKey(x);
+    if(!k||seen.has(k)) continue;
+    seen.add(k); out.push(k);
+  }
+  return out;
+}
+function sanitizeSpinConstraints(arr){
+  return (arr||[]).map(x=>{
+    const s=String(x==null?"":x);
+    if(s.startsWith("✕ ")) return s;
+    return normalizeRestrictionKey(s);
+  });
+}
 /** AI rival “on the clock” minutes after mystery spin (realistic plates — not 15 min Wellington) */
 const SPIN_AI_TIMES=[20,25,30,35,40,45];
 const DIFF={
@@ -1049,6 +1074,9 @@ function toggleFromModal(id) {
 // ── BUILD SCREEN ──────────────────────────────────────────────────────────────
 function renderBuild() {
   const cfg=DIFF[state.diff];
+  state.res=sanitizeRestrictionList(state.res);
+  if(state.spinConstraints&&state.spinConstraints.length)
+    state.spinConstraints=sanitizeSpinConstraints(state.spinConstraints);
   pruneConflictingReq(cfg);
   const sc=$("screen-build");
   sc.innerHTML="";
@@ -1148,8 +1176,8 @@ function renderBuild() {
     btn("Random "+totalRestr,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{
       const p=pantryPool();
       const draw=drawUnifiedConstraintsFeasible(totalRestr, p, cfg.req);
-      state.spinConstraints=draw.spinConstraints;
-      state.res=draw.restrictions;
+      state.spinConstraints=sanitizeSpinConstraints(draw.spinConstraints);
+      state.res=sanitizeRestrictionList(draw.restrictions);
       state.forbEq=draw.forbEquip;
       pruneConflictingReq(cfg);
       renderBuild();
@@ -1252,7 +1280,7 @@ function challengeFromBuilder(){
     cookTime:state.cook,
     surpriseCut:state.cut,
     required:[...state.req],
-    restrictions:[...state.res],
+    restrictions:sanitizeRestrictionList(state.res),
     reqEquip:[...state.reqEq],
     forbEquip:[...state.forbEq],
     limitBurners:state.lim,
@@ -1275,6 +1303,7 @@ function doLaunch() {
     alert(PW_DAILY_LIMIT_MESSAGE);
     return;
   }
+  state.res=sanitizeRestrictionList(state.res);
   const pool = pantryPool();
   state.challenge={diff:state.diff,ctype:state.ctype,totalTime:state.total,prepTime:state.prep,cookTime:state.cook,surpriseCut:state.cut,required:state.req,restrictions:state.res,reqEquip:state.reqEq,forbEquip:state.forbEq,limitBurners:state.lim,pantry:pool.filter(p=>!state.req.includes(p))};
   state.userCookPlan={dish:"",techniques:"",timing:""};
@@ -1413,7 +1442,7 @@ function battleConstraintsHtml(ch){
   const req=(ch.required||[]).map(i=>`<span style="background:#312e81;border:1px solid #4f46e5;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#e0e7ff">${escapeHtml(i)}</span>`).join("");
   const blocks=[];
   if((ch.restrictions||[]).length){
-    const chips=(ch.restrictions||[]).map(r=>`<span style="background:#450a0a;border:1px solid #dc2626;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#fecaca">${escapeHtml(r)}</span>`).join("");
+    const chips=(ch.restrictions||[]).map(r=>`<span style="background:#450a0a;border:1px solid #dc2626;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#fecaca">${escapeHtml(normalizeRestrictionKey(r))}</span>`).join("");
     blocks.push(`<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:800;color:#f87171;margin-bottom:6px">Restrictions</div><div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div></div>`);
   }
   const eq=[];
@@ -1799,7 +1828,7 @@ function renderActive() {
           ${ch.required.map(i=>`<div style="padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:700;color:#0f172a">☐ ${i}</div>`).join("")}
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
-          ${ch.restrictions.length?`<div style="background:#fef2f2;border:2px solid #fecaca;border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:800;color:#dc2626;text-transform:uppercase;margin-bottom:6px">Rules</div>${ch.restrictions.map(r=>`<div style="font-size:11px;font-weight:700;color:#b91c1c">• ${escapeHtml(r)}</div>`).join("")}</div>`:""}
+          ${ch.restrictions.length?`<div style="background:#fef2f2;border:2px solid #fecaca;border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:800;color:#dc2626;text-transform:uppercase;margin-bottom:6px">Rules</div>${ch.restrictions.map(r=>`<div style="font-size:11px;font-weight:700;color:#b91c1c">• ${escapeHtml(normalizeRestrictionKey(r))}</div>`).join("")}</div>`:""}
           ${(ch.reqEquip.length||ch.forbEquip.length||ch.limitBurners)?`<div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:800;color:#c2410c;text-transform:uppercase;margin-bottom:6px">Equipment</div>${ch.reqEquip.map(e=>`<div style="font-size:11px;font-weight:700;color:#166534">✓ ${e}</div>`).join("")}${ch.forbEquip.map(e=>`<div style="font-size:11px;font-weight:700;color:#b91c1c">X ${e}</div>`).join("")}${ch.limitBurners?`<div style="font-size:11px;font-weight:700;color:#c2410c">1 burner only</div>`:""}</div>`:""}
         </div>
       </div>
@@ -2046,7 +2075,11 @@ function doModalAdd(data){
     });
     if(!state.pantryItems.includes(id))state.pantryItems.push(id);
   }
-  else if(t==="restriction"){const n=data.label;if(n&&!state.res.includes(n))state.res.push(n);pruneConflictingReq(DIFF[state.diff]);}
+  else if(t==="restriction"){
+    const n=normalizeRestrictionKey(data.label);
+    if(n&&!state.res.includes(n)){state.res=sanitizeRestrictionList([...state.res,n]);}
+    pruneConflictingReq(DIFF[state.diff]);
+  }
   else if(t==="equipment"){const n=data.label;if(n&&!state.reqEq.includes(n))state.reqEq.push(n);}
   closeModal();refreshAfterModalAdd();
 }
@@ -2058,6 +2091,7 @@ function doModalAddFromPending(){
 }
 
 function ingredientConflictsWithRestriction(ingName, restriction){
+  restriction=normalizeRestrictionKey(restriction);
   const n=String(ingName||"").toLowerCase();
   const m=pantryCatalog().find(x=>String(x.name||"").toLowerCase()===n);
   const cat=String((m&&m.cat)||"").toLowerCase();
@@ -2327,8 +2361,8 @@ function doRandomize(){
   const nConstraints=Math.max(Number(d.res)||0, Number(d.forb)||0);
   const pool=window.USER_PANTRY||PANTRY;
   const draw=drawUnifiedConstraintsFeasible(nConstraints, pool, d.req);
-  state.spinConstraints=draw.spinConstraints;
-  state.res=draw.restrictions;
+  state.spinConstraints=sanitizeSpinConstraints(draw.spinConstraints);
+  state.res=sanitizeRestrictionList(draw.restrictions);
   state.forbEq=draw.forbEquip;
   state.lim=d.burners;state.cut=d.cut;
   state.req=pickRequiredPattern(pool,d.req,state.res);
