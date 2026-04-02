@@ -587,6 +587,7 @@ let state = {
   challenge:null, recipe:null, contestRecipe:null,
   spinConstraints: [],
   mysterySpinLocked:false,
+  chaosBasket:false,
   userCookPlan:{dish:"",techniques:"",timing:""},
   scoresYou:{taste:7,creativity:7,presentation:7,difficulty:7},
   scoresAI:{taste:7,creativity:7,presentation:7,difficulty:7},
@@ -1135,7 +1136,7 @@ function renderBuild() {
   flowHint.innerHTML=`<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#1e40af;margin-bottom:8px">Next step</div>
   <p style="margin:0 0 10px"><strong>Easy path:</strong> pick a <strong>Difficulty</strong>, then <strong>Spin my mystery basket</strong> — it randomly fills ingredients, restrictions, and challenge type. Tap <strong>Launch — beat AI</strong> and say what <em>you’d</em> make.</p>
   <p style="margin:0 0 10px"><strong>Or,</strong> set it all yourself — especially if you’re in a <strong>real cooking competition</strong> and want AI backup, or you’re having a <strong>cook-off with friends</strong>: dial in your own ingredients and restrictions, then have fun!</p>
-  <p style="margin:0;font-size:11px;color:#334155">The spinner shows <strong>Must use</strong> items, <strong>Restrictions</strong>, an <strong>AI clock</strong> (20–45 min for realistic rival recipes), and <strong>Challenge</strong>. Restrictions &amp; equipment are in the cards under Challenge type.</p>
+  <p style="margin:0;font-size:11px;color:#334155">The spinner picks a <strong>challenge type</strong> first, then <strong>must-use</strong> ingredients that fit (e.g. <strong>Dessert</strong> gets a sweet / fruit / dairy / sugar path; savory courses get a protein anchor). Turn on <strong>Chaos basket</strong> under Difficulty for fully random hauls.</p>
   <p style="margin:8px 0 0;font-size:11px;color:#334155">Free tier: <strong>${PW_DAILY_AI_LIMIT} AI rounds per day</strong> (your device clock). Fair use keeps the lights on — extra packs later.</p>`;
   wrap.appendChild(flowHint);
   const spinHost=el("div",{id:"spin-host"});
@@ -1173,6 +1174,14 @@ function renderBuild() {
     drow.appendChild(b);
   });
   diffCard.appendChild(drow);
+  const chaosRow=div({style:{display:"flex",alignItems:"flex-start",gap:"10px",marginTop:"10px",padding:"10px 12px",background:state.chaosBasket?"#fff7ed":"#f8fafc",borderRadius:"10px",border:"1px solid "+(state.chaosBasket?"#fdba74":"#e2e8f0")}});
+  const chaosCb=el("input",{type:"checkbox",id:"pw-chaos-basket"});
+  chaosCb.checked=!!state.chaosBasket;
+  chaosCb.addEventListener("change",()=>{state.chaosBasket=!!chaosCb.checked;renderBuild();});
+  const chaosLab=el("label",{htmlFor:"pw-chaos-basket",style:{fontSize:"11px",color:"#475569",cursor:"pointer",lineHeight:1.45,margin:0}});
+  chaosLab.innerHTML="<strong style=\"color:#0f172a\">Chaos basket</strong> — ignore course rules; must-use picks stay fully random (may be unfair vs Dessert, etc.). <strong>Insane</strong> always behaves this way.";
+  chaosRow.append(chaosCb, chaosLab);
+  diffCard.appendChild(chaosRow);
   wrap.appendChild(diffCard);
 
   const grid=div({class:"grid2"});
@@ -1257,7 +1266,12 @@ function renderBuild() {
   const rHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
   const rlbl=el("span",{class:"lbl",style:{marginBottom:"0"}});rlbl.textContent="Required Ingredients";
   const rbtns=div({style:{display:"flex",gap:"4px"}});
-  rbtns.append(btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("ingredient")),btn("Random "+cfg.req,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{state.req=pickRequiredPattern(pantryPool(),cfg.req,state.res);renderBuild();}));
+    rbtns.append(btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("ingredient")),btn("Random "+cfg.req,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{
+      const p=pantryPool();
+      state.req=pickRequiredPattern(p,cfg.req,state.res);
+      state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,p,state.res,pwChaosOrInsane());
+      renderBuild();
+    }));
   rHead.append(rlbl,rbtns);rCard.appendChild(rHead);
   if(state.req.length===0){const e=div({style:{fontSize:"11px",color:"#94a3b8",fontStyle:"italic",marginBottom:"6px"}});e.textContent="None selected";rCard.appendChild(e);}
   const reqChips=div({class:"chip-row"});
@@ -2257,6 +2271,8 @@ function pruneConflictingReq(cfg){
     const i=Math.floor(Math.random()*pool.length);
     state.req.push(pool.splice(i,1)[0]);
   }
+  const p=pantryPool();
+  state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,p,state.res,pwChaosOrInsane());
 }
 
 function classifyRequiredBucket(name){
@@ -2285,6 +2301,155 @@ function classifyRequiredBucket(name){
   if(/vegetables|fruits|aromatics/.test(cat) || produceRx.test(n)) return "produce";
 
   return "flavor";
+}
+
+/** Chaos toggle or Insane difficulty → skip course-vs-basket viability fixes. */
+function pwChaosOrInsane(){
+  return !!(state.chaosBasket||state.diff==="insane");
+}
+
+function courseIsDessert(ctype){
+  if(!ctype) return false;
+  if(ctype.id==="dessert") return true;
+  return /\bdessert\b/i.test(String(ctype.label||""));
+}
+
+function classifyRequiredBasketType(name){
+  const b=classifyRequiredBucket(name);
+  if(b==="wildcard") return "wildcard";
+  if(b==="protein") return "protein";
+  if(b==="produce") return "produce";
+  const n=String(name||"").toLowerCase();
+  const m=pantryCatalog().find(x=>String(x.name||"").toLowerCase()===n);
+  const cat=String((m&&m.cat)||"").toLowerCase();
+  if(/dairy\s*&\s*cheese|dairy|cheese/.test(cat)) return "dairy";
+  return "flavor";
+}
+
+function getIngredientCompatibilityMeta(name){
+  const n=String(name||"").toLowerCase();
+  const m=pantryCatalog().find(x=>String(x.name||"").toLowerCase()===n);
+  const cat=String((m&&m.cat)||"").toLowerCase();
+  const flavors=(m&&m.flavor)||[];
+  const hasFlavor=f=>flavors.some(x=>String(x).toLowerCase()===String(f).toLowerCase());
+  const isFruit=/fruits/i.test(cat);
+  const isDairy=/dairy\s*&\s*cheese|dairy|cheese/.test(cat)
+    ||/\b(butter|cream|milk|yogurt|mozzarella|feta|parmesan|pecorino|goat cheese|ricotta|cheddar|brie|halloumi|crema|mascarpone|paneer)\b/.test(n);
+  const isSugarSource=/\b(honey|sugar|maple|molasses|caramel|marshmallow|chocolate|nesquik|frosting|icing|agave|jam|jelly|sweetener|vanilla bean|toffee|butterscotch)\b/.test(n)||/sweet items|snacks/i.test(cat);
+  const hasSweetNote=hasFlavor("sweet");
+  let dessertCompatibility=3;
+  if(/sweet items/i.test(cat)||/\b(dark chocolate|white chocolate|caramel|marshmallow|vanilla bean)\b/.test(n)||isSugarSource) dessertCompatibility=5;
+  else if(isFruit) dessertCompatibility=4;
+  else if(isDairy) dessertCompatibility=4;
+  else if(hasSweetNote) dessertCompatibility=4;
+  if(classifyRequiredBucket(name)==="protein"&&!/\b(egg|eggs)\b/.test(n)) dessertCompatibility=Math.min(dessertCompatibility,2);
+  if(/\b(soy sauce|fish sauce|fish stock|anchov)\b/.test(n)) dessertCompatibility=Math.min(dessertCompatibility,2);
+  const basketType=classifyRequiredBasketType(name);
+  return {basketType,isFruit,isDairy,isSugarSource,hasSweetNote,dessertCompatibility};
+}
+
+function dessertBasketHasPath(req, restrictions){
+  const noSugar=(restrictions||[]).includes("No Sugar");
+  const r=restrictions||[];
+  const noDairy=r.includes("No Dairy")||r.includes("Vegan");
+  for(const name of req||[]){
+    const m=getIngredientCompatibilityMeta(name);
+    if(m.isFruit) return true;
+    if(!noDairy&&m.isDairy) return true;
+    if(!noSugar&&m.isSugarSource) return true;
+    if(!noSugar&&m.dessertCompatibility>=4&&(m.hasSweetNote||m.dessertCompatibility>=5)) return true;
+  }
+  return false;
+}
+
+const PW_SAVORY_LEGUME_RX=/\b(chickpea|chickpeas|garbanzo|black bean|black beans|kidney bean|kidney beans|navy bean|navy beans|pinto bean|pinto beans|cannellini|great northern beans|white beans|lima bean|lima beans|fava bean|fava beans|lentil|lentils|split pea|split peas)\b/i;
+
+function savoryBasketHasPath(req){
+  for(const name of req||[]){
+    const b=classifyRequiredBucket(name);
+    const n=String(name||"");
+    if(b==="protein") return true;
+    if(/\b(egg|eggs|tofu|tempeh|seitan)\b/i.test(n)) return true;
+    if(PW_SAVORY_LEGUME_RX.test(n)) return true;
+  }
+  return false;
+}
+
+function pickDessertAnchorFromPool(candidates, restrictions){
+  if(!candidates||!candidates.length) return null;
+  const noSugar=(restrictions||[]).includes("No Sugar");
+  const r=restrictions||[];
+  const noDairy=r.includes("No Dairy")||r.includes("Vegan");
+  const ok=candidates.filter(n=>{
+    const m=getIngredientCompatibilityMeta(n);
+    if(m.isFruit) return true;
+    if(!noDairy&&m.isDairy) return true;
+    if(!noSugar&&m.isSugarSource) return true;
+    if(!noSugar&&m.dessertCompatibility>=4&&(m.hasSweetNote||m.isFruit)) return true;
+    if(!noSugar&&m.dessertCompatibility>=5) return true;
+    return false;
+  });
+  if(!ok.length) return null;
+  return ok[Math.floor(Math.random()*ok.length)];
+}
+
+function pickSavoryAnchorFromPool(candidates){
+  if(!candidates||!candidates.length) return null;
+  const ok=candidates.filter(n=>{
+    const s=String(n||"");
+    if(classifyRequiredBucket(n)==="protein") return true;
+    if(/\b(egg|eggs|tofu|tempeh|seitan)\b/i.test(s)) return true;
+    if(PW_SAVORY_LEGUME_RX.test(s)) return true;
+    return false;
+  });
+  if(!ok.length) return null;
+  return ok[Math.floor(Math.random()*ok.length)];
+}
+
+function pickLeastUsefulIndexForCourse(req, ctype){
+  const scored=(req||[]).map((name,i)=>({i,name,meta:getIngredientCompatibilityMeta(name),bucket:classifyRequiredBucket(name)}));
+  if(!scored.length) return 0;
+  if(courseIsDessert(ctype)){
+    scored.sort((a,b)=>a.meta.dessertCompatibility-b.meta.dessertCompatibility);
+    return scored[0].i;
+  }
+  const rank=x=>{
+    const nm=String(x.name||"");
+    if(x.bucket==="protein"||/\b(egg|eggs|tofu|tempeh|seitan)\b/i.test(nm)||PW_SAVORY_LEGUME_RX.test(nm)) return 3;
+    if(x.bucket==="produce") return 2;
+    return 1;
+  };
+  scored.sort((a,b)=>rank(a)-rank(b));
+  return scored[0].i;
+}
+
+function viabilitySwapAttempts(diffKey, chaos){
+  if(chaos||diffKey==="insane") return 0;
+  if(diffKey==="easy") return 5;
+  if(diffKey==="medium") return 3;
+  return 2;
+}
+
+function ensureCourseBasketViability(req, ctype, diffKey, pool, restrictions, chaos){
+  if(!req||!req.length) return req||[];
+  if(chaos) return req.slice();
+  const filt=filterPoolByRestrictions(pool||[],restrictions||[]);
+  let out=req.slice();
+  const tries=viabilitySwapAttempts(diffKey,chaos);
+  for(let t=0;t<tries;t++){
+    let needFix=false;
+    if(courseIsDessert(ctype)&&!dessertBasketHasPath(out,restrictions)) needFix=true;
+    if(!courseIsDessert(ctype)&&!savoryBasketHasPath(out)) needFix=true;
+    if(!needFix) break;
+    const spare=filt.filter(x=>!out.includes(x));
+    const anchor=courseIsDessert(ctype)
+      ?pickDessertAnchorFromPool(spare,restrictions)
+      :pickSavoryAnchorFromPool(spare);
+    if(!anchor) break;
+    const replaceIdx=pickLeastUsefulIndexForCourse(out,ctype);
+    out[replaceIdx]=anchor;
+  }
+  return out;
 }
 
 function pickRequiredPattern(pool,count,resList){
@@ -2366,12 +2531,25 @@ function runMysteryRandomize(){
   </div>`;
   try{ host.scrollIntoView({behavior:"smooth",block:"nearest"}); }catch(_e){}
   const slots=[...host.querySelectorAll(".rnd-slot")];
-  let ticks=0;
+  if(slots.length!==slotMeta.length){
+    console.error("Mystery basket: slot mismatch", {slots:slots.length,meta:slotMeta.length});
+    alert("Spinner UI out of sync — refresh the page.");
+    return;
+  }
+  const idxTime=need+nConstraints;
+  const idxChallenge=need+nConstraints+1;
+  const stopOrder=[]
+    .concat(idxChallenge)
+    .concat(Array.from({length:need},(_,i)=>i))
+    .concat(Array.from({length:nConstraints},(_,j)=>need+j))
+    .concat(idxTime);
+  const locked=new Array(slots.length).fill(false);
   const tickMs=48;
   const maxTicks=36+totalSlots*4;
-  const iv=setInterval(()=>{
-    ticks++;
+  const stopGapMs=340;
+  function spinUnlockedPreview(){
     slots.forEach((s,idx)=>{
+      if(locked[idx]) return;
       const k=slotMeta[idx].kind;
       if(k==="ing") s.textContent=pool[Math.floor(Math.random()*pool.length)];
       else if(k==="con"){
@@ -2386,45 +2564,64 @@ function runMysteryRandomize(){
       void s.offsetWidth;
       s.style.animation="rndSpin .1s ease";
     });
-    if(ticks>=maxTicks){
-      clearInterval(iv);
-      try{
-        if(slots.length!==slotMeta.length){
-          console.error("Mystery basket: slot mismatch", {slots:slots.length,meta:slotMeta.length});
-          throw new Error("Spinner UI out of sync — refresh the page.");
-        }
-        doRandomize();
-        let si=0;
-        for(;si<need;si++){
-          const s=slots[si];
-          const name=state.req[si];
-          if(name){ s.textContent=name; s.classList.add("rnd-done-ing"); }
-          else { s.textContent="—"; s.style.opacity="0.5"; }
-        }
-        for(let c=0;c<nConstraints;c++){
-          const s=slots[need+c];
-          const txt=state.spinConstraints[c]||"—";
-          s.textContent=txt;
-          s.classList.add(txt.startsWith("✕ ")?"rnd-done-forb":"rnd-done-res");
-        }
-        const sTm=slots[need+nConstraints];
-        if(sTm){ sTm.textContent=(Number(state.total)||0)+" min"; sTm.classList.add("rnd-done-time"); }
-        const sCt=slots[need+nConstraints+1];
-        if(!sCt) throw new Error("Missing challenge slot");
-        sCt.textContent=state.ctype.emoji+" "+state.ctype.label;
-        sCt.classList.add("rnd-done-ct");
-        const bar=host.querySelector(".basket-spin-h span:last-child");
-        if(bar) bar.textContent=cfg.label+" · locked in";
-        state.mysterySpinLocked=true;
-        trackPWEvent("spin_basket", pwParamsBuilder());
-        renderBuild();
-      }catch(err){
-        console.error("Mystery basket spin failed", err);
-        state.mysterySpinLocked=false;
-        alert("Mystery basket hit an error: "+(err&&err.message?err.message:String(err)));
-        renderBuild();
-      }
+  }
+  function finalizeSlot(idx){
+    const s=slots[idx];
+    const k=slotMeta[idx].kind;
+    s.style.animation="none";
+    void s.offsetWidth;
+    s.style.animation="rndSpin .18s ease";
+    if(k==="ing"){
+      const name=state.req[idx];
+      if(name){ s.textContent=name; s.classList.add("rnd-done-ing"); }
+      else { s.textContent="—"; s.style.opacity="0.5"; }
+    }else if(k==="con"){
+      const txt=state.spinConstraints[idx-need]||"—";
+      s.textContent=txt;
+      s.classList.add(txt.startsWith("✕ ")?"rnd-done-forb":"rnd-done-res");
+    }else if(k==="time"){
+      s.textContent=(Number(state.total)||0)+" min";
+      s.classList.add("rnd-done-time");
+    }else{
+      s.textContent=state.ctype.emoji+" "+state.ctype.label;
+      s.classList.add("rnd-done-ct");
     }
+    locked[idx]=true;
+  }
+  function finishSpinSequence(){
+    const bar=host.querySelector(".basket-spin-h span:last-child");
+    if(bar) bar.textContent=cfg.label+" · locked in";
+    state.mysterySpinLocked=true;
+    trackPWEvent("spin_basket", pwParamsBuilder());
+    renderBuild();
+  }
+  try{
+    doRandomize();
+  }catch(err){
+    console.error("Mystery basket spin failed", err);
+    state.mysterySpinLocked=false;
+    alert("Mystery basket hit an error: "+(err&&err.message?err.message:String(err)));
+    renderBuild();
+    return;
+  }
+  let ticks=0;
+  const iv=setInterval(()=>{
+    ticks++;
+    spinUnlockedPreview();
+    if(ticks<maxTicks) return;
+    clearInterval(iv);
+    let step=0;
+    function runStopStep(){
+      if(step>=stopOrder.length){
+        finishSpinSequence();
+        return;
+      }
+      finalizeSlot(stopOrder[step]);
+      step++;
+      if(step>=stopOrder.length) finishSpinSequence();
+      else setTimeout(runStopStep,stopGapMs);
+    }
+    runStopStep();
   },tickMs);
 }
 
@@ -2437,11 +2634,12 @@ function doRandomize(){
   state.res=sanitizeRestrictionList(draw.restrictions);
   state.forbEq=draw.forbEquip;
   state.lim=d.burners;state.cut=d.cut;
-  state.req=pickRequiredPattern(pool,d.req,state.res);
-  const t=SPIN_AI_TIMES[Math.floor(Math.random()*SPIN_AI_TIMES.length)];
-  state.total=t;state.prep=Math.round(t*0.35);state.cook=Math.round(t*0.65);
   const allTypes=[...CTYPES,...state.customTypes];
   state.ctype=allTypes[Math.floor(Math.random()*allTypes.length)];
+  state.req=pickRequiredPattern(pool,d.req,state.res);
+  state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,pool,state.res,pwChaosOrInsane());
+  const t=SPIN_AI_TIMES[Math.floor(Math.random()*SPIN_AI_TIMES.length)];
+  state.total=t;state.prep=Math.round(t*0.35);state.cook=Math.round(t*0.65);
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
