@@ -444,6 +444,19 @@ const pick = (arr,n) => {
   if (c <= 0) return [];
   return [...arr].sort(() => Math.random() - 0.5).slice(0, c);
 };
+function drawUnifiedConstraints(count){
+  const n=Math.max(0, Number(count)||0);
+  const candidates=[
+    ...RESTRICT.map(r=>({type:"res",label:r})),
+    ...EQUIP.map(e=>({type:"forb",label:"✕ "+e,raw:e})),
+  ];
+  const chosen=pick(candidates,n);
+  return {
+    spinConstraints: chosen.map(c=>c.label),
+    restrictions: chosen.filter(c=>c.type==="res").map(c=>c.label),
+    forbEquip: chosen.filter(c=>c.type==="forb").map(c=>c.raw),
+  };
+}
 const $ = id => document.getElementById(id);
 const el = (tag,attrs={},children=[]) => {
   const e=document.createElement(tag);
@@ -811,8 +824,9 @@ function renderBuild() {
   diffCard.appendChild(dlbl);
   const drow=div({style:{display:"flex",gap:"8px",flexWrap:"wrap"}});
   Object.entries(DIFF).forEach(([k,d])=>{
+    const totalRestr=Math.max(Number(d.res)||0, Number(d.forb)||0);
     const b=el("button",{style:{flex:"1",minWidth:"80px",background:state.diff===k?"#1e293b":"#f8fafc",border:"2px solid "+(state.diff===k?"#6366f1":"#e2e8f0"),borderRadius:"10px",padding:"9px 6px",cursor:"pointer",textAlign:"center"}});
-    b.innerHTML=`<div style="font-size:17px;margin-bottom:2px">${d.emoji}</div><div style="font-size:12px;font-weight:800;color:${state.diff===k?"#fff":"#0f172a"}">${d.label}</div><div style="font-size:10px;color:#94a3b8">${d.req} items · ${d.res} restrict</div>`;
+    b.innerHTML=`<div style="font-size:17px;margin-bottom:2px">${d.emoji}</div><div style="font-size:12px;font-weight:800;color:${state.diff===k?"#fff":"#0f172a"}">${d.label}</div><div style="font-size:10px;color:#94a3b8">${d.req} must-use · ${totalRestr} restriction</div>`;
     b.addEventListener("click",()=>{state.diff=k;state.mysterySpinLocked=false;renderBuild();});
     drow.appendChild(b);
   });
@@ -838,15 +852,15 @@ function renderBuild() {
   ctCard.appendChild(ctList);
   grid.appendChild(ctCard);
 
-  // Optional: internal time budget for AI recipes only (no user clock on this flow)
+  // Optional: AI comparison timing only (not a player timer or spin rule)
   const tDetails=el("details",{class:"card"});
   tDetails.style.listStyle="none";
   const tSum=el("summary");
   tSum.style.cssText="cursor:pointer;list-style:none;font-size:12px;font-weight:800;color:#0f172a";
-  tSum.innerHTML="Optional: AI timing budget <span style=\"font-weight:600;color:#64748b\">(rival recipe only — not a kitchen timer)</span>";
+  tSum.innerHTML="AI comparison timing <span style=\"font-weight:600;color:#64748b\">(for AI recipe realism only)</span>";
   const tInner=div({style:{marginTop:"10px",paddingTop:"10px",borderTop:"1px solid #e2e8f0"}});
   const tHelp=div({style:{fontSize:"11px",color:"#64748b",marginBottom:"10px",lineHeight:"1.45"}});
-  tHelp.textContent="Sliders only change how tight the AI’s written timeline sounds. Expand if you care; defaults work fine for “what would you make?”";
+  tHelp.textContent="This only guides AI realism/comparison (e.g., no Beef Wellington in 20 min). It does not limit your own plan. Competition coach can use whatever real clock your rules require.";
   tInner.appendChild(tHelp);
   const trow=div({style:{marginBottom:"10px"}});
   const tval=div({style:{fontSize:"12px",fontWeight:"700",color:"#0f172a",marginBottom:"4px"}});
@@ -868,7 +882,7 @@ function renderBuild() {
   tInner.appendChild(pcrow);
   const cutLbl=el("label",{style:{display:"flex",alignItems:"center",gap:"7px",cursor:"pointer",padding:"7px 9px",background:state.cut?"#f3e8ff":"#f8fafc",border:"2px solid "+(state.cut?"#c084fc":"#e2e8f0"),borderRadius:"8px"}});
   const cutCb=el("input",{type:"checkbox"});cutCb.checked=state.cut;cutCb.addEventListener("change",e=>{state.cut=e.target.checked;renderBuild();});
-  const cutTxt=el("span",{style:{fontSize:"12px",fontWeight:"700",color:state.cut?"#7c3aed":"#475569"}});cutTxt.textContent="Tighter AI timeline (−10 min in prompts)";
+  const cutTxt=el("span",{style:{fontSize:"12px",fontWeight:"700",color:state.cut?"#7c3aed":"#475569"}});cutTxt.textContent="Pressure test AI timeline (−10 min prompt stress)";
   cutLbl.append(cutCb,cutTxt);tInner.appendChild(cutLbl);
   tDetails.appendChild(tSum);
   tDetails.appendChild(tInner);
@@ -912,7 +926,18 @@ function renderBuild() {
   const resHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
   const reslbl=el("span",{class:"lbl",style:{marginBottom:"0"}});reslbl.textContent="Restrictions";
   const resbtns=div({style:{display:"flex",gap:"4px"}});
-  resbtns.append(btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("restriction")),btn("Random "+cfg.res,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{state.res=pick(RESTRICT,cfg.res);pruneConflictingReq(cfg);renderBuild();}));
+  const totalRestr=Math.max(Number(cfg.res)||0, Number(cfg.forb)||0);
+  resbtns.append(
+    btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("restriction")),
+    btn("Random "+totalRestr,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{
+      const draw=drawUnifiedConstraints(totalRestr);
+      state.spinConstraints=draw.spinConstraints;
+      state.res=draw.restrictions;
+      state.forbEq=draw.forbEquip;
+      pruneConflictingReq(cfg);
+      renderBuild();
+    })
+  );
   resHead.append(reslbl,resbtns);resCard.appendChild(resHead);
   const resChips=div({style:{display:"flex",flexWrap:"wrap",gap:"4px"}});
   [...RESTRICT,...state.res.filter(r=>!RESTRICT.includes(r))].forEach(r=>{
@@ -2022,14 +2047,10 @@ function runMysteryRandomize(){
 function doRandomize(){
   const d=DIFF[state.diff];
   const nConstraints=Math.max(Number(d.res)||0, Number(d.forb)||0);
-  const candidates=[
-    ...RESTRICT.map(r=>({type:"res",label:r})),
-    ...EQUIP.map(e=>({type:"forb",label:"✕ "+e,raw:e})),
-  ];
-  const chosen=pick(candidates,nConstraints);
-  state.spinConstraints=chosen.map(c=>c.label);
-  state.res=chosen.filter(c=>c.type==="res").map(c=>c.label);
-  state.forbEq=chosen.filter(c=>c.type==="forb").map(c=>c.raw);
+  const draw=drawUnifiedConstraints(nConstraints);
+  state.spinConstraints=draw.spinConstraints;
+  state.res=draw.restrictions;
+  state.forbEq=draw.forbEquip;
   state.lim=d.burners;state.cut=d.cut;
   const pool=window.USER_PANTRY||PANTRY;
   state.req=pickRequiredPattern(pool,d.req,state.res);
