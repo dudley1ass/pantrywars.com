@@ -458,9 +458,9 @@ function renderLanding() {
     <div style="min-height:100vh;background:linear-gradient(160deg,#0f172a 0%,#1e293b 45%,#334155 100%);color:#f8fafc;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 18px;text-align:center">
       <div style="max-width:520px;width:100%">
         <div style="font-size:11px;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:#94a3b8;margin-bottom:12px">Pantry Wars</div>
-        <h1 style="font-size:clamp(26px,5vw,36px);font-weight:900;line-height:1.15;margin:0 0 10px;color:#fff">Can you <span style="color:#f59e0b">beat the AI</span>?</h1>
+        <h1 style="font-size:clamp(26px,5vw,36px);font-weight:900;line-height:1.15;margin:0 0 10px;color:#fff"><span style="color:#f59e0b">Can you beat AI?</span></h1>
         <p style="font-size:17px;font-weight:800;color:#e2e8f0;margin:0 0 16px">Take the challenge.</p>
-        <p style="font-size:15px;color:#cbd5e1;line-height:1.55;margin:0 0 22px">Same mystery basket. <strong style="color:#e2e8f0">AI</strong> shows what it would plate — <strong style="color:#e2e8f0">you</strong> say what <em>you’d</em> make (this is “what would you cook?”, not homework in the kitchen). Playing along with <strong style="color:#e2e8f0">food TV</strong>? Use the same haul and compare. <strong style="color:#e2e8f0">Can you beat the AI?</strong></p>
+        <p style="font-size:15px;color:#cbd5e1;line-height:1.55;margin:0 0 22px">Same mystery basket. AI shows what it would plate — you say what you’d plate (this is “what would you cook?”, not homework in the kitchen). Playing along with food TV? Use the same haul and compare. <strong style="color:#e2e8f0">Can you beat AI?</strong></p>
         <div style="text-align:left;background:rgba(15,23,42,0.55);border:1px solid #475569;border-radius:14px;padding:18px;margin-bottom:26px">
           <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:12px">Step by step</div>
           <ol style="margin:0;padding-left:20px;color:#e2e8f0;font-size:14px;line-height:1.65">
@@ -763,12 +763,24 @@ function renderBuild() {
   const wrap=div({style:{maxWidth:"820px",margin:"0 auto",padding:"14px 12px"}});
   const flowHint=div({style:{background:"#eff6ff",border:"2px solid #bfdbfe",borderRadius:"10px",padding:"12px 14px",marginBottom:"12px",fontSize:"12px",color:"#1e3a8a",lineHeight:"1.55"}});
   flowHint.innerHTML=`<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#1e40af;margin-bottom:8px">Next step</div>
-  <p style="margin:0 0 10px"><strong>Easy path:</strong> tap a <strong>Difficulty</strong>, then <strong>Spin mystery basket</strong> — it picks your ingredients, restrictions, and challenge type at random. Then tap <strong>Launch</strong> and tell the AI what <em>you’d</em> make. <strong>Or</strong> skip the spin and set everything by hand — your call.</p>
-  <p style="margin:0;font-size:11px;color:#334155">The spinner stays open below after a draw so you can see your haul. Optional settings (challenge type, equipment, <em>AI-only</em> timing) are in the cards underneath.</p>`;
+  <p style="margin:0 0 10px"><strong>Easy path:</strong> pick a <strong>Difficulty</strong>, then <strong>Spin my mystery basket</strong> — it randomly fills ingredients, restrictions, and challenge type. Tap <strong>Launch — beat the AI</strong> and say what <em>you’d</em> make.</p>
+  <p style="margin:0 0 10px"><strong>Or,</strong> set it all yourself — especially if you’re in a <strong>real cooking competition</strong> and want AI backup, or you’re having a <strong>cook-off with friends</strong>: dial in your own ingredients and restrictions, then have fun!</p>
+  <p style="margin:0;font-size:11px;color:#334155">The spinner stays open after a draw. Challenge type, equipment, and optional <em>AI-only</em> timing are in the cards below.</p>`;
   wrap.appendChild(flowHint);
   const spinHost=el("div",{id:"spin-host"});
   if(state.mysterySpinLocked) spinHost.innerHTML=mysterySpinResultPanelHtml();
   wrap.appendChild(spinHost);
+  const contestRow=div({style:{maxWidth:"100%",marginBottom:"14px"}});
+  contestRow.innerHTML=`<div style="background:linear-gradient(145deg,#312e81 0%,#1e1b4b 100%);border:2px solid #a855f7;border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px">
+    <div style="flex:1;min-width:220px">
+      <div style="font-size:10px;font-weight:900;color:#e9d5ff;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Competition coach (optional)</div>
+      <div style="font-size:13px;color:#c4b5fd;line-height:1.5">Extra <strong style="color:#fff">tight, judge-style game plan</strong> from AI for <em>this</em> basket — before you launch. Handy for real comps or a friends cook-off.</div>
+    </div>
+    <button type="button" id="contest-live-btn" onclick="generateContestRecipe()" style="flex-shrink:0;background:linear-gradient(180deg,#a855f7,#7c3aed);color:#fff;border:none;border-radius:12px;padding:12px 20px;font-size:13px;font-weight:900;cursor:pointer;box-shadow:0 6px 20px rgba(124,58,237,0.35);white-space:nowrap">🔴 Competition game plan</button>
+  </div>
+  <div id="contest-recipe-inline" style="margin-top:10px"></div>`;
+  wrap.appendChild(contestRow);
+  renderContestRecipeBox();
 
   // DIFFICULTY
   const diffCard=div({class:"card full"});
@@ -935,6 +947,25 @@ function renderBuild() {
 }
 
 // ── LAUNCH ────────────────────────────────────────────────────────────────────
+/** Snapshot current builder into challenge shape (for AI prompts before launch). */
+function challengeFromBuilder(){
+  const pool=pantryPool();
+  return{
+    diff:state.diff,
+    ctype:state.ctype,
+    totalTime:state.total,
+    prepTime:state.prep,
+    cookTime:state.cook,
+    surpriseCut:state.cut,
+    required:[...state.req],
+    restrictions:[...state.res],
+    reqEquip:[...state.reqEq],
+    forbEquip:[...state.forbEq],
+    limitBurners:state.lim,
+    pantry:pool.filter(p=>!state.req.includes(p)),
+  };
+}
+
 function doLaunch() {
   const cfg=DIFF[state.diff];
   if(state.req.length<cfg.req){
@@ -1110,7 +1141,7 @@ function renderRecipe() {
   sc.innerHTML=`
     <div style="background:#1e293b;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
       <div>
-        <div style="font-size:10px;color:#64748b;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px">${state.challenge.ctype.emoji} ${state.challenge.ctype.label} · ${state.challenge.diff.toUpperCase()} · beat the AI</div>
+        <div style="font-size:10px;color:#64748b;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px">${state.challenge.ctype.emoji} ${state.challenge.ctype.label} · ${state.challenge.diff.toUpperCase()} · beat AI</div>
         <div id="recipe-title" style="font-size:18px;font-weight:900;color:#f8fafc">Pantry Wars — Rival chef at work…</div>
         <div id="recipe-tagline" style="font-size:12px;color:#94a3b8;font-style:italic;margin-top:2px"></div>
       </div>
@@ -1120,18 +1151,8 @@ function renderRecipe() {
       </div>
     </div>
     <div id="recipe-body" style="padding:8px 12px 20px">
-      <p style="text-align:center;font-size:12px;color:#64748b;max-width:680px;margin:8px auto 14px;line-height:1.45"><strong style="color:#f8fafc;font-size:11px;letter-spacing:2px">PANTRY WARS</strong> — <strong style="color:#cbd5e1">Can you beat the AI?</strong> Tell us <strong style="color:#f59e0b">what you’d make</strong> with this basket; <strong style="color:#818cf8">Rival chef</strong> is the AI’s answer with the same rules. Tap <strong style="color:#fbbf24">Battle</strong> to compare scorecards.</p>
+      <p style="text-align:center;font-size:12px;color:#64748b;max-width:680px;margin:8px auto 14px;line-height:1.45"><strong style="color:#f8fafc;font-size:11px;letter-spacing:2px">PANTRY WARS</strong> — <strong style="color:#cbd5e1">Can you beat AI?</strong> Say <strong style="color:#f59e0b">what you’d plate</strong> with this basket; <strong style="color:#818cf8">Rival chef</strong> is the AI’s recipe on the same rules. Tap <strong style="color:#fbbf24">Battle</strong> to compare.</p>
       ${battleConstraintsHtml(state.challenge)}
-      <div id="contest-plan-row" style="max-width:1180px;margin:0 auto 14px;padding:0 12px">
-        <div style="background:linear-gradient(145deg,#312e81 0%,#1e1b4b 100%);border:2px solid #a855f7;border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px">
-          <div style="flex:1;min-width:220px">
-            <div style="font-size:10px;font-weight:900;color:#e9d5ff;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Real cook-off — competition game plan</div>
-            <div style="font-size:13px;color:#c4b5fd;line-height:1.5">What AI would run <strong style="color:#fff">on the line</strong> for this basket — judge-ready and execution-tight. Tap anytime; rival draft optional.</div>
-          </div>
-          <button type="button" id="contest-live-btn" onclick="generateContestRecipe()" style="flex-shrink:0;background:linear-gradient(180deg,#a855f7,#7c3aed);color:#fff;border:none;border-radius:12px;padding:14px 22px;font-size:13px;font-weight:900;cursor:pointer;box-shadow:0 6px 20px rgba(124,58,237,0.4);white-space:nowrap">🔴 Competition game plan</button>
-        </div>
-        <div id="contest-recipe-inline" style="margin-top:10px"></div>
-      </div>
       <div id="recipe-compare-grid">
         <div id="recipe-ai-panel">
           <div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>
@@ -1145,7 +1166,6 @@ function renderRecipe() {
       </div>
     </div>`;
   wireUserCookPlanForm();
-  renderContestRecipeBox();
   generateRecipe();
 }
 
@@ -1330,8 +1350,8 @@ function renderContestRecipeBox(){
 }
 
 async function generateContestRecipe(){
-  const ch=state.challenge;
-  if(!ch||!(ch.required&&ch.required.length)){alert("Launch a challenge with required ingredients first.");return;}
+  const ch=state.challenge||challengeFromBuilder();
+  if(!(ch.required&&ch.required.length)){alert("Pick at least one required ingredient (or spin the mystery basket) first.");return;}
   const btn=$("contest-live-btn");
   if(btn){btn.disabled=true;btn.innerHTML="⏳ Calling the pass…";}
   try{
@@ -1360,6 +1380,7 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
     state.contestRecipe=data;
     renderContestRecipeBox();
     if(state.recipe) showRecipeData(state.recipe);
+    else renderBuild();
   }catch(e){
     alert("Competition game plan failed: "+e.message);
   }finally{
@@ -1395,7 +1416,7 @@ function showRecipeData(r) {
     </div>
   </div>
   <div style="margin-top:16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px">
-    <div style="font-size:11px;color:#94a3b8;max-width:420px;line-height:1.45">Competition game plan lives <strong style="color:#c4b5fd">above</strong> — tap it anytime.</div>
+    <div style="font-size:11px;color:#94a3b8;max-width:420px;line-height:1.45">Need the extra <strong style="color:#c4b5fd">competition coach</strong> plan? Tap <strong>Back</strong> — it’s on the battle builder.</div>
     <button type="button" id="battle-btn" onclick="openBattleScorecards()" disabled style="background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#0f172a;border:none;border-radius:12px;padding:12px 28px;font-size:14px;font-weight:900;cursor:not-allowed;box-shadow:0 6px 20px rgba(245,158,11,0.35);width:100%;max-width:380px">⚔ Battle — compare & scorecards</button>
     <div id="battle-hint" style="font-size:11px;color:#94a3b8;text-align:center;max-width:400px;line-height:1.45">Fill <strong style="color:#f59e0b">Your battle plan</strong> (left) with what you’d make, then <strong style="color:#fbbf24">Battle</strong> for AI vs you scorecards.</div>
     <details style="max-width:420px;text-align:left"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#94a3b8">Optional: real kitchen timer</summary><p style="font-size:11px;color:#64748b;margin:8px 0 10px">Only if you’re actually cooking along — not required for “beat the AI.”</p><button type="button" onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:800;cursor:pointer;width:100%">Start ${ch.totalTime}-minute timer</button></details>
