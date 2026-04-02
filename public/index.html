@@ -436,7 +436,13 @@ function pantryCategories() {
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
-const pick = (arr,n) => [...arr].sort(()=>Math.random()-0.5).slice(0,n);
+const pick = (arr,n) => {
+  let c = Number(n);
+  if (!Number.isFinite(c) || c < 0) c = 0;
+  c = Math.min(c, arr.length | 0);
+  if (c <= 0) return [];
+  return [...arr].sort(() => Math.random() - 0.5).slice(0, c);
+};
 const $ = id => document.getElementById(id);
 const el = (tag,attrs={},children=[]) => {
   const e=document.createElement(tag);
@@ -1435,6 +1441,7 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
     resetContestBtn();
   }
 }
+window.generateContestRecipe = generateContestRecipe;
 
 function showRecipeData(r) {
   $("recipe-title").textContent=r.title||"Your Recipe";
@@ -1976,33 +1983,45 @@ function runMysteryRandomize(){
     });
     if(ticks>=maxTicks){
       clearInterval(iv);
-      doRandomize();
-      let si=0;
-      for(;si<need;si++){
-        const s=slots[si];
-        const name=state.req[si];
-        if(name){ s.textContent=name; s.classList.add("rnd-done-ing"); }
-        else { s.textContent="—"; s.style.opacity="0.5"; }
+      try{
+        if(slots.length!==slotMeta.length){
+          console.error("Mystery basket: slot mismatch", {slots:slots.length,meta:slotMeta.length});
+          throw new Error("Spinner UI out of sync — refresh the page.");
+        }
+        doRandomize();
+        let si=0;
+        for(;si<need;si++){
+          const s=slots[si];
+          const name=state.req[si];
+          if(name){ s.textContent=name; s.classList.add("rnd-done-ing"); }
+          else { s.textContent="—"; s.style.opacity="0.5"; }
+        }
+        for(let r=0;r<nRes;r++){
+          const s=slots[need+r];
+          const txt=state.res[r]||"";
+          s.textContent=txt||"—";
+          s.classList.add("rnd-done-res");
+        }
+        for(let f=0;f<nForb;f++){
+          const s=slots[need+nRes+f];
+          const eq=state.forbEq[f]||"";
+          s.textContent=eq?"✕ "+eq:"—";
+          s.classList.add("rnd-done-forb");
+        }
+        const sCt=slots[need+nRes+nForb];
+        if(!sCt) throw new Error("Missing challenge slot");
+        sCt.textContent=state.ctype.emoji+" "+state.ctype.label;
+        sCt.classList.add("rnd-done-ct");
+        const bar=host.querySelector(".basket-spin-h span:last-child");
+        if(bar) bar.textContent=cfg.label+" · locked in";
+        state.mysterySpinLocked=true;
+        renderBuild();
+      }catch(err){
+        console.error("Mystery basket spin failed", err);
+        state.mysterySpinLocked=false;
+        alert("Mystery basket hit an error: "+(err&&err.message?err.message:String(err)));
+        renderBuild();
       }
-      for(let r=0;r<nRes;r++){
-        const s=slots[need+r];
-        const txt=state.res[r]||"";
-        s.textContent=txt||"—";
-        s.classList.add("rnd-done-res");
-      }
-      for(let f=0;f<nForb;f++){
-        const s=slots[need+nRes+f];
-        const eq=state.forbEq[f]||"";
-        s.textContent=eq?"✕ "+eq:"—";
-        s.classList.add("rnd-done-forb");
-      }
-      const sCt=slots[need+nRes+nForb];
-      sCt.textContent=state.ctype.emoji+" "+state.ctype.label;
-      sCt.classList.add("rnd-done-ct");
-      const bar=host.querySelector(".basket-spin-h span:last-child");
-      if(bar) bar.textContent=cfg.label+" · locked in";
-      state.mysterySpinLocked=true;
-      renderBuild();
     }
   },tickMs);
 }
