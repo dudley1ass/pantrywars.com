@@ -1476,6 +1476,26 @@ ${JSON.stringify({
   }
 }
 
+function battleChallengeRowHtml(ch){
+  if(!ch) return "";
+  const ct=ch.ctype||{};
+  const em=escapeHtml(ct.emoji||"🍴");
+  const lab=escapeHtml(ct.label||"—");
+  const dk=ch.diff;
+  const diffChip=dk&&DIFF[dk]
+    ?`<span style="background:#1e293b;border:1px solid #475569;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#cbd5e1">${escapeHtml(DIFF[dk].emoji)} ${escapeHtml(String(dk).toUpperCase())}</span>`
+    :"";
+  const tm=Number(ch.totalTime)||0;
+  const timeChip=tm?`<span style="background:#1e293b;border:1px solid #475569;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#94a3b8">${tm} min</span>`:"";
+  const cutChip=ch.surpriseCut?`<span style="background:#3b0764;border:1px solid #7c3aed;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#e9d5ff">−10 min cut</span>`:"";
+  return `<div style="margin-bottom:10px">
+    <div style="font-size:11px;font-weight:800;color:#818cf8;margin-bottom:6px">Challenge</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+      <span style="background:#312e81;border:1px solid #6366f1;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#e0e7ff">${em} ${lab}</span>${diffChip}${timeChip}${cutChip}
+    </div>
+  </div>`;
+}
+
 function battleConstraintsHtml(ch){
   if(!ch)return"";
   const req=(ch.required||[]).map(i=>`<span style="background:#312e81;border:1px solid #4f46e5;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#e0e7ff">${escapeHtml(i)}</span>`).join("");
@@ -1489,10 +1509,10 @@ function battleConstraintsHtml(ch){
   (ch.forbEquip||[]).forEach(e=>eq.push(`<span style="background:#450a0a;border:1px solid #991b1b;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#fecaca">Forbidden: ${escapeHtml(e)}</span>`));
   if(ch.limitBurners) eq.push(`<span style="background:#9a3412;border:1px solid #f97316;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#ffedd5">1 burner only</span>`);
   if(eq.length) blocks.push(`<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:800;color:#fdba74;margin-bottom:6px">Equipment</div><div style="display:flex;flex-wrap:wrap;gap:6px">${eq.join("")}</div></div>`);
-  if(ch.surpriseCut) blocks.push(`<div style="font-size:11px;color:#a78bfa;font-weight:700">⚡ Tighter AI timeline (−10 min in prompts) is on.</div>`);
   return `<div id="battle-constraints" style="max-width:1180px;margin:0 auto 14px;padding:0 12px">
     <div style="background:#0f172a;border:2px solid #475569;border-radius:14px;padding:14px 16px">
       <div style="font-size:10px;font-weight:900;color:#94a3b8;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">Battle brief — same haul & rules for you & rival chef</div>
+      ${battleChallengeRowHtml(ch)}
       <div style="margin-bottom:10px">
         <div style="font-size:11px;font-weight:800;color:#a5b4fc;margin-bottom:6px">Must use</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px">${req||"<span style=\"color:#64748b;font-size:12px\">—</span>"}</div>
@@ -1867,6 +1887,11 @@ function renderActive() {
           ${ch.required.map(i=>`<div style="padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:700;color:#0f172a">☐ ${i}</div>`).join("")}
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="background:#eef2ff;border:2px solid #a5b4fc;border-radius:10px;padding:10px 12px">
+            <div style="font-size:10px;font-weight:800;color:#4338ca;text-transform:uppercase;margin-bottom:6px">Challenge</div>
+            <div style="font-size:13px;font-weight:800;color:#0f172a">${escapeHtml((ch.ctype&&ch.ctype.emoji)||"🍴")} ${escapeHtml((ch.ctype&&ch.ctype.label)||"—")}</div>
+            <div style="font-size:11px;color:#475569;margin-top:4px">${ch.diff&&DIFF[ch.diff]?escapeHtml(DIFF[ch.diff].emoji)+" ":""}${escapeHtml(String(ch.diff||"").toUpperCase())} · ${Number(ch.totalTime)||0} min</div>
+          </div>
           ${ch.restrictions.length?`<div style="background:#fef2f2;border:2px solid #fecaca;border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:800;color:#dc2626;text-transform:uppercase;margin-bottom:6px">Rules</div>${ch.restrictions.map(r=>`<div style="font-size:11px;font-weight:700;color:#b91c1c">• ${escapeHtml(normalizeRestrictionKey(r))}</div>`).join("")}</div>`:""}
           ${(ch.reqEquip.length||ch.forbEquip.length||ch.limitBurners)?`<div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:800;color:#c2410c;text-transform:uppercase;margin-bottom:6px">Equipment</div>${ch.reqEquip.map(e=>`<div style="font-size:11px;font-weight:700;color:#166534">✓ ${e}</div>`).join("")}${ch.forbEquip.map(e=>`<div style="font-size:11px;font-weight:700;color:#b91c1c">X ${e}</div>`).join("")}${ch.limitBurners?`<div style="font-size:11px;font-weight:700;color:#c2410c">1 burner only</div>`:""}</div>`:""}
         </div>
@@ -1933,6 +1958,10 @@ function renderScore(){
         <strong>Battle judge:</strong> AI pre-fills both scorecards from your plan vs rival recipe.
         <span id="score-auto-status" style="margin-left:6px;color:#0369a1">${state.duelAutoScoring?"Auto-judging duel...":"Auto-judge ready."}</span>
       </div>
+      ${state.challenge?`<div style="background:#f8fafc;border:2px solid #cbd5e1;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#334155">
+        <div style="font-size:10px;font-weight:800;color:#6366f1;text-transform:uppercase;margin-bottom:6px">Challenge</div>
+        <div style="font-weight:700">${escapeHtml((state.challenge.ctype&&state.challenge.ctype.emoji)||"🍴")} ${escapeHtml((state.challenge.ctype&&state.challenge.ctype.label)||"—")} · ${escapeHtml(String(state.challenge.diff||"").toUpperCase())} · ${Number(state.challenge.totalTime)||0} min</div>
+      </div>`:""}
       ${(()=>{const uc=state.userCookPlan;const has=(uc.dish||"").trim()||(uc.techniques||"").trim()||(uc.timing||"").trim();if(!has)return"";const aiT=state.recipe&&state.recipe.title?state.recipe.title:"—";return`<div style="background:#fff7ed;border:2px solid #fdba74;border-radius:12px;padding:14px;margin-bottom:14px;text-align:left">
         <div style="font-size:10px;font-weight:900;color:#c2410c;text-transform:uppercase;margin-bottom:8px">Pantry Wars · Compared</div>
         <div class="duel-score-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;color:#0f172a">
@@ -2013,7 +2042,7 @@ function submitScore(){
             </div>
           </div>
         </div>
-        <div style="font-size:12px;color:#94a3b8;margin-bottom:12px">${state.challenge.ctype.label} · ${state.challenge.diff.toUpperCase()}</div>
+        <div style="font-size:12px;color:#94a3b8;margin-bottom:12px">${(state.challenge.ctype&&state.challenge.ctype.emoji)?state.challenge.ctype.emoji+" ":""}${escapeHtml((state.challenge.ctype&&state.challenge.ctype.label)||"—")} · ${escapeHtml(String(state.challenge.diff||"").toUpperCase())} · ${Number(state.challenge.totalTime)||0} min</div>
         ${notes?`<div style="background:#f8fafc;border-radius:8px;padding:10px;font-size:12px;color:#334155;text-align:left;margin-bottom:14px">${escapeHtml(notes)}</div>`:""}
         <button onclick="resetDuelScores();showScreen('screen-pantry');renderPantry();" style="width:100%;padding:12px;font-size:13px;font-weight:800;border-radius:10px;background:#6366f1;color:#fff;border:none;cursor:pointer;margin-bottom:8px">Pantry Wars — Play again</button>
         <button onclick="resetDuelScores();renderLanding();" style="width:100%;padding:10px;font-size:12px;font-weight:700;border-radius:10px;background:#f1f5f9;color:#475569;border:2px solid #e2e8f0;cursor:pointer">Home</button>
