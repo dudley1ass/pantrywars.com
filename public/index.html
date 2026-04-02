@@ -409,6 +409,7 @@ let state = {
   total:30, prep:10, cook:20, cut:false,
   req:[], res:[], reqEq:[], forbEq:[], lim:false,
   challenge:null, recipe:null, contestRecipe:null,
+  mysterySpinLocked:false,
   userCookPlan:{dish:"",techniques:"",timing:""},
   scoresYou:{taste:7,creativity:7,presentation:7,difficulty:7},
   scoresAI:{taste:7,creativity:7,presentation:7,difficulty:7},
@@ -459,14 +460,14 @@ function renderLanding() {
         <div style="font-size:11px;font-weight:800;letter-spacing:4px;text-transform:uppercase;color:#94a3b8;margin-bottom:12px">Pantry Wars</div>
         <h1 style="font-size:clamp(26px,5vw,36px);font-weight:900;line-height:1.15;margin:0 0 10px;color:#fff">Can you <span style="color:#f59e0b">beat the AI</span>?</h1>
         <p style="font-size:17px;font-weight:800;color:#e2e8f0;margin:0 0 16px">Take the challenge.</p>
-        <p style="font-size:15px;color:#cbd5e1;line-height:1.55;margin:0 0 22px">Same mystery basket. Same clock. <strong style="color:#e2e8f0">AI</strong> plates a full recipe — <strong style="color:#e2e8f0">you</strong> write what <em>you’d</em> cook. Playing along with <strong style="color:#e2e8f0">food TV</strong>? Plug in the show’s ingredients and see what the rival chef does. Then judge who wins.</p>
+        <p style="font-size:15px;color:#cbd5e1;line-height:1.55;margin:0 0 22px">Same mystery basket. <strong style="color:#e2e8f0">AI</strong> shows what it would plate — <strong style="color:#e2e8f0">you</strong> say what <em>you’d</em> make (this is “what would you cook?”, not homework in the kitchen). Playing along with <strong style="color:#e2e8f0">food TV</strong>? Use the same haul and compare. <strong style="color:#e2e8f0">Can you beat the AI?</strong></p>
         <div style="text-align:left;background:rgba(15,23,42,0.55);border:1px solid #475569;border-radius:14px;padding:18px;margin-bottom:26px">
           <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#64748b;margin-bottom:12px">Step by step</div>
           <ol style="margin:0;padding-left:20px;color:#e2e8f0;font-size:14px;line-height:1.65">
             <li style="margin-bottom:10px"><strong style="color:#fff">Pick your pantry.</strong> Choose ingredients from the list (only those can appear in your battle). Shortcut: set <strong>Category: All</strong>, clear search, tap <strong>+ Select All</strong> to use the app’s big starter pantry.</li>
             <li style="margin-bottom:10px"><strong style="color:#fff">Pick your battle level.</strong> Easy = 2 mystery ingredients &amp; no restrictions; harder levels add more basket items and restriction slots.</li>
             <li style="margin-bottom:10px"><strong style="color:#fff">Fill the basket.</strong> Tap <strong>Spin mystery basket</strong> to randomize ingredients + restrictions + course type, <em>or</em> tap chips to choose from your pantry and the pre-loaded restriction list.</li>
-            <li style="margin-bottom:10px"><strong style="color:#fff">Launch &amp; duel.</strong> Get the rival-chef recipe, jot <strong>your</strong> battle plan, hit <strong>Battle</strong> for scorecards — or run the kitchen timer and cook for real.</li>
+            <li style="margin-bottom:10px"><strong style="color:#fff">Launch &amp; compare.</strong> See the rival-chef recipe, type <strong>your</strong> idea in <strong>Your battle plan</strong>, then <strong>Battle</strong> for scorecards.</li>
             <li><strong style="color:#fff">Food-show mode.</strong> Watching Chopped-style TV? Pick or type the same haul they’re using and see what AI would put on the pass.</li>
           </ol>
         </div>
@@ -749,11 +750,11 @@ function renderBuild() {
   const htitle=div({style:{color:"#f8fafc",fontSize:"16px",fontWeight:"800"}});
   htitle.textContent="PANTRY WARS";
   const hsub=div({style:{color:"#475569",fontSize:"11px"}});
-  hsub.textContent="Steps 2–4 — mystery basket & launch (beat the AI)";
+  hsub.textContent="Build the basket, then launch — can you beat the AI?";
   const hleft=div({},[htitle,hsub]);
   const hbtns=div({style:{display:"flex",gap:"8px",flexWrap:"wrap"}});
   const backPan=btn("← Pantry","#334155","#94a3b8",{border:"none",padding:"8px 10px",fontSize:"12px"},()=>{showScreen("screen-pantry");renderPantry();});
-  const randBtn=btn("🎰 Spin mystery basket","#f59e0b","#fff",{animation:"rndPulse 2s ease-in-out infinite"},()=>runMysteryRandomize());
+  const randBtn=btn("🎰 Spin my mystery basket","#f59e0b","#fff",{animation:"rndPulse 2s ease-in-out infinite"},()=>runMysteryRandomize());
   const launchBtn=btn("Launch — beat the AI →",state.req.length===0?"#475569":"#6366f1","#fff",{cursor:state.req.length===0?"not-allowed":"pointer"},()=>{if(state.req.length>0)doLaunch();});
   hbtns.append(backPan,randBtn,launchBtn);
   hdr.append(hleft,hbtns);
@@ -761,16 +762,13 @@ function renderBuild() {
 
   const wrap=div({style:{maxWidth:"820px",margin:"0 auto",padding:"14px 12px"}});
   const flowHint=div({style:{background:"#eff6ff",border:"2px solid #bfdbfe",borderRadius:"10px",padding:"12px 14px",marginBottom:"12px",fontSize:"12px",color:"#1e3a8a",lineHeight:"1.55"}});
-  flowHint.innerHTML=`<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#1e40af;margin-bottom:8px">What to do on this screen</div>
-  <ol style="margin:0;padding-left:18px">
-    <li style="margin-bottom:6px"><strong>Step 2 — Battle level:</strong> tap <strong>Difficulty</strong> (Easy = <strong>2</strong> mystery ingredients, Medium = 3 + 1 restriction, …).</li>
-    <li style="margin-bottom:6px"><strong>Step 3 — Course &amp; time:</strong> choose <strong>Challenge type</strong> &amp; timer (or let the spinner pick the type).</li>
-    <li style="margin-bottom:6px"><strong>Step 4 — The basket:</strong> tap <strong>Spin mystery basket</strong> to roll ingredients + restrictions + course in one go, <em>or</em> use <strong>Required</strong> / <strong>Restrictions</strong> chips and <strong>Random</strong> buttons with the pre-loaded lists.</li>
-    <li><strong>Then Launch</strong> — you’ll see what <strong>AI</strong> cooks; add <strong>your</strong> plan and compare. <em>Food-show night:</em> mirror the TV basket here and see the AI’s take on the same haul.</li>
-  </ol>
-  <div style="margin-top:10px;padding-top:10px;border-top:1px solid #bfdbfe;font-size:11px;color:#334155">Spinner runs <strong>inline</strong> below this box — no pop-up.</div>`;
+  flowHint.innerHTML=`<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#1e40af;margin-bottom:8px">Next step</div>
+  <p style="margin:0 0 10px"><strong>Easy path:</strong> tap a <strong>Difficulty</strong>, then <strong>Spin mystery basket</strong> — it picks your ingredients, restrictions, and challenge type at random. Then tap <strong>Launch</strong> and tell the AI what <em>you’d</em> make. <strong>Or</strong> skip the spin and set everything by hand — your call.</p>
+  <p style="margin:0;font-size:11px;color:#334155">The spinner stays open below after a draw so you can see your haul. Optional settings (challenge type, equipment, <em>AI-only</em> timing) are in the cards underneath.</p>`;
   wrap.appendChild(flowHint);
-  wrap.appendChild(el("div",{id:"spin-host"}));
+  const spinHost=el("div",{id:"spin-host"});
+  if(state.mysterySpinLocked) spinHost.innerHTML=mysterySpinResultPanelHtml();
+  wrap.appendChild(spinHost);
 
   // DIFFICULTY
   const diffCard=div({class:"card full"});
@@ -780,7 +778,7 @@ function renderBuild() {
   Object.entries(DIFF).forEach(([k,d])=>{
     const b=el("button",{style:{flex:"1",minWidth:"80px",background:state.diff===k?"#1e293b":"#f8fafc",border:"2px solid "+(state.diff===k?"#6366f1":"#e2e8f0"),borderRadius:"10px",padding:"9px 6px",cursor:"pointer",textAlign:"center"}});
     b.innerHTML=`<div style="font-size:17px;margin-bottom:2px">${d.emoji}</div><div style="font-size:12px;font-weight:800;color:${state.diff===k?"#fff":"#0f172a"}">${d.label}</div><div style="font-size:10px;color:#94a3b8">${d.req} items · ${d.res} restrict</div>`;
-    b.addEventListener("click",()=>{state.diff=k;renderBuild();});
+    b.addEventListener("click",()=>{state.diff=k;state.mysterySpinLocked=false;renderBuild();});
     drow.appendChild(b);
   });
   diffCard.appendChild(drow);
@@ -805,19 +803,25 @@ function renderBuild() {
   ctCard.appendChild(ctList);
   grid.appendChild(ctCard);
 
-  // TIME
-  const tCard=div({class:"card"});
-  const tlbl=el("span",{class:"lbl"});tlbl.textContent="Time";
-  tCard.appendChild(tlbl);
+  // Optional: internal time budget for AI recipes only (no user clock on this flow)
+  const tDetails=el("details",{class:"card"});
+  tDetails.style.listStyle="none";
+  const tSum=el("summary");
+  tSum.style.cssText="cursor:pointer;list-style:none;font-size:12px;font-weight:800;color:#0f172a";
+  tSum.innerHTML="Optional: AI timing budget <span style=\"font-weight:600;color:#64748b\">(rival recipe only — not a kitchen timer)</span>";
+  const tInner=div({style:{marginTop:"10px",paddingTop:"10px",borderTop:"1px solid #e2e8f0"}});
+  const tHelp=div({style:{fontSize:"11px;color:#64748b;marginBottom:"10px",lineHeight:"1.45"}});
+  tHelp.textContent="Sliders only change how tight the AI’s written timeline sounds. Expand if you care; defaults work fine for “what would you make?”";
+  tInner.appendChild(tHelp);
   const trow=div({style:{marginBottom:"10px"}});
   const tval=div({style:{fontSize:"12px",fontWeight:"700",color:"#0f172a",marginBottom:"4px"}});
-  tval.innerHTML=`Total: <span style="color:#6366f1">${state.total} min</span>`;
+  tval.innerHTML=`AI total: <span style="color:#6366f1">${state.total} min</span>`;
   const tslider=el("input",{type:"range",min:"15",max:"90",step:"5",value:state.total,style:{width:"100%","accent-color":"#6366f1"}});
   tslider.addEventListener("input",e=>{state.total=+e.target.value;state.prep=Math.round(state.total*0.35);state.cook=Math.round(state.total*0.65);renderBuild();});
   trow.append(tval,tslider);
-  tCard.appendChild(trow);
+  tInner.appendChild(trow);
   const pcrow=div({style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"10px"}});
-  [["Prep",state.prep,(v)=>{state.prep=v;renderBuild();}],["Cook",state.cook,(v)=>{state.cook=v;renderBuild();}]].forEach(([l,v,fn])=>{
+  [["Prep (AI)",state.prep,(v)=>{state.prep=v;renderBuild();}],["Cook (AI)",state.cook,(v)=>{state.cook=v;renderBuild();}]].forEach(([l,v,fn])=>{
     const box=div({});
     const lv=div({style:{fontSize:"11px",fontWeight:"700",color:"#64748b",marginBottom:"3px"}});lv.textContent=l;
     const row=div({style:{display:"flex",alignItems:"center",gap:"5px"}});
@@ -826,12 +830,14 @@ function renderBuild() {
     const dp=btn("+","#f1f5f9","#0f172a",{border:"2px solid #e2e8f0",padding:"3px 8px"},()=>fn(Math.min(state.total,v+5)));
     row.append(dm,vd,dp);box.append(lv,row);pcrow.appendChild(box);
   });
-  tCard.appendChild(pcrow);
+  tInner.appendChild(pcrow);
   const cutLbl=el("label",{style:{display:"flex",alignItems:"center",gap:"7px",cursor:"pointer",padding:"7px 9px",background:state.cut?"#f3e8ff":"#f8fafc",border:"2px solid "+(state.cut?"#c084fc":"#e2e8f0"),borderRadius:"8px"}});
   const cutCb=el("input",{type:"checkbox"});cutCb.checked=state.cut;cutCb.addEventListener("change",e=>{state.cut=e.target.checked;renderBuild();});
-  const cutTxt=el("span",{style:{fontSize:"12px",fontWeight:"700",color:state.cut?"#7c3aed":"#475569"}});cutTxt.textContent="Surprise Time Cut (-10 min)";
-  cutLbl.append(cutCb,cutTxt);tCard.appendChild(cutLbl);
-  grid.appendChild(tCard);
+  const cutTxt=el("span",{style:{fontSize:"12px",fontWeight:"700",color:state.cut?"#7c3aed":"#475569"}});cutTxt.textContent="Tighter AI timeline (−10 min in prompts)";
+  cutLbl.append(cutCb,cutTxt);tInner.appendChild(cutLbl);
+  tDetails.appendChild(tSum);
+  tDetails.appendChild(tInner);
+  grid.appendChild(tDetails);
 
   // REQUIRED INGREDIENTS
   const rCard=div({class:"card"});
@@ -921,7 +927,7 @@ function renderBuild() {
   // LAUNCH BUTTON
   const launchWrap=div({style:{marginTop:"0"}});
   const lb=el("button",{style:{width:"100%",padding:"13px",fontSize:"14px",fontWeight:"900",borderRadius:"12px",cursor:state.req.length===0?"not-allowed":"pointer",background:state.req.length===0?"#94a3b8":"#6366f1",color:"#fff",border:"none"}});
-  lb.textContent=state.req.length===0?"Add required ingredients to launch":`Launch — beat the AI · ${state.ctype.emoji} ${state.ctype.label} · ${state.total} min · ${state.diff.toUpperCase()}`;
+  lb.textContent=state.req.length===0?"Add required ingredients to launch":`Launch — beat the AI · ${state.ctype.emoji} ${state.ctype.label} · ${state.diff.toUpperCase()}`;
   lb.addEventListener("click",()=>{if(state.req.length>0)doLaunch();});
   launchWrap.appendChild(lb);
   wrap.appendChild(launchWrap);
@@ -948,18 +954,17 @@ function doLaunch() {
 }
 
 function userCookPlanPanelHtml() {
-  const t=state.challenge?state.challenge.totalTime:"—";
   return `<div style="background:#0f172a;border:1px solid #334155;border-radius:12px;padding:14px;height:fit-content">
     <div style="font-size:10px;font-weight:900;color:#f8fafc;margin-bottom:2px;letter-spacing:2px;text-transform:uppercase">Pantry Wars</div>
     <div style="font-size:11px;font-weight:900;color:#f59e0b;margin-bottom:4px;letter-spacing:1.5px;text-transform:uppercase">Your battle plan</div>
-    <div style="font-size:11px;color:#64748b;margin-bottom:12px;line-height:1.45">Pantry Wars · same mystery haul · ${t} min. Fill while AI Chef runs—or after. Judges compare honestly.</div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:12px;line-height:1.45">Same basket &amp; rules as the AI. What would <em>you</em> make? (No need to actually cook — this is your pitch.)</div>
     <label style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;display:block;margin-bottom:5px">What I'd cook</label>
     <textarea id="user-plan-dish" rows="4" placeholder="Dish name + what's on the plate — how each mystery item shows up" style="width:100%;min-height:88px;background:#1e293b;border:1px solid #475569;border-radius:8px;padding:10px;color:#f8fafc;font-size:13px;margin-bottom:12px;resize:vertical;box-sizing:border-box"></textarea>
     <label style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;display:block;margin-bottom:5px">Techniques</label>
     <textarea id="user-plan-tech" rows="4" placeholder="Sear, braise, reduction, pickle, purée… what you'd actually execute" style="width:100%;min-height:88px;background:#1e293b;border:1px solid #475569;border-radius:8px;padding:10px;color:#f8fafc;font-size:13px;margin-bottom:12px;resize:vertical;box-sizing:border-box"></textarea>
     <label style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;display:block;margin-bottom:5px">Order & timing</label>
-    <textarea id="user-plan-time" rows="3" placeholder="What you fire first, what runs in parallel, rough minutes" style="width:100%;min-height:64px;background:#1e293b;border:1px solid #475569;border-radius:8px;padding:10px;color:#f8fafc;font-size:13px;margin-bottom:12px;resize:vertical;box-sizing:border-box"></textarea>
-    <div style="padding-top:12px;border-top:1px solid #334155;font-size:11px;color:#64748b;line-height:1.5"><strong style="color:#94a3b8">Pantry Wars scorecard:</strong> Haul honesty · parts on the plate · sweet control · real minutes.</div>
+    <textarea id="user-plan-time" rows="3" placeholder="Order of operations — what you’d do first, second, in parallel (optional detail)" style="width:100%;min-height:64px;background:#1e293b;border:1px solid #475569;border-radius:8px;padding:10px;color:#f8fafc;font-size:13px;margin-bottom:12px;resize:vertical;box-sizing:border-box"></textarea>
+    <div style="padding-top:12px;border-top:1px solid #334155;font-size:11px;color:#64748b;line-height:1.5"><strong style="color:#94a3b8">Pantry Wars scorecard:</strong> Haul honesty · plate story · balance · creativity.</div>
   </div>`;
 }
 
@@ -1086,7 +1091,7 @@ function battleConstraintsHtml(ch){
   (ch.forbEquip||[]).forEach(e=>eq.push(`<span style="background:#450a0a;border:1px solid #991b1b;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#fecaca">Forbidden: ${escapeHtml(e)}</span>`));
   if(ch.limitBurners) eq.push(`<span style="background:#9a3412;border:1px solid #f97316;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#ffedd5">1 burner only</span>`);
   if(eq.length) blocks.push(`<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:800;color:#fdba74;margin-bottom:6px">Equipment</div><div style="display:flex;flex-wrap:wrap;gap:6px">${eq.join("")}</div></div>`);
-  if(ch.surpriseCut) blocks.push(`<div style="font-size:11px;color:#a78bfa;font-weight:700">⚡ Surprise time cut (−10 min) is on.</div>`);
+  if(ch.surpriseCut) blocks.push(`<div style="font-size:11px;color:#a78bfa;font-weight:700">⚡ Tighter AI timeline (−10 min in prompts) is on.</div>`);
   return `<div id="battle-constraints" style="max-width:1180px;margin:0 auto 14px;padding:0 12px">
     <div style="background:#0f172a;border:2px solid #475569;border-radius:14px;padding:14px 16px">
       <div style="font-size:10px;font-weight:900;color:#94a3b8;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">Battle brief — same haul & rules for you & rival chef</div>
@@ -1105,23 +1110,23 @@ function renderRecipe() {
   sc.innerHTML=`
     <div style="background:#1e293b;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
       <div>
-        <div style="font-size:10px;color:#64748b;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px">${state.challenge.ctype.emoji} ${state.challenge.ctype.label} · ${state.challenge.diff.toUpperCase()} · ${state.challenge.totalTime} MIN</div>
+        <div style="font-size:10px;color:#64748b;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px">${state.challenge.ctype.emoji} ${state.challenge.ctype.label} · ${state.challenge.diff.toUpperCase()} · beat the AI</div>
         <div id="recipe-title" style="font-size:18px;font-weight:900;color:#f8fafc">Pantry Wars — Rival chef at work…</div>
         <div id="recipe-tagline" style="font-size:12px;color:#94a3b8;font-style:italic;margin-top:2px"></div>
       </div>
       <div style="display:flex;gap:8px">
         <button onclick="showScreen('screen-build');renderBuild();" style="background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Back</button>
-        <button id="cook-btn" onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;display:none">Start battle clock</button>
+        <button id="cook-btn" onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;display:none">Kitchen timer (optional)</button>
       </div>
     </div>
     <div id="recipe-body" style="padding:8px 12px 20px">
-      <p style="text-align:center;font-size:12px;color:#64748b;max-width:680px;margin:8px auto 14px;line-height:1.45"><strong style="color:#f8fafc;font-size:11px;letter-spacing:2px">PANTRY WARS</strong> — <strong style="color:#cbd5e1">Can you beat AI?</strong> Fill <strong style="color:#f59e0b">Your battle plan</strong> with what you’d really cook; <strong style="color:#818cf8">Rival chef</strong> is the AI’s recipe on the same basket. Tap <strong style="color:#fbbf24">Battle</strong> for scorecards or start the clock and cook along.</p>
+      <p style="text-align:center;font-size:12px;color:#64748b;max-width:680px;margin:8px auto 14px;line-height:1.45"><strong style="color:#f8fafc;font-size:11px;letter-spacing:2px">PANTRY WARS</strong> — <strong style="color:#cbd5e1">Can you beat the AI?</strong> Tell us <strong style="color:#f59e0b">what you’d make</strong> with this basket; <strong style="color:#818cf8">Rival chef</strong> is the AI’s answer with the same rules. Tap <strong style="color:#fbbf24">Battle</strong> to compare scorecards.</p>
       ${battleConstraintsHtml(state.challenge)}
       <div id="contest-plan-row" style="max-width:1180px;margin:0 auto 14px;padding:0 12px">
         <div style="background:linear-gradient(145deg,#312e81 0%,#1e1b4b 100%);border:2px solid #a855f7;border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px">
           <div style="flex:1;min-width:220px">
             <div style="font-size:10px;font-weight:900;color:#e9d5ff;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Real cook-off — competition game plan</div>
-            <div style="font-size:13px;color:#c4b5fd;line-height:1.5">What AI would cook <strong style="color:#fff">on the line</strong> for this basket: timed, judge-ready, execution-first. Works anytime — you don’t need to wait for the rival recipe.</div>
+            <div style="font-size:13px;color:#c4b5fd;line-height:1.5">What AI would run <strong style="color:#fff">on the line</strong> for this basket — judge-ready and execution-tight. Tap anytime; rival draft optional.</div>
           </div>
           <button type="button" id="contest-live-btn" onclick="generateContestRecipe()" style="flex-shrink:0;background:linear-gradient(180deg,#a855f7,#7c3aed);color:#fff;border:none;border-radius:12px;padding:14px 22px;font-size:13px;font-weight:900;cursor:pointer;box-shadow:0 6px 20px rgba(124,58,237,0.4);white-space:nowrap">🔴 Competition game plan</button>
         </div>
@@ -1198,7 +1203,7 @@ function courseEnforcementBlock(ch, sig) {
 async function generateRecipe() {
   const ch=state.challenge;
   try {
-    const res=ch.restrictions.length?`Avoid: ${ch.restrictions.join(", ")}.`:"";
+    const res=ch.restrictions.length?`RESTRICTIONS (hard rules — the dish must comply; no cheating): ${ch.restrictions.join("; ")}.`:"RESTRICTIONS: none.";
     const fe=ch.forbEquip.length?`Forbidden: ${ch.forbEquip.join(", ")}.`:"";
     const re=ch.reqEquip.length?`Must use equipment: ${ch.reqEquip.join(", ")}.`:"";
     const bl=ch.limitBurners?"1 burner only.":"";
@@ -1234,7 +1239,8 @@ async function generateRecipe() {
 CHALLENGE: ${ch.ctype.label} | DIFFICULTY: ${ch.diff} | TIME: ${ch.totalTime}min (Prep ${ch.prepTime}, Cook ${ch.cookTime})
 REQUIRED BASKET (each must CARRY the dish, not garnish-only): ${ch.required.join(", ")}
 PANTRY you may use (only these + basics like salt/oil/water): ${pantryLines}
-${res} ${fe} ${re} ${bl}
+${res}
+${fe} ${re} ${bl}
 
 ${courseBlock}
 ${executionMode}
@@ -1342,14 +1348,14 @@ Write a WINNING, execution-tight plan — not a copy of any rival draft. Differe
 
 ${rivalBlock}
 MUST USE: ${ch.required.join(", ")}
-RESTRICTIONS: ${(ch.restrictions||[]).join(", ")||"none"}
+RESTRICTIONS (mandatory — same binding rules as the rival chef): ${(ch.restrictions||[]).length?(ch.restrictions||[]).join("; "):"none"}
 EQUIPMENT: must ${(ch.reqEquip||[]).join(", ")||"—"} · forbidden ${(ch.forbEquip||[]).join(", ")||"—"}${ch.limitBurners?" · 1 burner only":""}
 COURSE: ${ch.ctype.label} | ${ch.totalTime} min (prep ${ch.prepTime}, cook ${ch.cookTime})
 PANTRY ADD-ONS: ${pantryLines}
 
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
 {"title":"","tagline":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":""}],"lastMinuteTip":"one sentence"}
-Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE and every restriction.`;
+Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts.`;
     const data=await ai(prompt,4096);
     state.contestRecipe=data;
     renderContestRecipeBox();
@@ -1365,7 +1371,7 @@ function showRecipeData(r) {
   $("recipe-title").textContent=r.title||"Your Recipe";
   if(r.tagline) $("recipe-tagline").textContent=r.tagline;
   const cb=$("cook-btn");
-  if(cb) cb.style.display="block";
+  if(cb) cb.style.display="none";
   const ch=state.challenge;
   let html=``;
   const plateLine=truncateStr(r.plating||(r.balance&&r.balance.visual)||"",220);
@@ -1391,8 +1397,8 @@ function showRecipeData(r) {
   <div style="margin-top:16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px">
     <div style="font-size:11px;color:#94a3b8;max-width:420px;line-height:1.45">Competition game plan lives <strong style="color:#c4b5fd">above</strong> — tap it anytime.</div>
     <button type="button" id="battle-btn" onclick="openBattleScorecards()" disabled style="background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#0f172a;border:none;border-radius:12px;padding:12px 28px;font-size:14px;font-weight:900;cursor:not-allowed;box-shadow:0 6px 20px rgba(245,158,11,0.35);width:100%;max-width:380px">⚔ Battle — compare & scorecards</button>
-    <div id="battle-hint" style="font-size:11px;color:#94a3b8;text-align:center;max-width:400px;line-height:1.45">Describe what you’d cook in <strong style="color:#f59e0b">Your battle plan</strong> (left column). Then tap <strong style="color:#fbbf24">Battle</strong> to judge both dishes side by side — or start the clock and cook first.</div>
-    <button type="button" onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:12px;padding:12px 32px;font-size:14px;font-weight:900;cursor:pointer">Pantry Wars — Start ${ch.totalTime} min clock</button>
+    <div id="battle-hint" style="font-size:11px;color:#94a3b8;text-align:center;max-width:400px;line-height:1.45">Fill <strong style="color:#f59e0b">Your battle plan</strong> (left) with what you’d make, then <strong style="color:#fbbf24">Battle</strong> for AI vs you scorecards.</div>
+    <details style="max-width:420px;text-align:left"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#94a3b8">Optional: real kitchen timer</summary><p style="font-size:11px;color:#64748b;margin:8px 0 10px">Only if you’re actually cooking along — not required for “beat the AI.”</p><button type="button" onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:800;cursor:pointer;width:100%">Start ${ch.totalTime}-minute timer</button></details>
   </div>`;
   const aiPanel=$("recipe-ai-panel");
   const aiHead='<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>';
@@ -1833,9 +1839,32 @@ function pickRequiredPattern(pool,count,resList){
   return out.slice(0,count);
 }
 
+function mysterySpinResultPanelHtml(){
+  const cfg=DIFF[state.diff];
+  const need=cfg.req;
+  const nRes=cfg.res;
+  const parts=[];
+  for(let i=0;i<need;i++){
+    const name=state.req[i]||"—";
+    parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Basket ${i+1}</span><div class="rnd-slot rnd-done-ing">${escapeHtml(name)}</div></div>`);
+  }
+  for(let j=0;j<nRes;j++){
+    const txt=state.res[j]||"—";
+    parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Restriction ${j+1}</span><div class="rnd-slot rnd-done-res">${escapeHtml(txt)}</div></div>`);
+  }
+  const ct=`${state.ctype.emoji} ${state.ctype.label}`;
+  parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Challenge</span><div class="rnd-slot rnd-done-ct">${escapeHtml(ct)}</div></div>`);
+  return `<div class="basket-spin-wrap">
+    <div class="basket-spin-h"><span>🎰 Mystery basket</span><span style="font-size:11px;font-weight:700;color:#64748b">${escapeHtml(cfg.label)} · locked in</span></div>
+    <div class="basket-spin-slots">${parts.join("")}</div>
+    <div style="font-size:11px;color:#64748b;margin-top:10px;text-align:center;line-height:1.45">This draw stays visible. Edit chips below if you want, or tap <strong>Spin my mystery basket</strong> again for a new haul.</div>
+  </div>`;
+}
+
 function runMysteryRandomize(){
   const host=$("spin-host");
   if(!host)return;
+  state.mysterySpinLocked=false;
   const pool=(window.USER_PANTRY&&window.USER_PANTRY.length)?window.USER_PANTRY:PANTRY;
   const cfg=DIFF[state.diff];
   const need=cfg.req;
@@ -1888,8 +1917,9 @@ function runMysteryRandomize(){
       sCt.textContent=state.ctype.emoji+" "+state.ctype.label;
       sCt.classList.add("rnd-done-ct");
       const bar=host.querySelector(".basket-spin-h span:last-child");
-      if(bar) bar.textContent=cfg.label+" · locked in · "+state.total+" min";
-      setTimeout(()=>{renderBuild();},1400);
+      if(bar) bar.textContent=cfg.label+" · locked in";
+      state.mysterySpinLocked=true;
+      renderBuild();
     }
   },tickMs);
 }
