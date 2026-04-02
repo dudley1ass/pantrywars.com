@@ -591,6 +591,45 @@ function drawUnifiedConstraints(count){
     forbEquip: chosen.filter(c=>c.type==="forb").map(c=>c.raw),
   };
 }
+
+/** How many pantry names remain valid under these dietary restrictions */
+function pantryFeasibleCount(pool, restrictions){
+  const r=restrictions||[];
+  const filtered=filterPoolByRestrictions([...new Set((pool||[]).filter(Boolean))],r);
+  return filtered.length;
+}
+
+/** Re-roll unified draws until the pantry can still fill required slots (avoids No dairy + heavy cream style impossibilities). */
+function drawUnifiedConstraintsFeasible(n, pool, needSlots){
+  const need=Math.max(0, Number(needSlots)||0);
+  const count=Math.max(0, Number(n)||0);
+  if(need<=0) return drawUnifiedConstraints(count);
+  let best=null, bestScore=-1;
+  for(let attempt=0; attempt<55; attempt++){
+    const draw=drawUnifiedConstraints(count);
+    const fc=pantryFeasibleCount(pool, draw.restrictions);
+    if(fc>=need) return draw;
+    if(fc>bestScore){ bestScore=fc; best=draw; }
+  }
+  for(let attempt=0; attempt<35; attempt++){
+    const k=Math.max(0, Math.min(count, EQUIP.length));
+    const fe=pick(EQUIP,k);
+    const draw={
+      spinConstraints:fe.map(e=>"✕ "+e),
+      restrictions:[],
+      forbEquip:fe,
+    };
+    if(pantryFeasibleCount(pool, [])>=need) return draw;
+  }
+  if(best&&bestScore>0){
+    while(best.restrictions.length&&pantryFeasibleCount(pool,best.restrictions)<need)
+      best.restrictions.pop();
+    best.forbEquip=pick(EQUIP,Math.min(count-best.restrictions.length,EQUIP.length));
+    best.spinConstraints=[...best.restrictions,...best.forbEquip.map(e=>"✕ "+e)];
+    if(pantryFeasibleCount(pool,best.restrictions)>=need) return best;
+  }
+  return {spinConstraints:[],restrictions:[],forbEquip:[]};
+}
 const $ = id => document.getElementById(id);
 const el = (tag,attrs={},children=[]) => {
   const e=document.createElement(tag);
@@ -1107,7 +1146,8 @@ function renderBuild() {
   resbtns.append(
     btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("restriction")),
     btn("Random "+totalRestr,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{
-      const draw=drawUnifiedConstraints(totalRestr);
+      const p=pantryPool();
+      const draw=drawUnifiedConstraintsFeasible(totalRestr, p, cfg.req);
       state.spinConstraints=draw.spinConstraints;
       state.res=draw.restrictions;
       state.forbEq=draw.forbEquip;
@@ -1121,7 +1161,7 @@ function renderBuild() {
     const on=state.res.includes(r);
     const b=el("button",{style:{background:on?"#fef2f2":"#f8fafc",border:"2px solid "+(on?"#fca5a5":"#e2e8f0"),borderRadius:"6px",padding:"3px 7px",fontSize:"11px",cursor:"pointer",color:on?"#b91c1c":"#475569",fontWeight:on?"700":"500"}});
     b.textContent=(on?"X ":"")+r;
-    b.addEventListener("click",()=>{state.res=on?state.res.filter(x=>x!==r):[...state.res,r];renderBuild();});
+    b.addEventListener("click",()=>{state.res=on?state.res.filter(x=>x!==r):[...state.res,r];pruneConflictingReq(cfg);renderBuild();});
     resChips.appendChild(b);
   });
   resCard.appendChild(resChips);
@@ -2006,7 +2046,7 @@ function doModalAdd(data){
     });
     if(!state.pantryItems.includes(id))state.pantryItems.push(id);
   }
-  else if(t==="restriction"){const n=data.label;if(n&&!state.res.includes(n))state.res.push(n);}
+  else if(t==="restriction"){const n=data.label;if(n&&!state.res.includes(n))state.res.push(n);pruneConflictingReq(DIFF[state.diff]);}
   else if(t==="equipment"){const n=data.label;if(n&&!state.reqEq.includes(n))state.reqEq.push(n);}
   closeModal();refreshAfterModalAdd();
 }
@@ -2070,7 +2110,29 @@ function ingredientConflictsWithRestriction(ingName, restriction){
     if(ingredientConflictsWithRestriction(ingName,"Vegetarian")) return true;
     return false;
   }
-  if(restriction==="Raw Only") return false;
+  if(restriction==="Raw Only"){
+    // True = needs thorough cooking / unsafe "raw on the plate" for typical comp judging
+    if(/\b(ground|sausage|hot dog|kielbasa|chorizo|bratwurst|mortadella|salami)\b/i.test(n)) return true;
+    if(/\bprosciutto\b/i.test(n) && !/\bcotto\b/i.test(n)) return false;
+    if(/\b(bacon|pancetta|guanciale|prosciutto cotto)\b/i.test(n)) return true;
+    if(/\b(chicken|turkey|duck|goose|quail|pheasant|cornish|wing|drumstick)\b/i.test(n)) return true;
+    if(/\b(whole chicken|turkey breast)\b/i.test(n)) return true;
+    if(/\bpork\b/i.test(n)) return true;
+    if(/\b(lamb|veal|rabbit|bison|buffalo)\b/i.test(n)) return true;
+    if(/\b(brisket|short rib|oxtail|beef liver|chicken liver|offal)\b/i.test(n)) return true;
+    if(/\bground beef\b/i.test(n)) return true;
+    if(/\b(swordfish|lobster tail|crab meat|squid|octopus|mussel|clam)\b/i.test(n)) return true;
+    if(/\bduck breast\b/i.test(n)) return true;
+    if(cat==="proteins" && /\b(tofu|tempeh|seitan)\b/i.test(n)) return false;
+    if(/\b(eggs?|egg)\b/i.test(n)) return false;
+    if(/\b(salmon|tuna|hamachi|yellowtail|cod|halibut|sea bass|mahi|snapper|arctic char|trout)\b/i.test(n)) return false;
+    if(/\bfillet\b/i.test(n) && !/\b(chicken|pork|turkey|duck)\b/i.test(n)) return false;
+    if(/\b(scallops?|shrimp|prawn)\b/i.test(n)) return false;
+    if(/\b(ribeye|flank|skirt|sirloin|tenderloin|filet|striploin|wagyu|ny strip|new york)\b/i.test(n)) return false;
+    if(/\bsteak\b/i.test(n) && !/\b(chicken|pork|fish|swordfish)\b/i.test(n)) return false;
+    if(cat==="proteins") return true;
+    return false;
+  }
   if(restriction==="No Salt") return false;
   return false;
 }
@@ -2263,12 +2325,12 @@ function runMysteryRandomize(){
 function doRandomize(){
   const d=DIFF[state.diff];
   const nConstraints=Math.max(Number(d.res)||0, Number(d.forb)||0);
-  const draw=drawUnifiedConstraints(nConstraints);
+  const pool=window.USER_PANTRY||PANTRY;
+  const draw=drawUnifiedConstraintsFeasible(nConstraints, pool, d.req);
   state.spinConstraints=draw.spinConstraints;
   state.res=draw.restrictions;
   state.forbEq=draw.forbEquip;
   state.lim=d.burners;state.cut=d.cut;
-  const pool=window.USER_PANTRY||PANTRY;
   state.req=pickRequiredPattern(pool,d.req,state.res);
   const t=SPIN_AI_TIMES[Math.floor(Math.random()*SPIN_AI_TIMES.length)];
   state.total=t;state.prep=Math.round(t*0.35);state.cook=Math.round(t*0.65);
