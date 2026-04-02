@@ -1266,6 +1266,7 @@ function renderBuild() {
   launchWrap.appendChild(lb);
   wrap.appendChild(launchWrap);
   sc.appendChild(wrap);
+  renderContestRecipeBox();
 }
 
 // ── LAUNCH ────────────────────────────────────────────────────────────────────
@@ -1723,10 +1724,6 @@ Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short stri
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts.`;
     const data=await ai(prompt,4096);
     state.contestRecipe=data;
-    renderContestRecipeBox();
-    setContestStatus("Done — your plan is below.","#15803d");
-    const planBox=$("contest-recipe-inline");
-    if(planBox) planBox.scrollIntoView({behavior:"smooth",block:"nearest"});
     if(state.recipe){
       try{
         const sr=$("screen-recipe");
@@ -1738,6 +1735,10 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
     }else{
       renderBuild();
     }
+    renderContestRecipeBox();
+    setContestStatus("Done — your plan is below.","#15803d");
+    const planBox=$("contest-recipe-inline");
+    if(planBox) planBox.scrollIntoView({behavior:"smooth",block:"nearest"});
   }catch(e){
     console.error("Competition game plan",e);
     const msg=(e&&e.message)?String(e.message):String(e);
