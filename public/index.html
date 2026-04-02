@@ -688,7 +688,7 @@ function renderLanding() {
         <p class="landing-lead">Same mystery basket. Two approaches.</p>
         <p class="landing-lead landing-lead-narrow">AI shows what it would plate — you decide what you’d cook.</p>
         <p class="landing-lead landing-lead-narrow">This isn’t about actually cooking — it’s about the idea.</p>
-        <p class="landing-hook">Think you can beat the AI?</p>
+        <p class="landing-hook">Think you can beat AI?</p>
         <p class="landing-steps-head" role="presentation">🔪 Step-by-step</p>
         <div class="landing-steps" aria-label="Step by step">
           <div class="landing-step">
@@ -1085,7 +1085,7 @@ function renderBuild() {
   const htitle=div({style:{color:"#f8fafc",fontSize:"16px",fontWeight:"800"}});
   htitle.textContent="PANTRY WARS";
   const hsub=div({style:{color:"#475569",fontSize:"11px"}});
-  hsub.textContent="Build the basket, then launch — can you beat the AI?";
+  hsub.textContent="Build the basket, then launch — can you beat AI?";
   const remAi=pwDailyAiRemaining();
   const gamesLeftLabel=remAi<=0?"0 games left today":`${remAi} game${remAi===1?"":"s"} left today`;
   const hQuota=div({style:{fontSize:"10px",color:remAi<=3?"#fbbf24":"#64748b",marginTop:"4px",fontWeight:"700",maxWidth:"420px",lineHeight:"1.35"}});
@@ -1096,7 +1096,7 @@ function renderBuild() {
   const hbtns=div({style:{display:"flex",gap:"8px",flexWrap:"wrap"}});
   const backPan=btn("← Pantry","#334155","#94a3b8",{border:"none",padding:"8px 10px",fontSize:"12px"},()=>{showScreen("screen-pantry");renderPantry();});
   const randBtn=btn("🎰 Spin my mystery basket","#f59e0b","#fff",{animation:"rndPulse 2s ease-in-out infinite"},()=>runMysteryRandomize());
-  const launchBtn=btn(`Launch — beat the AI → · ${gamesLeftLabel}`,state.req.length===0?"#475569":"#6366f1","#fff",{cursor:state.req.length===0?"not-allowed":"pointer",fontSize:"12px"},()=>{if(state.req.length>0)doLaunch();});
+  const launchBtn=btn(`Launch — beat AI → · ${gamesLeftLabel}`,state.req.length===0?"#475569":"#6366f1","#fff",{cursor:state.req.length===0?"not-allowed":"pointer",fontSize:"12px"},()=>{if(state.req.length>0)doLaunch();});
   hbtns.append(backPan,randBtn,launchBtn);
   hdr.append(hleft,hbtns);
   sc.appendChild(hdr);
@@ -1104,7 +1104,7 @@ function renderBuild() {
   const wrap=div({style:{maxWidth:"820px",margin:"0 auto",padding:"14px 12px"}});
   const flowHint=div({style:{background:"#eff6ff",border:"2px solid #bfdbfe",borderRadius:"10px",padding:"12px 14px",marginBottom:"12px",fontSize:"12px",color:"#1e3a8a",lineHeight:"1.55"}});
   flowHint.innerHTML=`<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#1e40af;margin-bottom:8px">Next step</div>
-  <p style="margin:0 0 10px"><strong>Easy path:</strong> pick a <strong>Difficulty</strong>, then <strong>Spin my mystery basket</strong> — it randomly fills ingredients, restrictions, and challenge type. Tap <strong>Launch — beat the AI</strong> and say what <em>you’d</em> make.</p>
+  <p style="margin:0 0 10px"><strong>Easy path:</strong> pick a <strong>Difficulty</strong>, then <strong>Spin my mystery basket</strong> — it randomly fills ingredients, restrictions, and challenge type. Tap <strong>Launch — beat AI</strong> and say what <em>you’d</em> make.</p>
   <p style="margin:0 0 10px"><strong>Or,</strong> set it all yourself — especially if you’re in a <strong>real cooking competition</strong> and want AI backup, or you’re having a <strong>cook-off with friends</strong>: dial in your own ingredients and restrictions, then have fun!</p>
   <p style="margin:0;font-size:11px;color:#334155">The spinner shows <strong>Must use</strong> items, <strong>Restrictions</strong>, an <strong>AI clock</strong> (20–45 min for realistic rival recipes), and <strong>Challenge</strong>. Restrictions &amp; equipment are in the cards under Challenge type.</p>
   <p style="margin:8px 0 0;font-size:11px;color:#334155">Free tier: <strong>${PW_DAILY_AI_LIMIT} AI rounds per day</strong> (your device clock). Fair use keeps the lights on — extra packs later.</p>`;
@@ -1263,7 +1263,7 @@ function renderBuild() {
   const lb=el("button",{style:{width:"100%",padding:"13px",fontSize:"14px",fontWeight:"900",borderRadius:"12px",cursor:state.req.length===0?"not-allowed":"pointer",background:state.req.length===0?"#94a3b8":"#6366f1",color:"#fff",border:"none",lineHeight:"1.35"}});
   lb.textContent=state.req.length===0
     ? `Add required ingredients to launch · ${gamesLeftLabel}`
-    : `Launch — beat the AI · ${state.ctype.emoji} ${state.ctype.label} · ${state.diff.toUpperCase()} · ${gamesLeftLabel}`;
+    : `Launch — beat AI · ${state.ctype.emoji} ${state.ctype.label} · ${state.diff.toUpperCase()} · ${gamesLeftLabel}`;
   lb.addEventListener("click",()=>{if(state.req.length>0)doLaunch();});
   launchWrap.appendChild(lb);
   wrap.appendChild(launchWrap);
@@ -1783,7 +1783,7 @@ function showRecipeData(r) {
     <div style="font-size:11px;color:#94a3b8;max-width:420px;line-height:1.45">Need the extra <strong style="color:#c4b5fd">competition coach</strong> plan? Tap <strong>Back</strong> — it’s on the battle builder.</div>
     <button type="button" id="battle-btn" onclick="openBattleScorecards()" disabled style="background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#0f172a;border:none;border-radius:12px;padding:12px 28px;font-size:14px;font-weight:900;cursor:not-allowed;box-shadow:0 6px 20px rgba(245,158,11,0.35);width:100%;max-width:380px">⚔ Battle — compare & scorecards</button>
     <div id="battle-hint" style="font-size:11px;color:#94a3b8;text-align:center;max-width:400px;line-height:1.45">Fill <strong style="color:#f59e0b">Your battle plan</strong> (left) with what you’d make, then <strong style="color:#fbbf24">Battle</strong> for AI vs you scorecards.</div>
-    <details style="max-width:420px;text-align:left"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#94a3b8">Optional: real kitchen timer</summary><p style="font-size:11px;color:#64748b;margin:8px 0 10px">Only if you’re actually cooking along — not required for “beat the AI.”</p><button type="button" onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:800;cursor:pointer;width:100%">Start ${ch.totalTime}-minute timer</button></details>
+    <details style="max-width:420px;text-align:left"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#94a3b8">Optional: real kitchen timer</summary><p style="font-size:11px;color:#64748b;margin:8px 0 10px">Only if you’re actually cooking along — not required for “beat AI.”</p><button type="button" onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:800;cursor:pointer;width:100%">Start ${ch.totalTime}-minute timer</button></details>
   </div>`;
   const aiPanel=$("recipe-ai-panel");
   const aiHead='<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>';
