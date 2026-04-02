@@ -731,7 +731,6 @@ function renderLanding() {
         </div>
         <p class="landing-judges">👉 Can you beat the judges?</p>
         <button type="button" id="landing-start-btn" class="landing-start-btn">Take the challenge — Step 1: Pantry</button>
-        <p class="landing-api">Bring your own Anthropic API key, or the host may supply one.</p>
         <p class="landing-api" style="margin-top:8px;max-width:26rem">Free play includes up to ${PW_DAILY_AI_LIMIT} AI-powered rounds per day (rival chef, battle judge, competition coach, lookups). More battles &amp; buy packs coming soon.</p>
       </div>
     </div>`;
@@ -1088,6 +1087,7 @@ function renderBuild() {
   const hsub=div({style:{color:"#475569",fontSize:"11px"}});
   hsub.textContent="Build the basket, then launch — can you beat the AI?";
   const remAi=pwDailyAiRemaining();
+  const gamesLeftLabel=remAi<=0?"0 games left today":`${remAi} game${remAi===1?"":"s"} left today`;
   const hQuota=div({style:{fontSize:"10px",color:remAi<=3?"#fbbf24":"#64748b",marginTop:"4px",fontWeight:"700",maxWidth:"420px",lineHeight:"1.35"}});
   hQuota.textContent=remAi<=0
     ? "Today's free AI rounds: 0 left — come back tomorrow. More battles & unlimited packs coming soon."
@@ -1096,7 +1096,7 @@ function renderBuild() {
   const hbtns=div({style:{display:"flex",gap:"8px",flexWrap:"wrap"}});
   const backPan=btn("← Pantry","#334155","#94a3b8",{border:"none",padding:"8px 10px",fontSize:"12px"},()=>{showScreen("screen-pantry");renderPantry();});
   const randBtn=btn("🎰 Spin my mystery basket","#f59e0b","#fff",{animation:"rndPulse 2s ease-in-out infinite"},()=>runMysteryRandomize());
-  const launchBtn=btn("Launch — beat the AI →",state.req.length===0?"#475569":"#6366f1","#fff",{cursor:state.req.length===0?"not-allowed":"pointer"},()=>{if(state.req.length>0)doLaunch();});
+  const launchBtn=btn(`Launch — beat the AI → · ${gamesLeftLabel}`,state.req.length===0?"#475569":"#6366f1","#fff",{cursor:state.req.length===0?"not-allowed":"pointer",fontSize:"12px"},()=>{if(state.req.length>0)doLaunch();});
   hbtns.append(backPan,randBtn,launchBtn);
   hdr.append(hleft,hbtns);
   sc.appendChild(hdr);
@@ -1260,8 +1260,10 @@ function renderBuild() {
 
   // LAUNCH BUTTON
   const launchWrap=div({style:{marginTop:"0"}});
-  const lb=el("button",{style:{width:"100%",padding:"13px",fontSize:"14px",fontWeight:"900",borderRadius:"12px",cursor:state.req.length===0?"not-allowed":"pointer",background:state.req.length===0?"#94a3b8":"#6366f1",color:"#fff",border:"none"}});
-  lb.textContent=state.req.length===0?"Add required ingredients to launch":`Launch — beat the AI · ${state.ctype.emoji} ${state.ctype.label} · ${state.diff.toUpperCase()}`;
+  const lb=el("button",{style:{width:"100%",padding:"13px",fontSize:"14px",fontWeight:"900",borderRadius:"12px",cursor:state.req.length===0?"not-allowed":"pointer",background:state.req.length===0?"#94a3b8":"#6366f1",color:"#fff",border:"none",lineHeight:"1.35"}});
+  lb.textContent=state.req.length===0
+    ? `Add required ingredients to launch · ${gamesLeftLabel}`
+    : `Launch — beat the AI · ${state.ctype.emoji} ${state.ctype.label} · ${state.diff.toUpperCase()} · ${gamesLeftLabel}`;
   lb.addEventListener("click",()=>{if(state.req.length>0)doLaunch();});
   launchWrap.appendChild(lb);
   wrap.appendChild(launchWrap);
