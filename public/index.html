@@ -56,6 +56,7 @@
   #spin-host .rnd-slot.rnd-done-res{color:#b91c1c;border-color:#fca5a5;background:#fef2f2}
   #spin-host .rnd-slot.rnd-done-ct{color:#0f172a;border-color:#fbbf24;background:#fffbeb}
   #spin-host .rnd-slot.rnd-done-forb{color:#9a3412;border-color:#fdba74;background:#fff7ed}
+  #spin-host .rnd-slot.rnd-done-time{color:#0f766e;border-color:#2dd4bf;background:#ccfbf1}
   #spin-host .basket-spin-bar{height:3px;border-radius:999px;background:#e2e8f0;overflow:hidden;margin-top:10px}
   #spin-host .basket-spin-bar>i{display:block;height:100%;width:30%;background:linear-gradient(90deg,#f59e0b,#fbbf24,#f59e0b);background-size:200% 100%;animation:rndShine .8s linear infinite;border-radius:999px}
   /* Landing: full-viewport min height; scroll on small screens if copy needs it */
@@ -214,11 +215,13 @@ const CTYPES = [
 ];
 const EQUIP=["Oven","Stovetop","Air Fryer","Grill","Microwave","Instant Pot","Blender","Food Processor","Cast Iron","Wok","Sous Vide","Torch","Sheet Pan"];
 const RESTRICT=["No Dairy","No Gluten","No Sugar","No Salt","No Pre-made Sauces","No Butter","No Alcohol","No Nuts","Raw Only","Vegetarian","Vegan"];
+/** AI rival “on the clock” minutes after mystery spin (realistic plates — not 15 min Wellington) */
+const SPIN_AI_TIMES=[20,25,30,35,40,45];
 const DIFF={
-  easy:  {label:"Easy",  emoji:"🟢",req:2,res:0,times:[45,60],forb:0,burners:false,cut:false},
-  medium:{label:"Medium",emoji:"🟡",req:3,res:1,times:[30,45],forb:1,burners:false,cut:false},
-  hard:  {label:"Hard",  emoji:"🔴",req:4,res:2,times:[25,30],forb:2,burners:true, cut:true},
-  insane:{label:"Insane",emoji:"💀",req:5,res:3,times:[20,25],forb:3,burners:true, cut:true},
+  easy:  {label:"Easy",  emoji:"🟢",req:2,res:0,forb:0,burners:false,cut:false},
+  medium:{label:"Medium",emoji:"🟡",req:3,res:1,forb:1,burners:false,cut:false},
+  hard:  {label:"Hard",  emoji:"🔴",req:4,res:2,forb:2,burners:true, cut:true},
+  insane:{label:"Insane",emoji:"💀",req:5,res:3,forb:3,burners:true, cut:true},
 };
 const FULL_PANTRY = [
   {id:1,  name:"All-Purpose Flour",   cat:"Baking & Bases",          flavor:["salty"],                texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Essential for dredging, roux, dough, batter."},
@@ -546,7 +549,7 @@ let state = {
   pantrySearch: "",
   pantryCategory: "All",
   diff:"medium", ctype:CTYPES[1], customTypes:[],
-  total:30, prep:10, cook:20, cut:false,
+  total:35, prep:12, cook:23, cut:false,
   req:[], res:[], reqEq:[], forbEq:[], lim:false,
   challenge:null, recipe:null, contestRecipe:null,
   spinConstraints: [],
@@ -957,7 +960,7 @@ function renderBuild() {
   flowHint.innerHTML=`<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#1e40af;margin-bottom:8px">Next step</div>
   <p style="margin:0 0 10px"><strong>Easy path:</strong> pick a <strong>Difficulty</strong>, then <strong>Spin my mystery basket</strong> — it randomly fills ingredients, restrictions, and challenge type. Tap <strong>Launch — beat the AI</strong> and say what <em>you’d</em> make.</p>
   <p style="margin:0 0 10px"><strong>Or,</strong> set it all yourself — especially if you’re in a <strong>real cooking competition</strong> and want AI backup, or you’re having a <strong>cook-off with friends</strong>: dial in your own ingredients and restrictions, then have fun!</p>
-  <p style="margin:0;font-size:11px;color:#334155">The spinner shows every draw: <strong>Must use</strong> items plus unified <strong>Restrictions</strong>. A restriction can be pantry-based (e.g. No Sugar) or equipment-based (e.g. ✕ Oven), and matches the chips below.</p>`;
+  <p style="margin:0;font-size:11px;color:#334155">The spinner shows <strong>Must use</strong> items, <strong>Restrictions</strong>, an <strong>AI clock</strong> (20–45 min for realistic rival recipes), and <strong>Challenge</strong>. Restrictions &amp; equipment are in the cards under Challenge type.</p>`;
   wrap.appendChild(flowHint);
   const spinHost=el("div",{id:"spin-host"});
   if(state.mysterySpinLocked) spinHost.innerHTML=mysterySpinResultPanelHtml();
@@ -1015,76 +1018,7 @@ function renderBuild() {
   ctCard.appendChild(ctList);
   grid.appendChild(ctCard);
 
-  // Optional: AI comparison timing only (not a player timer or spin rule)
-  const tDetails=el("details",{class:"card"});
-  tDetails.style.listStyle="none";
-  const tSum=el("summary");
-  tSum.style.cssText="cursor:pointer;list-style:none;font-size:12px;font-weight:800;color:#0f172a";
-  tSum.innerHTML="AI comparison timing <span style=\"font-weight:600;color:#64748b\">(for AI recipe realism only)</span>";
-  const tInner=div({style:{marginTop:"10px",paddingTop:"10px",borderTop:"1px solid #e2e8f0"}});
-  const tHelp=div({style:{fontSize:"11px",color:"#64748b",marginBottom:"10px",lineHeight:"1.45"}});
-  tHelp.textContent="This only guides AI realism/comparison (e.g., no Beef Wellington in 20 min). It does not limit your own plan. Competition coach can use whatever real clock your rules require.";
-  tInner.appendChild(tHelp);
-  const trow=div({style:{marginBottom:"10px"}});
-  const tval=div({style:{fontSize:"12px",fontWeight:"700",color:"#0f172a",marginBottom:"4px"}});
-  tval.innerHTML=`AI total: <span style="color:#6366f1">${state.total} min</span>`;
-  const tslider=el("input",{type:"range",min:"15",max:"90",step:"5",value:state.total,style:{width:"100%","accent-color":"#6366f1"}});
-  tslider.addEventListener("input",e=>{state.total=+e.target.value;state.prep=Math.round(state.total*0.35);state.cook=Math.round(state.total*0.65);renderBuild();});
-  trow.append(tval,tslider);
-  tInner.appendChild(trow);
-  const pcrow=div({style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"10px"}});
-  [["Prep (AI)",state.prep,(v)=>{state.prep=v;renderBuild();}],["Cook (AI)",state.cook,(v)=>{state.cook=v;renderBuild();}]].forEach(([l,v,fn])=>{
-    const box=div({});
-    const lv=div({style:{fontSize:"11px",fontWeight:"700",color:"#64748b",marginBottom:"3px"}});lv.textContent=l;
-    const row=div({style:{display:"flex",alignItems:"center",gap:"5px"}});
-    const dm=btn("-","#f1f5f9","#0f172a",{border:"2px solid #e2e8f0",padding:"3px 8px"},()=>fn(Math.max(0,v-5)));
-    const vd=div({style:{fontSize:"13px",fontWeight:"800",color:"#0f172a",minWidth:"36px",textAlign:"center"}});vd.textContent=v+"m";
-    const dp=btn("+","#f1f5f9","#0f172a",{border:"2px solid #e2e8f0",padding:"3px 8px"},()=>fn(Math.min(state.total,v+5)));
-    row.append(dm,vd,dp);box.append(lv,row);pcrow.appendChild(box);
-  });
-  tInner.appendChild(pcrow);
-  const cutLbl=el("label",{style:{display:"flex",alignItems:"center",gap:"7px",cursor:"pointer",padding:"7px 9px",background:state.cut?"#f3e8ff":"#f8fafc",border:"2px solid "+(state.cut?"#c084fc":"#e2e8f0"),borderRadius:"8px"}});
-  const cutCb=el("input",{type:"checkbox"});cutCb.checked=state.cut;cutCb.addEventListener("change",e=>{state.cut=e.target.checked;renderBuild();});
-  const cutTxt=el("span",{style:{fontSize:"12px",fontWeight:"700",color:state.cut?"#7c3aed":"#475569"}});cutTxt.textContent="Pressure test AI timeline (−10 min prompt stress)";
-  cutLbl.append(cutCb,cutTxt);tInner.appendChild(cutLbl);
-  tDetails.appendChild(tSum);
-  tDetails.appendChild(tInner);
-  grid.appendChild(tDetails);
-
-  // REQUIRED INGREDIENTS
-  const rCard=div({class:"card"});
-  const rHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
-  const rlbl=el("span",{class:"lbl",style:{marginBottom:"0"}});rlbl.textContent="Required Ingredients";
-  const rbtns=div({style:{display:"flex",gap:"4px"}});
-  rbtns.append(btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("ingredient")),btn("Random "+cfg.req,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{state.req=pickRequiredPattern(pantryPool(),cfg.req,state.res);renderBuild();}));
-  rHead.append(rlbl,rbtns);rCard.appendChild(rHead);
-  if(state.req.length===0){const e=div({style:{fontSize:"11px",color:"#94a3b8",fontStyle:"italic",marginBottom:"6px"}});e.textContent="None selected";rCard.appendChild(e);}
-  const reqChips=div({class:"chip-row"});
-  state.req.forEach(r=>{
-    const ch=div({style:{display:"flex",alignItems:"center",gap:"4px",background:"#eef2ff",border:"2px solid #818cf8",borderRadius:"5px",padding:"2px 8px",fontSize:"11px",fontWeight:"700",color:"#3730a3"}});
-    ch.textContent=r;
-    const x=el("button",{style:{background:"none",border:"none",color:"#818cf8",cursor:"pointer",fontSize:"12px",padding:"0",lineHeight:"1",marginLeft:"2px"}});x.textContent="x";
-    x.addEventListener("click",()=>{state.req=state.req.filter(i=>i!==r);renderBuild();});
-    ch.appendChild(x);reqChips.appendChild(ch);
-  });
-  rCard.appendChild(reqChips);
-  const pantryScroll=div({style:{maxHeight:"90px",overflowY:"auto",display:"flex",flexWrap:"wrap",gap:"3px"}});
-  (window.USER_PANTRY||PANTRY).filter(p=>!state.req.includes(p)).forEach(p=>{
-    const b=el("button",{style:{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"2px 6px",fontSize:"10px",cursor:"pointer",color:"#475569"}});
-    b.textContent="+"+p;b.addEventListener("click",()=>{
-      if(ingredientConflictsWithAny(p,state.res)){
-        const bad=(state.res||[]).filter(r=>ingredientConflictsWithRestriction(p,r));
-        alert(`"${p}" conflicts with: ${bad.join(", ")}`);
-        return;
-      }
-      state.req.push(p);renderBuild();
-    });
-    pantryScroll.appendChild(b);
-  });
-  rCard.appendChild(pantryScroll);
-  grid.appendChild(rCard);
-
-  // RESTRICTIONS
+  // RESTRICTIONS (was below; sits beside challenge type — same row as equipment in grid)
   const resCard=div({class:"card"});
   const resHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
   const reslbl=el("span",{class:"lbl",style:{marginBottom:"0"}});reslbl.textContent="Restrictions";
@@ -1144,6 +1078,39 @@ function renderBuild() {
   const limTxt=el("span",{style:{fontSize:"11px",fontWeight:"700",color:state.lim?"#c2410c":"#475569"}});limTxt.textContent="1 burner only";
   limLbl.append(limCb,limTxt);eqCard.appendChild(limLbl);
   grid.appendChild(eqCard);
+
+  // REQUIRED INGREDIENTS
+  const rCard=div({class:"card"});
+  const rHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"8px"}});
+  const rlbl=el("span",{class:"lbl",style:{marginBottom:"0"}});rlbl.textContent="Required Ingredients";
+  const rbtns=div({style:{display:"flex",gap:"4px"}});
+  rbtns.append(btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("ingredient")),btn("Random "+cfg.req,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{state.req=pickRequiredPattern(pantryPool(),cfg.req,state.res);renderBuild();}));
+  rHead.append(rlbl,rbtns);rCard.appendChild(rHead);
+  if(state.req.length===0){const e=div({style:{fontSize:"11px",color:"#94a3b8",fontStyle:"italic",marginBottom:"6px"}});e.textContent="None selected";rCard.appendChild(e);}
+  const reqChips=div({class:"chip-row"});
+  state.req.forEach(r=>{
+    const ch=div({style:{display:"flex",alignItems:"center",gap:"4px",background:"#eef2ff",border:"2px solid #818cf8",borderRadius:"5px",padding:"2px 8px",fontSize:"11px",fontWeight:"700",color:"#3730a3"}});
+    ch.textContent=r;
+    const x=el("button",{style:{background:"none",border:"none",color:"#818cf8",cursor:"pointer",fontSize:"12px",padding:"0",lineHeight:"1",marginLeft:"2px"}});x.textContent="x";
+    x.addEventListener("click",()=>{state.req=state.req.filter(i=>i!==r);renderBuild();});
+    ch.appendChild(x);reqChips.appendChild(ch);
+  });
+  rCard.appendChild(reqChips);
+  const pantryScroll=div({style:{maxHeight:"90px",overflowY:"auto",display:"flex",flexWrap:"wrap",gap:"3px"}});
+  (window.USER_PANTRY||PANTRY).filter(p=>!state.req.includes(p)).forEach(p=>{
+    const b=el("button",{style:{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"2px 6px",fontSize:"10px",cursor:"pointer",color:"#475569"}});
+    b.textContent="+"+p;b.addEventListener("click",()=>{
+      if(ingredientConflictsWithAny(p,state.res)){
+        const bad=(state.res||[]).filter(r=>ingredientConflictsWithRestriction(p,r));
+        alert(`"${p}" conflicts with: ${bad.join(", ")}`);
+        return;
+      }
+      state.req.push(p);renderBuild();
+    });
+    pantryScroll.appendChild(b);
+  });
+  rCard.appendChild(pantryScroll);
+  grid.appendChild(rCard);
 
   wrap.appendChild(grid);
 
@@ -2118,12 +2085,13 @@ function mysterySpinResultPanelHtml(){
     const isForb=txt.startsWith("✕ ");
     parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Restriction ${j+1}</span><div class="rnd-slot ${isForb?"rnd-done-forb":"rnd-done-res"}">${escapeHtml(txt)}</div></div>`);
   }
+  parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">AI clock</span><div class="rnd-slot rnd-done-time">${Number(state.total)||30} min</div></div>`);
   const ct=`${state.ctype.emoji} ${state.ctype.label}`;
   parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Challenge</span><div class="rnd-slot rnd-done-ct">${escapeHtml(ct)}</div></div>`);
   return `<div class="basket-spin-wrap">
     <div class="basket-spin-h"><span>🎰 Mystery basket</span><span style="font-size:11px;font-weight:700;color:#64748b">${escapeHtml(cfg.label)} · locked in</span></div>
     <div class="basket-spin-slots">${parts.join("")}</div>
-    <div style="font-size:11px;color:#64748b;margin-top:10px;text-align:center;line-height:1.45">This draw stays visible. Edit chips below if you want, or tap <strong>Spin my mystery basket</strong> again for a new haul.</div>
+    <div style="font-size:11px;color:#64748b;margin-top:10px;text-align:center;line-height:1.45"><strong>AI clock</strong> is how long the rival-chef recipe assumes (20–45 min). Edit chips below or spin again for a new haul.</div>
   </div>`;
 }
 
@@ -2136,10 +2104,11 @@ function runMysteryRandomize(){
   const need=cfg.req;
   const nConstraints=Math.max(Number(cfg.res)||0, Number(cfg.forb)||0);
   const ctypePool=[...CTYPES,...state.customTypes];
-  const totalSlots=need+nConstraints+1;
+  const totalSlots=need+nConstraints+2;
   const slotMeta=[];
   for(let i=0;i<need;i++) slotMeta.push({kind:"ing",lbl:"Must use "+(i+1)});
   for(let j=0;j<nConstraints;j++) slotMeta.push({kind:"con",lbl:"Restriction "+(j+1)});
+  slotMeta.push({kind:"time",lbl:"AI clock"});
   slotMeta.push({kind:"ct",lbl:"Challenge"});
   const cells=slotMeta.map((m,i)=>`<div class="basket-spin-cell" data-i="${i}"><span class="basket-spin-lbl">${m.lbl}</span><div class="rnd-slot" data-kind="${m.kind}" aria-label="${escapeHtml(m.lbl)}">—</div></div>`).join("");
   host.innerHTML=`<div class="basket-spin-wrap">
@@ -2163,6 +2132,7 @@ function runMysteryRandomize(){
           ? RESTRICT[Math.floor(Math.random()*RESTRICT.length)]
           : "✕ "+EQUIP[Math.floor(Math.random()*EQUIP.length)];
       }
+      else if(k==="time") s.textContent=String(SPIN_AI_TIMES[Math.floor(Math.random()*SPIN_AI_TIMES.length)])+" min";
       else { const ct=ctypePool[Math.floor(Math.random()*ctypePool.length)]; s.textContent=ct.emoji+" "+ct.label; }
       s.style.animation="none";
       void s.offsetWidth;
@@ -2189,7 +2159,9 @@ function runMysteryRandomize(){
           s.textContent=txt;
           s.classList.add(txt.startsWith("✕ ")?"rnd-done-forb":"rnd-done-res");
         }
-        const sCt=slots[need+nConstraints];
+        const sTm=slots[need+nConstraints];
+        if(sTm){ sTm.textContent=(Number(state.total)||0)+" min"; sTm.classList.add("rnd-done-time"); }
+        const sCt=slots[need+nConstraints+1];
         if(!sCt) throw new Error("Missing challenge slot");
         sCt.textContent=state.ctype.emoji+" "+state.ctype.label;
         sCt.classList.add("rnd-done-ct");
@@ -2217,7 +2189,7 @@ function doRandomize(){
   state.lim=d.burners;state.cut=d.cut;
   const pool=window.USER_PANTRY||PANTRY;
   state.req=pickRequiredPattern(pool,d.req,state.res);
-  const t=d.times[Math.floor(Math.random()*d.times.length)];
+  const t=SPIN_AI_TIMES[Math.floor(Math.random()*SPIN_AI_TIMES.length)];
   state.total=t;state.prep=Math.round(t*0.35);state.cook=Math.round(t*0.65);
   const allTypes=[...CTYPES,...state.customTypes];
   state.ctype=allTypes[Math.floor(Math.random()*allTypes.length)];
