@@ -778,6 +778,7 @@ function renderBuild() {
     </div>
     <button type="button" id="contest-live-btn" onclick="generateContestRecipe()" style="flex-shrink:0;background:linear-gradient(180deg,#a855f7,#7c3aed);color:#fff;border:none;border-radius:12px;padding:12px 20px;font-size:13px;font-weight:900;cursor:pointer;box-shadow:0 6px 20px rgba(124,58,237,0.35);white-space:nowrap">🔴 Competition game plan</button>
   </div>
+  <div id="contest-plan-status" style="font-size:12px;margin-top:8px;min-height:1.25em;font-weight:600" aria-live="polite"></div>
   <div id="contest-recipe-inline" style="margin-top:10px"></div>`;
   wrap.appendChild(contestRow);
   renderContestRecipeBox();
@@ -1352,10 +1353,26 @@ function renderContestRecipeBox(){
 async function generateContestRecipe(){
   const ch=state.challenge||challengeFromBuilder();
   if(!(ch.required&&ch.required.length)){alert("Pick at least one required ingredient (or spin the mystery basket) first.");return;}
-  const btn=$("contest-live-btn");
-  if(btn){btn.disabled=true;btn.innerHTML="⏳ Calling the pass…";}
+  const setContestStatus=(text,color)=>{
+    const el=$("contest-plan-status");
+    if(!el) return;
+    el.textContent=text||"";
+    el.style.color=color||"#64748b";
+  };
+  const resetContestBtn=()=>{
+    const b=$("contest-live-btn");
+    if(b){b.disabled=false;b.innerHTML="🔴 Competition game plan";}
+  };
+  const bStart=$("contest-live-btn");
+  if(bStart){bStart.disabled=true;bStart.innerHTML="⏳ Calling the pass…";}
+  setContestStatus("Contacting AI…","#64748b");
   try{
-    const pantryLines=ch.pantry.length<=28?ch.pantry.join(", "):ch.pantry.slice(0,28).join(", ")+", …";
+    const courseLabel=(ch.ctype&&ch.ctype.label)?String(ch.ctype.label):"Entree";
+    const prepT=Number(ch.prepTime)||0;
+    const cookT=Number(ch.cookTime)||0;
+    const totT=Number(ch.totalTime)||45;
+    const pantryArr=Array.isArray(ch.pantry)?ch.pantry:[];
+    const pantryLines=pantryArr.length<=28?pantryArr.join(", "):pantryArr.slice(0,28).join(", ")+", …";
     const rr=state.recipe;
     const rivalBlock=rr
       ? `RIVAL DRAFT (do not plagiarize; out-execute on clarity and clock fit):
@@ -1370,7 +1387,7 @@ ${rivalBlock}
 MUST USE: ${ch.required.join(", ")}
 RESTRICTIONS (mandatory — same binding rules as the rival chef): ${(ch.restrictions||[]).length?(ch.restrictions||[]).join("; "):"none"}
 EQUIPMENT: must ${(ch.reqEquip||[]).join(", ")||"—"} · forbidden ${(ch.forbEquip||[]).join(", ")||"—"}${ch.limitBurners?" · 1 burner only":""}
-COURSE: ${ch.ctype.label} | ${ch.totalTime} min (prep ${ch.prepTime}, cook ${ch.cookTime})
+COURSE: ${courseLabel} | ${totT} min (prep ${prepT}, cook ${cookT})
 PANTRY ADD-ONS: ${pantryLines}
 
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
@@ -1379,12 +1396,25 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
     const data=await ai(prompt,4096);
     state.contestRecipe=data;
     renderContestRecipeBox();
-    if(state.recipe) showRecipeData(state.recipe);
-    else renderBuild();
+    setContestStatus("Done — your plan is below.","#15803d");
+    if(state.recipe){
+      try{
+        const sr=$("screen-recipe");
+        const onRecipeScreen=sr && !sr.classList.contains("hidden");
+        if(onRecipeScreen) showRecipeData(state.recipe);
+      }catch(err){
+        console.error("showRecipeData after contest",err);
+      }
+    }else{
+      renderBuild();
+    }
   }catch(e){
-    alert("Competition game plan failed: "+e.message);
+    console.error("Competition game plan",e);
+    const msg=(e&&e.message)?String(e.message):String(e);
+    setContestStatus("Failed: "+msg.slice(0,220),"#b91c1c");
+    alert("Competition game plan failed: "+msg);
   }finally{
-    if(btn){btn.disabled=false;btn.innerHTML="🔴 Competition game plan";}
+    resetContestBtn();
   }
 }
 
