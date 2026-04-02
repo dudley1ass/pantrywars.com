@@ -2348,16 +2348,41 @@ function getIngredientCompatibilityMeta(name){
   return {basketType,isFruit,isDairy,isSugarSource,hasSweetNote,dessertCompatibility};
 }
 
-function dessertBasketHasPath(req, restrictions){
-  const noSugar=(restrictions||[]).includes("No Sugar");
+/** Produce / aromatics where “sweet” on the card is a real dessert pathway (not e.g. edamame or onion). */
+const PW_DESSERT_SWEET_PRODUCE_RX=/\b(sweet potato|sweet potatoes|\byams?\b|pumpkin|butternut|acorn squash|delicata|kabocha|carrots?|beets?|beetroots?|\bcorns?\b|corn on the cob|parsnip|parsnips|plantains?|figs?|dates?|bananas?|apples?|pears?|peaches?|plums?|apricots?|nectarines?|cherries?\b|berries|raisins?|prunes?|rhubarb|coconut milk|coconut cream|mangos?|papaya|guava|kiwi|pomegranate|watermelon|cantaloupe|honeydew)\b/i;
+
+const PW_NAME_BLOCKS_DESSERT_SWEET=/\b(chipotle|chipotles|adobo|sriracha|harissa|gochujang|sambal|fish sauce|soy sauce|hoisin|miso paste|doubanjiang|curry paste)\b/i;
+
+function dessertIngredientAnchorsCourse(name, restrictions){
   const r=restrictions||[];
+  const noSugar=r.includes("No Sugar");
   const noDairy=r.includes("No Dairy")||r.includes("Vegan");
+  const m=getIngredientCompatibilityMeta(name);
+  if(m.isFruit) return true;
+  if(!noDairy&&m.isDairy) return true;
+  if(!noSugar&&m.isSugarSource) return true;
+  if(classifyRequiredBucket(name)==="wildcard") return true;
+  if(noSugar) return false;
+  const row=pantryCatalog().find(x=>String(x.name||"").toLowerCase()===String(name||"").toLowerCase());
+  const cat=String((row&&row.cat)||"").toLowerCase();
+  const flavors=(row&&row.flavor)||[];
+  const savoryFlavorTag=/^(spicy|smoky|funky|hot|pungent)$/i;
+  if(flavors.some(x=>savoryFlavorTag.test(String(x)))) return false;
+  if(PW_NAME_BLOCKS_DESSERT_SWEET.test(String(name||"").toLowerCase())) return false;
+  if(m.dessertCompatibility>=5) return true;
+  if(m.hasSweetNote&&m.dessertCompatibility>=4){
+    const b=classifyRequiredBucket(name);
+    if(b==="protein") return false;
+    if(b==="produce"||/vegetables|aromatics/.test(cat))
+      return PW_DESSERT_SWEET_PRODUCE_RX.test(String(name||"").toLowerCase());
+    return true;
+  }
+  return false;
+}
+
+function dessertBasketHasPath(req, restrictions){
   for(const name of req||[]){
-    const m=getIngredientCompatibilityMeta(name);
-    if(m.isFruit) return true;
-    if(!noDairy&&m.isDairy) return true;
-    if(!noSugar&&m.isSugarSource) return true;
-    if(!noSugar&&m.dessertCompatibility>=4&&(m.hasSweetNote||m.dessertCompatibility>=5)) return true;
+    if(dessertIngredientAnchorsCourse(name,restrictions)) return true;
   }
   return false;
 }
@@ -2377,18 +2402,7 @@ function savoryBasketHasPath(req){
 
 function pickDessertAnchorFromPool(candidates, restrictions){
   if(!candidates||!candidates.length) return null;
-  const noSugar=(restrictions||[]).includes("No Sugar");
-  const r=restrictions||[];
-  const noDairy=r.includes("No Dairy")||r.includes("Vegan");
-  const ok=candidates.filter(n=>{
-    const m=getIngredientCompatibilityMeta(n);
-    if(m.isFruit) return true;
-    if(!noDairy&&m.isDairy) return true;
-    if(!noSugar&&m.isSugarSource) return true;
-    if(!noSugar&&m.dessertCompatibility>=4&&(m.hasSweetNote||m.isFruit)) return true;
-    if(!noSugar&&m.dessertCompatibility>=5) return true;
-    return false;
-  });
+  const ok=candidates.filter(n=>dessertIngredientAnchorsCourse(n,restrictions));
   if(!ok.length) return null;
   return ok[Math.floor(Math.random()*ok.length)];
 }
@@ -2423,11 +2437,12 @@ function pickLeastUsefulIndexForCourse(req, ctype){
   return scored[0].i;
 }
 
-function viabilitySwapAttempts(diffKey, chaos){
+function viabilitySwapAttempts(diffKey, chaos, ctype){
   if(chaos||diffKey==="insane") return 0;
-  if(diffKey==="easy") return 5;
-  if(diffKey==="medium") return 3;
-  return 2;
+  const bonus=courseIsDessert(ctype)?2:0;
+  if(diffKey==="easy") return 5+bonus;
+  if(diffKey==="medium") return 3+bonus;
+  return 2+bonus;
 }
 
 function ensureCourseBasketViability(req, ctype, diffKey, pool, restrictions, chaos){
@@ -2435,7 +2450,7 @@ function ensureCourseBasketViability(req, ctype, diffKey, pool, restrictions, ch
   if(chaos) return req.slice();
   const filt=filterPoolByRestrictions(pool||[],restrictions||[]);
   let out=req.slice();
-  const tries=viabilitySwapAttempts(diffKey,chaos);
+  const tries=viabilitySwapAttempts(diffKey,chaos,ctype);
   for(let t=0;t<tries;t++){
     let needFix=false;
     if(courseIsDessert(ctype)&&!dessertBasketHasPath(out,restrictions)) needFix=true;
