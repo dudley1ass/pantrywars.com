@@ -810,7 +810,7 @@ function renderBuild() {
   tSum.style.cssText="cursor:pointer;list-style:none;font-size:12px;font-weight:800;color:#0f172a";
   tSum.innerHTML="Optional: AI timing budget <span style=\"font-weight:600;color:#64748b\">(rival recipe only — not a kitchen timer)</span>";
   const tInner=div({style:{marginTop:"10px",paddingTop:"10px",borderTop:"1px solid #e2e8f0"}});
-  const tHelp=div({style:{fontSize:"11px;color:#64748b;marginBottom:"10px",lineHeight:"1.45"}});
+  const tHelp=div({style:{fontSize:"11px",color:"#64748b",marginBottom:"10px",lineHeight:"1.45"}});
   tHelp.textContent="Sliders only change how tight the AI’s written timeline sounds. Expand if you care; defaults work fine for “what would you make?”";
   tInner.appendChild(tHelp);
   const trow=div({style:{marginBottom:"10px"}});
