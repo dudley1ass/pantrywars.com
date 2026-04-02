@@ -51,6 +51,7 @@
   @media(max-width:700px){.duel-score-grid{grid-template-columns:1fr!important;}}
   #recipe-compare-grid{display:grid;grid-template-columns:1fr;gap:18px;max-width:1180px;margin:0 auto;}
   @media(min-width:920px){#recipe-compare-grid{grid-template-columns:1fr 1fr;align-items:start;}}
+  #recipe-battle-footer{max-width:1180px;margin:22px auto 0;padding:0 12px}
   @keyframes rndPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.45)}50%{box-shadow:0 0 20px 6px rgba(245,158,11,.3)}}
   @keyframes rndSpin{0%{opacity:.35;transform:translateY(6px) scale(.98)}100%{opacity:1;transform:translateY(0) scale(1)}}
   @keyframes rndShine{0%{background-position:0% 50%}100%{background-position:200% 50%}}
@@ -68,6 +69,10 @@
   #spin-host .rnd-slot.rnd-done-time{color:#0f766e;border-color:#2dd4bf;background:#ccfbf1}
   #spin-host .basket-spin-bar{height:3px;border-radius:999px;background:#e2e8f0;overflow:hidden;margin-top:10px}
   #spin-host .basket-spin-bar>i{display:block;height:100%;width:30%;background:linear-gradient(90deg,#f59e0b,#fbbf24,#f59e0b);background-size:200% 100%;animation:rndShine .8s linear infinite;border-radius:999px}
+  .contest-coach-hero{position:relative;}
+  .contest-coach-hero-inner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;position:relative;z-index:1}
+  .contest-coach-watermark{position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .contest-coach-watermark span{transform:rotate(-16deg);font-size:clamp(20px,5.5vw,36px);font-weight:900;color:rgba(248,250,252,0.15);letter-spacing:.2em;text-transform:uppercase;user-select:none;white-space:nowrap;text-shadow:0 1px 0 rgba(0,0,0,.2)}
   /* Landing: full-viewport min height; scroll on small screens if copy needs it */
   #screen-landing.page{
     min-height:100dvh;
@@ -1144,12 +1149,15 @@ function renderBuild() {
   if(state.mysterySpinLocked) spinHost.innerHTML=mysterySpinResultPanelHtml();
   wrap.appendChild(spinHost);
   const contestRow=div({style:{maxWidth:"100%",marginBottom:"14px"}});
-  contestRow.innerHTML=`<div style="background:linear-gradient(145deg,#312e81 0%,#1e1b4b 100%);border:2px solid #a855f7;border-radius:14px;padding:14px 16px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px">
+  contestRow.innerHTML=`<div class="contest-coach-hero" style="background:linear-gradient(145deg,#312e81 0%,#1e1b4b 100%);border:2px solid #a855f7;border-radius:14px;padding:14px 16px">
+    <div class="contest-coach-watermark" aria-hidden="true"><span>Coming soon</span></div>
+    <div class="contest-coach-hero-inner">
     <div style="flex:1;min-width:220px">
       <div style="font-size:10px;font-weight:900;color:#e9d5ff;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Competition coach (optional)</div>
       <div style="font-size:13px;color:#c4b5fd;line-height:1.5">Extra <strong style="color:#fff">tight, judge-style game plan</strong> from AI for <em>this</em> basket — before you launch. Handy for real comps or a friends cook-off.</div>
     </div>
     <button type="button" id="contest-live-btn" style="flex-shrink:0;background:linear-gradient(180deg,#a855f7,#7c3aed);color:#fff;border:none;border-radius:12px;padding:12px 20px;font-size:13px;font-weight:900;cursor:pointer;box-shadow:0 6px 20px rgba(124,58,237,0.35);white-space:nowrap">🔴 Competition game plan</button>
+    </div>
   </div>
   <div id="contest-plan-status" style="font-size:12px;margin-top:8px;min-height:1.25em;font-weight:600" aria-live="polite"></div>
   <div id="contest-recipe-inline" style="margin-top:10px"></div>`;
@@ -1545,8 +1553,8 @@ function renderRecipe() {
     <div style="background:#1e293b;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
       <div>
         <div style="font-size:10px;color:#64748b;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px">${state.challenge.ctype.emoji} ${state.challenge.ctype.label} · ${state.challenge.diff.toUpperCase()} · beat AI</div>
-        <div id="recipe-title" style="font-size:18px;font-weight:900;color:#f8fafc">Pantry Wars — Rival chef at work…</div>
-        <div id="recipe-tagline" style="font-size:12px;color:#94a3b8;font-style:italic;margin-top:2px"></div>
+        <div style="font-size:clamp(22px,4.2vw,30px);font-weight:900;color:#f8fafc;line-height:1.12;letter-spacing:-0.02em">The battle — make your plate</div>
+        <div style="font-size:13px;color:#94a3b8;margin-top:8px;max-width:38rem;line-height:1.5">Same haul &amp; rules for you and the rival chef. Fill in <strong style="color:#f59e0b">Your battle plan</strong>, then <strong style="color:#fbbf24">Battle</strong> to compare scorecards.</div>
       </div>
       <div style="display:flex;gap:8px">
         <button onclick="showScreen('screen-build');renderBuild();" style="background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Back</button>
@@ -1554,7 +1562,6 @@ function renderRecipe() {
       </div>
     </div>
     <div id="recipe-body" style="padding:8px 12px 20px">
-      <p style="text-align:center;font-size:12px;color:#64748b;max-width:680px;margin:8px auto 14px;line-height:1.45"><strong style="color:#f8fafc;font-size:11px;letter-spacing:2px">PANTRY WARS</strong> — <strong style="color:#cbd5e1">Can you beat AI?</strong> Say <strong style="color:#f59e0b">what you’d plate</strong> with this basket; <strong style="color:#818cf8">Rival chef</strong> is the AI’s recipe on the same rules. Tap <strong style="color:#fbbf24">Battle</strong> to compare.</p>
       ${battleConstraintsHtml(state.challenge)}
       <div id="recipe-compare-grid">
         <div id="recipe-ai-panel">
@@ -1565,8 +1572,9 @@ function renderRecipe() {
             <div style="font-size:12px;color:#64748b;text-align:center">Pantry Wars · flavor · haul · timing</div>
           </div>
         </div>
-        ${userCookPlanPanelHtml()}
+        <div id="recipe-user-panel">${userCookPlanPanelHtml()}</div>
       </div>
+      <div id="recipe-battle-footer"></div>
     </div>`;
   wireUserCookPlanForm();
   generateRecipe();
@@ -1681,6 +1689,48 @@ function courseEnforcementBlock(ch, sig) {
   return "";
 }
 
+/** Universal: basket-as-a-whole → flavor direction → roles (before category defaults like “protein = main”). */
+function basketFlavorLeadershipBlock(ch){
+  const lab=(ch.ctype&&ch.ctype.label)?String(ch.ctype.label):"this challenge";
+  return `CHEF PROCESS — FLAVOR & HIERARCHY FIRST (do this mentally before JSON):
+- Banned mindset: "How do I give every ingredient equal prominence?" Better: "What is the most believable flavor direction for this entire basket under ${lab}? What should lead; what should support; what is accent-only?"
+- Order: (1) Scan ALL required items together — what naturally pairs or clusters? (2) Name one clearest dish identity / flavor lane (what you'd pitch in one breath). (3) Pick ONE primary foundation. (4) Assign each REQUIRED to: PRIMARY FOUNDATION, SUPPORTING, ACCENT/GARNISH, or MINIMAL-USE — the last is for honest trace/chip/pinch when an item fights the lane, not co-equal billing.
+- Anchor rule: Choose the best dish first, then fit ingredients into it. Do NOT assign roles from category alone (protein / veg / dairy) and then force a concept — especially do not default "protein ⇒ centerpiece."
+- Conflicts: commit to a dominant path; limit ingredients that don't fit that path (still present, still true to the SKU).
+- Rank what matters: (1) dish identity (2) flavor logic (3) realism on time (4) basket integrity — integrity means each item appears honestly, NOT equal portion for all.
+
+`;
+}
+
+/** Course-first ingredient roles (not “protein = centerpiece” globally). Feeds rival-chef prompt. */
+function courseRoleHierarchyBlock(ch){
+  const ctype=ch.ctype||{};
+  const id=String(ctype.id||"");
+  const label=String(ctype.label||"").toLowerCase();
+  if(id==="dessert"||/\bdessert\b/.test(label)){
+    return `ROLE HIERARCHY — DESSERT (context → roles → ingredients):
+- Wrong default: "there is meat/cured pork in the basket, therefore it is the main." Right default: course picks the STAR. For dessert, PRIMARY = sweet backbone (ice cream/gelato, mousse, curd, tart shell, panna cotta, chocolate base, marshmallow whip, honey caramel, compote — from REQUIRED or pantry).
+- Animal proteins & charcuterie (prosciutto, ham, bacon, etc.) = ACCENT or TEXTURE only: crisp shard, friable sprinkle, salted crackling on TOP, paper-thin chip garnish — NOT the conceptual center. Judges should hear the dessert first ("white chocolate ice cream with prosciutto crackling"), not "prosciutto plate with sweet notes."
+- Eggs / tofu / tempeh in a clearly sweet build can be PRIMARY technique (custard, soy milk pudding) per your other dessert rules.
+- Odd veg (hearts of palm, etc.) = SUPPORT — texture, poach in syrup, thin ribbon — not a savory salad exit.
+- balance.basket must assign each REQUIRED item an explicit role label in prose: PRIMARY (sweet spine), ACCENT (savory contrast), or SUPPORT (texture/acid/helper), one short phrase per item. If multiple sweets exist, pick ONE PRIMARY sweet story; others merge or become SUPPORT.
+- Title/tagline should read as a dessert; savory REQUIRED items appear as "with …" / "finished with …" / "crackling on top," not as the dish's noun head.\n`;
+  }
+  if(id==="appetizer"||/\bappetizer\b/.test(label)){
+    return `ROLE HIERARCHY — APPETIZER:
+- PRIMARY = the single starter story (composed bite, veg base, tartlet, dip, broth cup). Protein/cured fish/charcuterie often ACCENT (shaving, crisp, tartare quenelle, thin slice on crostini) unless the basket is clearly protein-anchored.
+- Do not plate entree portions. balance.basket: name PRIMARY vs ACCENT vs SUPPORT for each REQUIRED item in one clause each.\n`;
+  }
+  if(id==="snack"||/\bsnack\b/.test(label)){
+    return `ROLE HIERARCHY — SNACK:
+- PRIMARY = snack identity (handheld, dippable, crunchy cluster, small sweet/savory bite). Meat/cheese may be flavor bump or chip — not a carving-board centerpiece unless the basket forces it.\n`;
+  }
+  return `ROLE HIERARCHY — ENTRÉE / SAVORY MAIN (& most non-dessert challenges):
+- PRIMARY is often protein when the basket supports it — but starch-forward (risotto, pasta, pie) or veg-forward mains are valid; do not force protein to headline if the haul points elsewhere.
+- Cured meats, bacon, secondary proteins can be ACCENT (lardon, crisp, garnish) rather than owning the title.
+- balance.basket: for each REQUIRED, state PRIMARY / ACCENT / SUPPORT in plain language so judges see hierarchy — avoid "everything co-equal important."\n`;
+}
+
 async function generateRecipe() {
   const ch=state.challenge;
   try {
@@ -1709,6 +1759,8 @@ async function generateRecipe() {
       ?` PROCESSED SWEET ALERT: At least one required item is shelf-sweet. It must read as that product in use (squeeze, scoop, from bottle) — not re-labeled as artisan chocolate. Keep it a supporting player unless dessert.`
       :"";
     const courseBlock=courseEnforcementBlock(ch,sig);
+    const flavorLeadershipBlock=basketFlavorLeadershipBlock(ch);
+    const roleHierarchyBlock=courseRoleHierarchyBlock(ch);
     const recreateJsonRule=challengeTypeIsRecreateClassic(ch.ctype)
       ?`RECREATE A CLASSIC — JSON: balance.basket MUST start by naming the specific classic (e.g. first words: "Classic: Wiener schnitzel — …" or "Homage to fish and chips — …"). title OR tagline MUST repeat or restate that dish so a judge never wonders "what classic?" Vague regions without a dish name = failed brief.\n`
       :"";
@@ -1727,6 +1779,8 @@ ${res}
 ${fe} ${re} ${bl}
 
 ${courseBlock}
+${flavorLeadershipBlock}
+${roleHierarchyBlock}
 ${executionMode}
 ${productSweetNote}
 
@@ -1736,8 +1790,8 @@ FOOD PRODUCT TRUTH (material honesty — not vocabulary checks):
 - The dish fails if a competitor could swap in a finer product without changing your steps — steps must be specific to what was in the basket.
 
 BASKET INTEGRITY (mandatory):
-- The plate's STAR (main story: protein/starch/veg focal point) must come from REQUIRED + PANTRY above. Do NOT add a new centerpiece (chicken, beef, pork, salmon, etc.) unless that exact protein appears in REQUIRED or PANTRY.
-- Each REQUIRED item: name its PRIMARY role (filling, crust, sauce base, relish, main veg, etc.).
+- The plate's conceptual STAR must match ROLE HIERARCHY for this course — not a hidden rule that "protein = center." On dessert, STAR = sweet identity; meat/charcuterie cannot carry the dish name. STAR elements must come from REQUIRED + PANTRY. Do NOT add a new centerpiece (chicken, beef, pork, salmon, etc.) unless that exact protein appears in REQUIRED or PANTRY.
+- Each REQUIRED item: name its course-correct role (PRIMARY sweet spine vs ACCENT vs SUPPORT on dessert; appetizer/entree per hierarchy above — filling, crust, sauce base, relish, main veg, etc.).
 - Prefer one bold coherent idea — at most ${maxSteps} steps before PLATE, believable in ${ch.totalTime} min.
 - RICHNESS: oily fish + aged cheese + heavy cream is usually overload; choose at most one fat-forward anchor unless you explicitly lighten the others.
 
@@ -1776,7 +1830,7 @@ BALANCE (honest):
 ${recreateJsonRule}
 JSON keys (fill all):
 {"title":"","tagline":"","serves":"2","balance":{"flavor":"","basket":"","texture":"","richness":"","visual":"","complete":""},"ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"time":"0:00","dur":"","phase":"PREP","what":"","how":""}],"plating":"","tip":""}
-balance.basket: 2-4 sentences — stars vs hides; name each REQUIRED item and its starring role. If something is store-bought or messy, say you're using THAT item, not a posh substitute.
+balance.basket: If RECREATE A CLASSIC rules apply, sentence 1 must name the classic; otherwise sentence 1 = chosen flavor direction / dish lane (the “best dish” you committed to). Then — stars vs hides; for EACH required item tag PRIMARY FOUNDATION / SUPPORTING / ACCENT / MINIMAL-USE (or PRIMARY/ACCENT/SUPPORT per ROLE HIERARCHY), consistent with CHEF PROCESS above. If something is store-bought or messy, say you're using THAT item, not a posh substitute.
 balance.flavor: name sweet drivers (fruit, beer malt, honey, etc.) and confirm you did not stack them blindly — one clear sweet spine max unless you explain the counterweight.
 balance.complete: single starch/body choice (or explain minor vs major); component count vs ${maxComponents}; timing honesty for ${ch.totalTime} min; optional "purer plate" omission; flag dual-base or gumminess risks if you bent the rule.
 balance.richness: if any REQUIRED item is sugary/processed, concrete sweetness limits + residual-sugar realism (see BASKET IDENTITY).
@@ -1789,6 +1843,8 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     console.error("Recipe generation failed:", e);
     const err=`<div style="text-align:center;padding:32px 16px;color:#f87171">Failed: ${escapeHtml(e.message)}<br><br><small style="color:#94a3b8">Use <code>npm start</code> or your deployed URL (not file://). HTTP 401 = bad API key.</small><br><br><button type="button" onclick="generateRecipe()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:700">Try Again</button></div>`;
     const ap=$("recipe-ai-panel");
+    const foot=$("recipe-battle-footer");
+    if(foot) foot.innerHTML="";
     if(ap) ap.innerHTML='<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>'+err;
     else $("recipe-body").innerHTML=err;
   }
@@ -1884,6 +1940,8 @@ COURSE: ${courseLabel} | ${totT} min (prep ${prepT}, cook ${cookT})
 PANTRY ADD-ONS: ${pantryLines}
 
 ${challengeIntentCoachBlock(ch.ctype)||""}
+${basketFlavorLeadershipBlock(ch)}
+${courseRoleHierarchyBlock(ch)}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
 {"title":"","tagline":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":""}],"lastMinuteTip":"one sentence"}
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts.`;
@@ -1910,11 +1968,14 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
 window.generateContestRecipe = generateContestRecipe;
 
 function showRecipeData(r) {
-  $("recipe-title").textContent=r.title||"Your Recipe";
-  if(r.tagline) $("recipe-tagline").textContent=r.tagline;
   const cb=$("cook-btn");
   if(cb) cb.style.display="none";
   const ch=state.challenge;
+  const dishHead=`<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #334155">
+    <div style="font-size:11px;font-weight:800;color:#a5b4fc;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">AI built</div>
+    <div style="font-size:clamp(17px,2.4vw,22px);font-weight:900;color:#f8fafc;line-height:1.2">${escapeHtml(r.title||"Rival dish")}</div>
+    ${r.tagline?`<div style="font-size:13px;color:#94a3b8;font-style:italic;margin-top:8px;line-height:1.4">${escapeHtml(r.tagline)}</div>`:""}
+  </div>`;
   let html=``;
   const plateLine=truncateStr(r.plating||(r.balance&&r.balance.visual)||"",220);
   const flavorLine=truncateStr(r.balance&&r.balance.flavor||"",240);
@@ -1935,17 +1996,19 @@ function showRecipeData(r) {
       <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:8px">Timeline</div>
       ${(r.steps||[]).map((s,i)=>{const col=({"PREP":"#3b82f6","COOK":"#ef4444","SAUCE":"#f97316","ASSEMBLE":"#a855f7","PLATE":"#22c55e"})[s.phase]||"#64748b";return`<div style="display:flex;gap:10px;margin-bottom:10px"><div style="text-align:right;min-width:36px;padding-top:2px;flex-shrink:0"><div style="font-size:11px;font-weight:800;color:#f59e0b">${s.time}</div><div style="font-size:10px;color:#475569">${s.dur}</div></div><div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="width:10px;height:10px;border-radius:50%;background:${s.phase==="PLATE"?col:"#334155"};border:2px solid ${col};margin-top:3px"></div>${i<(r.steps.length-1)?`<div style="width:2px;flex:1;background:#1e293b;min-height:12px;margin-top:2px"></div>`:""}</div><div style="flex:1"><div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><span style="background:${col}22;color:${col};border:1px solid ${col}55;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800">${s.phase}</span><span style="font-size:12px;font-weight:800;color:#f8fafc">${s.what}</span></div><div style="font-size:11px;color:#94a3b8;line-height:1.4">${s.how}</div></div></div>`}).join("")}
     </div>
-  </div>
-  <div style="margin-top:16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px">
-    <div style="font-size:11px;color:#94a3b8;max-width:420px;line-height:1.45">Need the extra <strong style="color:#c4b5fd">competition coach</strong> plan? Tap <strong>Back</strong> — it’s on the battle builder.</div>
-    <button type="button" id="battle-btn" onclick="openBattleScorecards()" disabled style="background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#0f172a;border:none;border-radius:12px;padding:12px 28px;font-size:14px;font-weight:900;cursor:not-allowed;box-shadow:0 6px 20px rgba(245,158,11,0.35);width:100%;max-width:380px">⚔ Battle — compare & scorecards</button>
-    <div id="battle-hint" style="font-size:11px;color:#94a3b8;text-align:center;max-width:400px;line-height:1.45">Fill <strong style="color:#f59e0b">Your battle plan</strong> (left) with what you’d make, then <strong style="color:#fbbf24">Battle</strong> for AI vs you scorecards.</div>
-    <details style="max-width:420px;text-align:left"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#94a3b8">Optional: real kitchen timer</summary><p style="font-size:11px;color:#64748b;margin:8px 0 10px">Only if you’re actually cooking along — not required for “beat AI.”</p><button type="button" onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:800;cursor:pointer;width:100%">Start ${ch.totalTime}-minute timer</button></details>
+  </div>`;
+  const battleFooter=`<div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px 14px;background:#0f172a;border:1px solid #334155;border-radius:14px">
+    <div style="font-size:11px;color:#94a3b8;max-width:440px;line-height:1.45">Need the extra <strong style="color:#c4b5fd">competition coach</strong> plan? Tap <strong>Back</strong> — it’s on the battle builder.</div>
+    <button type="button" id="battle-btn" onclick="openBattleScorecards()" disabled style="background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#0f172a;border:none;border-radius:12px;padding:12px 28px;font-size:14px;font-weight:900;cursor:not-allowed;box-shadow:0 6px 20px rgba(245,158,11,0.35);width:100%;max-width:400px">⚔ Battle — compare & scorecards</button>
+    <div id="battle-hint" style="font-size:11px;color:#94a3b8;text-align:center;max-width:420px;line-height:1.45">Fill <strong style="color:#f59e0b">Your battle plan</strong> (right column) with what you’d make, then <strong style="color:#fbbf24">Battle</strong> for AI vs you scorecards.</div>
+    <details style="max-width:440px;text-align:left;width:100%"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#94a3b8">Optional: real kitchen timer</summary><p style="font-size:11px;color:#64748b;margin:8px 0 10px">Only if you’re actually cooking along — not required for “beat AI.”</p><button type="button" onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:800;cursor:pointer;width:100%">Start ${ch.totalTime}-minute timer</button></details>
   </div>`;
   const aiPanel=$("recipe-ai-panel");
   const aiHead='<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>';
-  if(aiPanel) aiPanel.innerHTML=aiHead+html;
-  else $("recipe-body").innerHTML=aiHead+html;
+  const foot=$("recipe-battle-footer");
+  if(aiPanel) aiPanel.innerHTML=aiHead+dishHead+html;
+  else $("recipe-body").innerHTML=aiHead+dishHead+html;
+  if(foot) foot.innerHTML=battleFooter;
   renderContestRecipeBox();
   wireUserCookPlanForm();
   updateBattleButtonState();
@@ -2005,8 +2068,9 @@ function renderRecipeDisplay() {
   showScreen("screen-recipe");
   const rb=$("recipe-body");
   if(rb && !$("battle-constraints") && state.challenge){
-    const p=rb.querySelector("p");
-    if(p) p.insertAdjacentHTML("afterend", battleConstraintsHtml(state.challenge));
+    const grid=rb.querySelector("#recipe-compare-grid");
+    if(grid) grid.insertAdjacentHTML("beforebegin", battleConstraintsHtml(state.challenge));
+    else rb.insertAdjacentHTML("afterbegin", battleConstraintsHtml(state.challenge));
   }
   showRecipeData(state.recipe);
 }
