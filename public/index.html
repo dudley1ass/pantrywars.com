@@ -668,6 +668,7 @@ function renderLanding() {
         <p class="landing-judges">👉 Can you beat the judges?</p>
         <button type="button" id="landing-start-btn" class="landing-start-btn">Take the challenge — Step 1: Pantry</button>
         <p class="landing-api">Bring your own Anthropic API key, or the host may supply one.</p>
+        <p class="landing-api" style="margin-top:8px;max-width:26rem">Free play includes up to ${PW_DAILY_AI_LIMIT} AI-powered rounds per day (rival chef, battle judge, competition coach, lookups). More battles &amp; buy packs coming soon.</p>
       </div>
     </div>`;
   sc.querySelector("#landing-start-btn").onclick = () => { showScreen("screen-pantry"); renderPantry(); };
@@ -729,11 +730,78 @@ function parseModelJsonObject(raw) {
   }
 }
 
+// ── Daily free tier (no login): caps AI rounds to protect host API & reduce abuse ──
+const PW_DAILY_AI_STORAGE_KEY = "pw_daily_ai_rounds_v1";
+/** Target band ~10–20/day; feels generous, blocks 100+ round abuse */
+const PW_DAILY_AI_LIMIT = 18;
+const PW_DAILY_LIMIT_MESSAGE = "You've used today's battles — come back tomorrow or unlock more soon.";
+
+function pwLocalDateKey() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+function pwGetDailyAiCount() {
+  try {
+    const raw = localStorage.getItem(PW_DAILY_AI_STORAGE_KEY);
+    const j = raw ? JSON.parse(raw) : null;
+    const today = pwLocalDateKey();
+    if (!j || j.d !== today) return { d: today, n: 0 };
+    return { d: today, n: Math.max(0, Math.min(PW_DAILY_AI_LIMIT + 50, Number(j.n) || 0)) };
+  } catch (_e) {
+    return { d: pwLocalDateKey(), n: 0 };
+  }
+}
+
+function pwDailyAiRemaining() {
+  return Math.max(0, PW_DAILY_AI_LIMIT - pwGetDailyAiCount().n);
+}
+
+function pwCanUseAiRound() {
+  return pwGetDailyAiCount().n < PW_DAILY_AI_LIMIT;
+}
+
+function pwRecordSuccessfulAiRound() {
+  const today = pwLocalDateKey();
+  const cur = pwGetDailyAiCount();
+  const next = cur.d === today ? cur.n + 1 : 1;
+  localStorage.setItem(PW_DAILY_AI_STORAGE_KEY, JSON.stringify({ d: today, n: next }));
+  try {
+    if (!sessionStorage.getItem("pw_session_started_v1")) {
+      sessionStorage.setItem("pw_session_started_v1", "1");
+      if (typeof gtag === "function") gtag("event", "pw_play_session", {});
+    }
+    if (typeof gtag === "function") {
+      gtag("event", "pw_ai_round_ok", {
+        daily_total: next,
+        daily_remaining: Math.max(0, PW_DAILY_AI_LIMIT - next),
+        limit: PW_DAILY_AI_LIMIT,
+      });
+    }
+  } catch (_e) {}
+}
+
+function pwTrackDailyLimitHit(context) {
+  try {
+    if (typeof gtag === "function") {
+      gtag("event", "pw_daily_limit_hit", {
+        context: context || "ai",
+        daily_count: pwGetDailyAiCount().n,
+        limit: PW_DAILY_AI_LIMIT,
+      });
+    }
+  } catch (_e) {}
+}
+
 // ── AI CALL ───────────────────────────────────────────────────────────────────
 async function ai(prompt, tokens=300) {
   await loadAppConfig();
   const apiKey = getAnthropicKey();
   if (!apiKey && !_serverAnthropicConfigured) throw new Error("No API key — cancelled or empty");
+  if (!pwCanUseAiRound()) {
+    pwTrackDailyLimitHit("blocked_precheck");
+    throw new Error(PW_DAILY_LIMIT_MESSAGE);
+  }
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const timer = setTimeout(() => { xhr.abort(); reject(new Error("Request timed out (60s)")); }, 60000);
@@ -753,10 +821,16 @@ async function ai(prompt, tokens=300) {
       try {
         const d = JSON.parse(xhr.responseText);
         const txt = (d.content || []).find(b => b.type === "text")?.text || "";
-        if (d.stop_reason === "max_tokens" && txt && !extractBalancedJsonObject(txt))
+        if (d.stop_reason === "max_tokens" && txt && !extractBalancedJsonObject(txt)) {
           reject(new Error("Response ran out of space — click Try Again, or use fewer required ingredients."));
-        else resolve(parseModelJsonObject(txt));
-      } catch(err) { reject(err); }
+          return;
+        }
+        const parsed = parseModelJsonObject(txt);
+        pwRecordSuccessfulAiRound();
+        resolve(parsed);
+      } catch (err) {
+        reject(err);
+      }
     };
     xhr.onerror = () => {
       clearTimeout(timer);
@@ -946,7 +1020,12 @@ function renderBuild() {
   htitle.textContent="PANTRY WARS";
   const hsub=div({style:{color:"#475569",fontSize:"11px"}});
   hsub.textContent="Build the basket, then launch — can you beat the AI?";
-  const hleft=div({},[htitle,hsub]);
+  const remAi=pwDailyAiRemaining();
+  const hQuota=div({style:{fontSize:"10px",color:remAi<=3?"#fbbf24":"#64748b",marginTop:"4px",fontWeight:"700",maxWidth:"420px",lineHeight:"1.35"}});
+  hQuota.textContent=remAi<=0
+    ? "Today's free AI rounds: 0 left — come back tomorrow. More battles & unlimited packs coming soon."
+    : `Today's free AI rounds: ${remAi} left (max ${PW_DAILY_AI_LIMIT}/day) · Resets at midnight your time · Buy-more battles coming later`;
+  const hleft=div({},[htitle,hsub,hQuota]);
   const hbtns=div({style:{display:"flex",gap:"8px",flexWrap:"wrap"}});
   const backPan=btn("← Pantry","#334155","#94a3b8",{border:"none",padding:"8px 10px",fontSize:"12px"},()=>{showScreen("screen-pantry");renderPantry();});
   const randBtn=btn("🎰 Spin my mystery basket","#f59e0b","#fff",{animation:"rndPulse 2s ease-in-out infinite"},()=>runMysteryRandomize());
@@ -960,7 +1039,8 @@ function renderBuild() {
   flowHint.innerHTML=`<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#1e40af;margin-bottom:8px">Next step</div>
   <p style="margin:0 0 10px"><strong>Easy path:</strong> pick a <strong>Difficulty</strong>, then <strong>Spin my mystery basket</strong> — it randomly fills ingredients, restrictions, and challenge type. Tap <strong>Launch — beat the AI</strong> and say what <em>you’d</em> make.</p>
   <p style="margin:0 0 10px"><strong>Or,</strong> set it all yourself — especially if you’re in a <strong>real cooking competition</strong> and want AI backup, or you’re having a <strong>cook-off with friends</strong>: dial in your own ingredients and restrictions, then have fun!</p>
-  <p style="margin:0;font-size:11px;color:#334155">The spinner shows <strong>Must use</strong> items, <strong>Restrictions</strong>, an <strong>AI clock</strong> (20–45 min for realistic rival recipes), and <strong>Challenge</strong>. Restrictions &amp; equipment are in the cards under Challenge type.</p>`;
+  <p style="margin:0;font-size:11px;color:#334155">The spinner shows <strong>Must use</strong> items, <strong>Restrictions</strong>, an <strong>AI clock</strong> (20–45 min for realistic rival recipes), and <strong>Challenge</strong>. Restrictions &amp; equipment are in the cards under Challenge type.</p>
+  <p style="margin:8px 0 0;font-size:11px;color:#334155">Free tier: <strong>${PW_DAILY_AI_LIMIT} AI rounds per day</strong> (your device clock). Fair use keeps the lights on — extra packs later.</p>`;
   wrap.appendChild(flowHint);
   const spinHost=el("div",{id:"spin-host"});
   if(state.mysterySpinLocked) spinHost.innerHTML=mysterySpinResultPanelHtml();
@@ -1148,6 +1228,11 @@ function doLaunch() {
   }
   if(state.req.some(n=>ingredientConflictsWithAny(n,state.res))){
     alert("A required ingredient still conflicts with a restriction. Check your basket.");
+    return;
+  }
+  if(!pwCanUseAiRound()){
+    pwTrackDailyLimitHit("launch_blocked");
+    alert(PW_DAILY_LIMIT_MESSAGE);
     return;
   }
   const pool = pantryPool();
