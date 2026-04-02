@@ -1511,7 +1511,7 @@ SCORING RUBRIC:
 - Creativity: originality without nonsense — but for "Recreate a Classic," creativity must serve a NAMED classic; pure original with no classic = lower creativity/challenge execution
 - Presentation: plating clarity from described dish
 - Difficulty: technical ambition that fits time
-${challengeIntentJudgeAddon(ch.ctype)}${dessertJudgeAddon(ch)}${elevateCheapJudgeAddon(ch)}${recreateClassicJudgeAddon(ch)}
+${challengeIntentJudgeAddon(ch.ctype)}${dessertJudgeAddon(ch)}${snackJudgeAddon(ch)}${elevateCheapJudgeAddon(ch)}${recreateClassicJudgeAddon(ch)}
 
 Challenge:
 - Type: ${ch.ctype.label}
@@ -1673,6 +1673,13 @@ function challengeTypeIsElevateCheap(ctype){
   if(/\belevate\b/.test(label)&&/\b(cheap|budget|store-bought|boxed|instant|frozen|diner|microwave)\b/.test(label)) return true;
   return false;
 }
+function challengeTypeIsSnack(ctype){
+  const id=String((ctype&&ctype.id)||"");
+  const label=String((ctype&&ctype.label)||"").toLowerCase();
+  if(id==="snack") return true;
+  if(/\bsnack\b/.test(label)) return true;
+  return false;
+}
 
 /** Canonical dish pools for prompts — names users instantly recognize (not exhaustive). */
 const PW_RECOGNIZABLE_CLASSIC_EXAMPLES = `CANONICAL CLASSICS (this specificity — or another dish judges know equally well):
@@ -1687,6 +1694,7 @@ const PW_RECOGNIZABLE_CLASSIC_EXAMPLES = `CANONICAL CLASSICS (this specificity �
 const PW_CHEAP_EVERYDAY_MEAL_EXAMPLES = `CANONICAL CHEAP / EVERYDAY BASELINES (instantly recognizable — or a peer-level humble meal):
 • Instant / packaged: instant ramen, cup noodles, boxed mac and cheese, instant mashed potatoes, canned soup, frozen pizza, frozen TV-style dinners
 • Budget staples: grilled cheese, peanut butter & jelly, bologna sandwich, hot dogs, sloppy joes
+• Cheap lunch / deli-home: canned tuna salad (mayo + celery), egg salad, chicken salad sandwich from can, simple ham-and-cheese, leftovers bowl
 • Cheap carb meals: spaghetti with jar sauce, buttered noodles, rice and beans, plain fried rice, plain pasta
 • Breakfast cheap: scrambled eggs, toast + eggs, cereal, oatmeal
 • Snack-level: basic nachos (chips + cheese), quesadilla, popcorn, french fries
@@ -1716,11 +1724,34 @@ WHAT "CHEAP MEAL" MEANS (judges must recognize the BEFORE):
 ${PW_CHEAP_EVERYDAY_MEAL_EXAMPLES}
 - INVALID default: jumping to fine-dining archetypes (e.g. mushroom risotto Milanese, tasting-menu plate) while only labeling a basket item "cheap" — unless you name the boxed/packet/diner dish you upgraded FROM.
 
+TRANSFORMATION, NOT REPLACEMENT (hard rule):
+- After elevation, a judge must STILL see the original dish identity — e.g. "elevated tuna salad" means it is still recognizably tuna salad (folded salad, bowl, sandwich fill), not a new entrée that had tuna somewhere.
+- must_keep_identity_visible: title OR tagline head noun and plating story must track the baseline ("tuna salad with …", "still a mac bowl but …") — not silently pivot to "seared tuna with quinoa pilaf" unless baseline was explicitly that tier rice dish and you said so.
+- must_feel_like_upgrade_not_new_dish: better mayo treatment, seared-tuna chunks folded INTO the salad, sharper veg, pickles, cheese crisp as "fancy cheese slice" — same arc; NOT a different cuisine template that dropped the baseline.
+- avoid_introducing_unrelated_bases: BANNED as quiet new foundations — trendy grains/pseudograins (quinoa, farro, freekeh, "power bowl" base), new pilaf, or composed entree plate — when they were not part of the cheap meal story and steal the dish name. Pantry must serve the SAME cheap dish, not smuggle a chef showcase.
+
 REQUIRED IN OUTPUT:
-- title OR tagline MUST name the specific cheap/everyday starter in plain English (e.g. "Cup noodles → …", "Boxed mac …", "Jar-sauce spaghetti …") — not vague "pantry tofu" or invented "cheap block" unless that phrase names a real convenience tropes (e.g. soft tofu cup from takeout).
+- title OR tagline MUST name the specific cheap/everyday starter in plain English (e.g. "Cup noodles → …", "Tuna salad → …", "Boxed mac …", "Jar-sauce spaghetti …") — not vague "pantry tofu" or invented "cheap block" unless that phrase names a real convenience trope (e.g. soft tofu cup from takeout).
+- One sentence (balance.basket or balance.complete) MUST answer: "How does this still read as [named baseline] to a judge?"
 
 FAIL THE BRIEF IF:
-- The plate reads as a polished original comp dish with no judge-recognizable cheap baseline, OR pantry items smuggle a different fine-dining genre (arborio + mushrooms ⇒ "risotto") without naming the boxed/packet/diner dish that was being elevated into that shape.\n`;
+- The plate reads as a polished original comp dish with no judge-recognizable cheap baseline, OR pantry items smuggle a different fine-dining genre (arborio + mushrooms ⇒ "risotto") without naming the boxed/packet/diner dish that was being elevated into that shape.
+- The baseline dish name disappears: you named "tuna salad" but built quinoa pilaf + seared fillet + entree plating — that is replacement, not elevation; missed brief.\n`;
+  }
+  if(challengeTypeIsSnack(ctype)){
+    return `CHALLENGE INTENT (mandatory): SNACK — course means EATING FORMAT and portion scale, not only flavor logic.
+
+WHAT COUNTS AS A SNACK HERE:
+- Handheld pickup OR each portion is at most 1–3 bites; casual, quick eating — not a seated main eaten with knife-and-fork over a slab of protein.
+- Think crostini / mini tart / single vol-au-vent / skewer nibble / small slider half — one clear vehicle, not a deconstructed entrée plate.
+- Fish, meat, poultry: flake, small dice, thin slice on toast, skewer bit — never a whole fillet, full steak portion, or breast centerpiece.
+
+REQUIRED IN OUTPUT:
+- title OR tagline should signal bite scale (crostini, bite, skewer, handheld, tartlet, etc.).
+- Judges must not mistake the intended plate for a composed entrée or tasting-menu architecture.
+
+FAIL THE BRIEF IF:
+- The plan centers a full fillet/steak/breast portion, wide sauce pools, and multiple upscale components like a main course — that fails snack regardless of basket use.\n`;
   }
   return "";
 }
@@ -1736,9 +1767,17 @@ CHALLENGE TYPE — RECREATE A CLASSIC (critical):
   if(challengeTypeIsElevateCheap(ctype)){
     return `
 CHALLENGE TYPE — ELEVATE A CHEAP MEAL:
-- Penalize HARD if no specific humble starter is named from the cheap-meal tier (cup noodles, boxed mac, PB&J, dollar-menu burger, plain fried rice, canned soup, etc.) — vague "elevated pantry" or refined risotto/tasting shapes without that anchor = missed brief.
+- Penalize HARD if no specific humble starter is named from the cheap-meal tier (cup noodles, boxed mac, tuna salad, PB&J, dollar-menu burger, plain fried rice, canned soup, etc.) — vague "elevated pantry" or refined risotto/tasting shapes without that anchor = missed brief.
 - Penalize using a required item only as texture/cream in a fine-dining template while skipping the cheap-meal story.
-- Reward clear "cheap baseline → improved same dish" that a normal person would recognize from student/budget life.`;
+- Penalize transformation failures: baseline named (e.g. tuna salad) but plate reads as a different dish (quinoa pilaf + center-plate seared tuna + entree) — "chef mode" replacement; should still read as upgraded baseline.
+- Penalize unrelated "chef filler" bases (quinoa, farro, new grain pilaf, composed entree scaffolding) when they were not part of the humble dish and they erase identity.
+- Reward clear "cheap baseline → improved SAME dish" where a civilian could say "that's still X, just nicer" — not "that's a totally new restaurant plate."`;
+  }
+  if(challengeTypeIsSnack(ctype)){
+    return `
+CHALLENGE TYPE — SNACK:
+- Penalize either side if the dish reads as a composed entrée, tasting-menu plate, or full protein portion (whole fillet, steak service, breast centerpiece) instead of handheld or ~1–3 bites.
+- Reward bite-scale execution and casual pickup; flavor logic alone does not excuse main-course format. Factor snack fit into creativity/challenge execution and presentation.`;
   }
   return "";
 }
@@ -1756,14 +1795,28 @@ DESSERT CHALLENGE — JUDGING LENS:
 - Weight taste and presentation toward "would judges crave another bite," not "did they use every ingredient loudly."`;
 }
 
+/** Auto-judge: snack = format and portion, not just good flavors on an entree plate. */
+function snackJudgeAddon(ch){
+  if(!challengeTypeIsSnack(ch.ctype)) return "";
+  return `
+SNACK CHALLENGE — JUDGING LENS (course = format + scale):
+- Penalize HARD if either side reads as a composed entrée, fine-dining center-plate protein, or knife-and-fork main (e.g. whole sea bass fillet + sauce moat + cream quenelle + pastry shards) — even when basket use and flavor direction are strong.
+- Reward clear handheld or 1–3 bite portions, casual pickup, and protein scaled to the bite (flake, tartare dice, thin slice on crisp base, skewer nibble, slider bite).
+- Penalize "tasting menu" layering and too many heavy elements for something meant to be a snack; prefer one simple bite vehicle with whispers of sauce and dairy.
+- Factor snack fit into presentation and challenge execution: flavors can be 8/10 but snack fit 4/10 should drag the overall read — call that out in summary when true.
+- Strong pattern: small crisp puff or toast square, flaked fish, pin-dot caramel, trace white chocolate — 1–2 bites, done.`;
+}
+
 /** Auto-judge: elevate brief = named cheap starter + same-dish upgrade, not refined genre smuggle. */
 function elevateCheapJudgeAddon(ch){
   if(!challengeTypeIsElevateCheap(ch.ctype)) return "";
   return `
 ELEVATE A CHEAP MEAL — JUDGING LENS:
-- Penalize if neither side names a concrete humble starter from the cheap-meal canon (instant ramen, cup noodles, boxed mac, grilled cheese, PB&J, jar-sauce spaghetti, dollar-menu burger, chicken nuggets, basic fried rice, etc.) or if the plate is generic fine dining with no budget DNA.
+- Penalize if neither side names a concrete humble starter from the cheap-meal canon (instant ramen, cup noodles, boxed mac, tuna/egg salad, grilled cheese, PB&J, jar-sauce spaghetti, dollar-menu burger, chicken nuggets, basic fried rice, etc.) or if the plate is generic fine dining with no budget DNA.
 - Penalize "risotto / tasting-menu" style unless the text ties to a boxed side, packet rice bowl, or similar cheap anchor.
-- Reward believable before→after on the SAME dish identity; creativity should serve that story.`;
+- Penalize identity drift: named baseline vanishes from the eat (e.g. promised "tuna salad" but delivered pilaf + fillet + entree composition) — score challenge fit / concept clarity down even if flavors score high.
+- Penalize unrelated luxury bases (quinoa/farro pilaf, new grain centerpiece) that read as replacing the cheap meal rather than upgrading it — unless the baseline was already that kind of rice/grain bowl and the text proves it.
+- Reward believable before→after on the SAME dish identity; creativity should serve that story so a judge can say "this is still that humble dish, elevated."`;
 }
 
 /** Auto-judge: recreate = one named classic, recognition over novelty. */
@@ -1815,8 +1868,25 @@ function courseEnforcementBlock(ch, sig) {
   if (id === "entree") {
     return `COURSE LOCK — ENTREE: Clear main-course identity — satisfying center-of-plate, not a snack or dessert unless basket forces sweet mains.\n`;
   }
-  if (id === "snack") {
-    return `COURSE LOCK — SNACK: Hand food or casual small plate — not a composed restaurant entree.\n`;
+  if (id === "snack" || /\bsnack\b/.test(label)) {
+    let s = `COURSE LOCK — SNACK (format is as binding as flavor — hard rule):
+- Course type here means HOW it is eaten and portion scale — not only "do the ingredients go together." A judge must read SNACK FIRST: casual, quick, small — not a composed entrée or fine-dining pass eaten with knife-and-fork over a protein slab.
+- FORMAT RULES (all must hold):
+  • HANDHELD or at most 1–3 BITES per portion — crostini, mini tart / vol-au-vent, skewer nibble, small slider half, single bite-sized pastry base. Pick ONE vehicle and commit.
+  • MAX BITES ≈ 3 on the pickup piece — not a deconstructed main with separate protein plank + wide sauce pool + quenelle + scattered shards as a tasting plate.
+  • NO FULL PROTEIN PORTIONS: ban whole fish fillet, steak cut, full chicken breast portion, or carve centerpiece. Fish / meat / poultry = flake, small dice, tartare-style bits, thin slice on toast, skewer cube — scaled to the bite only.
+  • AVOID ENTRÉE PLATING: no center-of-plate fillet + swooshes + multiple sculptural components. Snack = pickup or one fork-assisted tiny bite, not a ceremony plate.
+  • PREFER SIMPLE STRUCTURE: one crisp or tender base + one protein treatment + at most one sweet/sauce accent (e.g. pin-dot caramel, micro cream) — not stacked luxury architecture.
+- DENSITY: rich items (fish, pastry, cream) may appear only if each is a whisper sized to the bite; if it reads entrée-heavy, the snack brief fails.
+- balance.complete: one sentence MUST state the snack format (e.g. "Two-bite puff square; flaked fish; tiny date caramel swipe; trace white chocolate — handheld pickup").
+- SNACK JUDGE RUBRIC (score like a comp table):
+  • snack_fit — would a judge call this a snack or mistake it for an entrée?
+  • bite_scale — handheld or ≤3 bites; protein not a full portion?
+  • format_not_flavor_only — good flavors on a main-course plate still miss the course.\n`;
+    if (sig.hardBasket) {
+      s += `SIMPLICITY OVERRIDE (hard basket + snack): Cap at 2 primary textures + one sauce/accent on the bite — no extra restaurant tiers.\n`;
+    }
+    return s;
   }
   if (challengeTypeIsRecreateClassic(ch.ctype)) {
     return `CHALLENGE INTENT — RECREATE A CLASSIC (hard brief — misses fail judging):
@@ -1829,10 +1899,12 @@ function courseEnforcementBlock(ch, sig) {
   }
   if (challengeTypeIsElevateCheap(ch.ctype)) {
     return `CHALLENGE INTENT — ELEVATE A MEAL THAT IS ACTUALLY CHEAP / EVERYDAY:
-- CHEAP BASELINE (mandatory): Name one judge-recognizable baseline from the CANONICAL CHEAP / EVERYDAY list in CHALLENGE INTENT (cup noodles, boxed mac, PB&J, dollar-menu burger, etc.) or an equally humble peer. Not a vague SKU ("cheap block tofu") unless tied to a real cheap-food trope (convenience tofu cup, etc.).
+- CHEAP BASELINE (mandatory): Name one judge-recognizable baseline from the CANONICAL CHEAP / EVERYDAY list in CHALLENGE INTENT (cup noodles, boxed mac, tuna salad, PB&J, dollar-menu burger, etc.) or an equally humble peer. Not a vague SKU ("cheap block tofu") unless tied to a real cheap-food trope (convenience tofu cup, etc.).
 - GENRE LOCK: Do NOT default to fine-dining centerpieces (mushroom risotto, luxury composed plates, tweezed tasting courses) unless balance.basket names the BUDGET analogue you upgraded (e.g. "boxed rice/pasta mix → same comforting shape, real technique"). Pantry add-ons must support the cheap-meal arc — not silently replace it with a new restaurant genre.
-- BEFORE → AFTER: Steps should still feel like that home/kitchen first (open packet, boil water, fry slab sandwich) before upgrades — then show elevation (better broth, better fond, better texture) without erasing the original identity.
-- TITLE/TAGLINE: First clause = the cheap starter in plain words; second half = what you did to dignify it (technique, wine, real coconut, etc.).\n`;
+- TRANSFORMATION LOCK: Elevation = upgrade the SAME dish, not a new recipe. If baseline is tuna salad, the plate stays salad/sandwich/bowl-of-salad logic — seared tuna may appear as chunks folded in, not as a center-plate fillet with unrelated pilaf. If baseline is grilled cheese, it stays a sandwich story — not "deconstructed" into a random entree. Judges must answer "where is the [baseline]?" without guessing.
+- UNRELATED BASE BAN: Do not introduce quinoa, farro, freekeh, new "grain bowl" foundations, or composed-entree starch bands that were never part of the cheap meal — those read as chef filler and erase identity unless you explicitly anchored baseline to that shape (e.g. cheap rice bowl from takeout) in sentence 1.
+- BEFORE → AFTER: Steps should still feel like that home/kitchen first (open packet, boil water, mix salad, fry slab sandwich) before upgrades — then show elevation (better acid, sear on protein bits IN the dish, better bind, crunchy upgrade to "cheese slice") without erasing the original identity.
+- TITLE/TAGLINE: First clause = the cheap starter in plain words; second half = what you did to dignify it — headline still belongs to that starter (e.g. "Elevated tuna salad: …"), not a different dish name.\n`;
   }
   return "";
 }
@@ -1859,12 +1931,19 @@ function basketFlavorLeadershipBlock(ch){
 `;
   }
   if(isElevate){
-    out+=`ELEVATE A CHEAP MEAL — FLAVOR NORTH STAR: Humble recognizable food first (what a $3–$10 meal looks like), then better technique and basket items on THAT SAME DISH — not a new cuisine’s fine-dining default. If your gut says "risotto" or "composed entree," STOP unless the cheap anchor was literally a boxed rice/pasta side, dorm rice bowl, etc., and you say so in the first sentence.
+    out+=`ELEVATE A CHEAP MEAL — FLAVOR NORTH STAR: Humble recognizable food first (what a $3–$10 meal looks like), then better technique and basket items on THAT SAME DISH — not a new cuisine’s fine-dining default. If your gut says "risotto," "quinoa pilaf," or "composed entree with protein anchor," STOP — unless the cheap anchor was literally that dish class (e.g. packet rice bowl) and you named it in sentence one.
+- Good pattern: "tuna salad" → seared tuna cubes folded in, edamame, maple vinaigrette, halloumi crisp instead of bland cheese slice — still reads as tuna salad.
+- Bad pattern: "tuna salad" on the label, then quinoa pilaf + seared steak-cut tuna + entree plating — baseline disappeared; that is replacement.
 
 `;
   }
   if(isDessert){
     out+=`DESSERT — LEAD WITH SWEET: Default hierarchy = PRIMARY sweet structure (shell, custard, cake, fruit, chocolate, caramel) → SUPPORTING sweet/sour bridge (e.g. compote, curd) → SUPPORTING odd produce → ACCENT/MICRO only for savory plant protein or aggressive umami. If a required item still reads savory when crisp (tempeh, etc.), shrink it until it behaves like nuts or toasted spice — not a second theme.
+
+`;
+  }
+  if(challengeTypeIsSnack(ch.ctype)){
+    out+=`SNACK — FLAVOR SERVES FORMAT: Valid basket pairings must be EXECUTED at bite scale. Same ingredients can win if shrunk to one pickup (toast square, mini tart, skewer): fish as flake not fillet, caramel as smear not pool, cream as micro not quenelle. Do not let good flavor logic excuse entree-weight or entree plating.
 
 `;
   }
@@ -1894,10 +1973,11 @@ function courseRoleHierarchyBlock(ch){
   }
   if(challengeTypeIsElevateCheap(ctype)){
     return `ROLE HIERARCHY — ELEVATE A CHEAP MEAL:
-- PRIMARY = the upgraded CHEAP / EVERYDAY DISH itself (same identity — better execution). The star is "ramen but actually great," "boxed mac but from scratch technique," not a different restaurant dish that borrowed one basket item.
-- SUPPORTING = pantry and technique that directly serve that baseline (better fat, acid, allium, stock technique) — not a parallel fine-dining storyline.
-- BANNED as brief-killing move: picking a refined template (classic risotto, luxury plated entree) and using a required item only as cream/emulsifier while omitting a named cheap starter. If you truly need a rice technique, name the budget packet/side dish that justified it.
-- balance.basket: sentence 1 MUST be "Cheap baseline: [specific] → elevation: [one sentence]." Then tag each REQUIRED with how it serves THAT baseline.\n`;
+- PRIMARY = the upgraded CHEAP / EVERYDAY DISH itself (same identity — better execution). The star is "ramen but actually great," "tuna salad but actually great," "boxed mac but from scratch technique," not a different restaurant dish that borrowed one basket item.
+- SUPPORTING = pantry and technique that directly serve that baseline (better fat, acid, allium, stock technique, better protein treatment INSIDE that format) — not a parallel fine-dining storyline or unrelated starch anchor.
+- Protein in a salad/sandwich baseline: stays IN that format (chunks folded into salad, better sear on pieces you fold in) — never steal the dish with center-plate fillet + sides unless baseline was already entree-class.
+- BANNED as brief-killing move: picking a refined template (classic risotto, quinoa pilaf, luxury plated entree) and using a required item only as cream/emulsifier while omitting a named cheap starter — or while erasing the baseline's visible form. If you truly need a rice technique, name the budget packet/side dish that justified it.
+- balance.basket: sentence 1 MUST be "Cheap baseline: [specific] → elevation: [one sentence — same dish]." Sentence 2 MUST state in plain words how the plate STILL reads as that baseline ("still a tuna salad in the bowl," "still a grilled cheese you can pick up," etc.). Then tag each REQUIRED with how it serves THAT baseline.\n`;
   }
   if(id==="appetizer"||/\bappetizer\b/.test(label)){
     return `ROLE HIERARCHY — APPETIZER:
@@ -1906,7 +1986,12 @@ function courseRoleHierarchyBlock(ch){
   }
   if(id==="snack"||/\bsnack\b/.test(label)){
     return `ROLE HIERARCHY — SNACK:
-- PRIMARY = snack identity (handheld, dippable, crunchy cluster, small sweet/savory bite). Meat/cheese may be flavor bump or chip — not a carving-board centerpiece unless the basket forces it.\n`;
+- PRIMARY = the single bite or handheld format (one crostini / mini tart shell / vol-au-vent / skewer line / small slider). The dish is that vehicle — not "a plate with many components."
+- Fish / meat / poultry from the basket = flake, dice, thin slice, or nugget ON that vehicle — ACCENT-SCALE protein, never a fillet or breast portion that owns the plate.
+- Pastry / starch = small crisp base or one enclosure — not a full tart entrée with entree fillings; puff as small square or cup, not a slice of pie service.
+- Sweet elements (chocolate, fruit, caramel) = pin-dot, smear, or thread — not dessert service beside a fish main.
+- SECONDARY layers: at most one sauce/accent visible on the bite; avoid tasting-menu moats + quenelles + shards scattered like a main.
+- balance.basket: name the pickup format first; then tag each REQUIRED as it fits the BITE (base / flake / smear / trace) — explicit that no full protein portion is the center.\n`;
   }
   return `ROLE HIERARCHY — ENTRÉE / SAVORY MAIN (& most non-dessert challenges):
 - PRIMARY is often protein when the basket supports it — but starch-forward (risotto, pasta, pie) or veg-forward mains are valid; do not force protein to headline if the haul points elsewhere.
@@ -1941,7 +2026,12 @@ async function generateRecipe() {
     if(challengeTypeIsElevateCheap(ch.ctype)){
       executionMode+=`
 
-ELEVATE OVERRIDE — CHEAP MEAL, NOT FINE-DINING DEFAULT: This challenge is NOT a license to compose a polished original that ignores weeknight food. Lead with a judge-recognizable cheap baseline (examples: cup noodles, boxed mac, spaghetti + jar sauce, fried bologna sandwich, hot dog plate, frozen microwave dinner, flavored rice/pasta packet). Do NOT pivot to mushroom risotto, luxe composed entree, or similar unless you explicitly name the budget packet/side/diner dish being upgraded into that shape. Pantry supports the same cheap dish — does not replace it with a new restaurant genre.`;
+ELEVATE OVERRIDE — CHEAP MEAL, NOT FINE-DINING DEFAULT: This challenge is NOT a license to compose a polished original that ignores weeknight food. Lead with a judge-recognizable cheap baseline (examples: cup noodles, boxed mac, tuna salad, spaghetti + jar sauce, fried bologna sandwich, hot dog plate, frozen microwave dinner, flavored rice/pasta packet). Do NOT pivot to mushroom risotto, quinoa pilaf, luxe composed entree, or "protein-with-two-sides" plating unless you explicitly named that baseline class and the budget analogue. TRANSFORMATION NOT REPLACEMENT: the finished plan must still look/sound like the same humble dish — upgraded — not a new genre that dropped the baseline. Pantry supports the same cheap dish — does not replace it with a new restaurant genre.`;
+    }
+    if(challengeTypeIsSnack(ch.ctype)){
+      executionMode+=`
+
+SNACK OVERRIDE — BITE FORMAT: One pickup vehicle only (crostini, mini tart, puff square, skewer, small slider). Scale every REQUIRED item to that bite — flake not fillet, smear not sauce pool, micro dairy not quenelle service. Cap composed elements on the bite to what a real snack allows (${Math.min(3,simplicityGoal)} effective layers max); not a composed entrée or tasting plate.`;
     }
     const productSweetNote=sig.processedSweet
       ?` PROCESSED SWEET ALERT: At least one required item is shelf-sweet. It must read as that product in use (squeeze, scoop, from bottle) — not re-labeled as artisan chocolate. Keep it a supporting player unless dessert.`
@@ -1956,9 +2046,19 @@ ELEVATE OVERRIDE — CHEAP MEAL, NOT FINE-DINING DEFAULT: This challenge is NOT 
       :"";
     const elevateJsonRule=challengeTypeIsElevateCheap(ch.ctype)
       ?`ELEVATE A CHEAP MEAL — JSON / BRIEF LOCK:
-- balance.basket MUST start: "Cheap baseline: [specific humble dish or convenience product] — " then one sentence on elevation (technique/flavor), same dish identity. Baseline must be from the cheap-meal tier in CHALLENGE INTENT (instant ramen, boxed mac, grilled cheese, dollar-menu burger, etc.) or an obvious peer.
-- title OR tagline MUST repeat that baseline in plain words (e.g. "Instant ramen → …", "Boxed mac …", "PB&J → …"). Marketing-only "from cheap tofu" without naming the real-world eating context = failed brief.
+- balance.basket MUST start: "Cheap baseline: [specific humble dish or convenience product] — " then one sentence on elevation (technique/flavor), SAME dish identity — not a different dish name.
+- balance.basket MUST include a second sentence (can be short): "Still reads as: …" or equivalent — explicit trace so a judge sees the baseline on the plate (e.g. "Still reads as tuna salad in the bowl — seared chunks folded in, not a fillet plate").
+- title OR tagline MUST keep the baseline dish as the conceptual head (e.g. "Elevated tuna salad — …", "Boxed mac, fixed — …"). Titling like a generic entree while only mentioning baseline in passing = failed brief.
+- title OR tagline MUST repeat that baseline in plain words (e.g. "Instant ramen → …", "Tuna salad → …", "PB&J → …"). Marketing-only "from cheap tofu" without naming the real-world eating context = failed brief.
+- balance.complete MUST state how identity stayed visible — one phrase on transformation vs replacement (what you did NOT do: e.g. "No unrelated grain base; still salad format").
+- BANNED without explicit baseline tie: new foundations like quinoa/farro pilaf, "grain bowl" reboot, or center-plate protein + separate starch when baseline was sandwich/salad/ramen bowl/etc.
 - If REQUIRED items do not obviously imply one cheap dish, you MUST still commit to one plausible recognizable baseline — NOT a silent jump to restaurant risotto or luxury templates without naming the budget analogue.\n`
+      :"";
+    const snackJsonRule=challengeTypeIsSnack(ch.ctype)
+      ?`SNACK — JSON / BRIEF LOCK:
+- balance.basket MUST name the bite/handheld FORMAT in clause 1 or 2 (e.g. "Handheld: …", "Two-bite puff square: …", "Skewer: …") and state that protein is NOT a full fillet/steak/breast portion — flake, dice, or thin-on-base only.
+- title OR tagline MUST read as snack scale (crostini, bite, skewer, tartlet, handheld, 1–2 bites) — not "seared sea bass plate" or other entrée-headline energy.
+- balance.complete MUST echo snack format in one short phrase (pickup / bite count / no knife-and-fork main).\n`
       :"";
     const m=ch.totalTime;
     const techniquePolicy=m<=30
@@ -1987,7 +2087,7 @@ FOOD PRODUCT TRUTH (material honesty — not vocabulary checks):
 - The dish fails if a competitor could swap in a finer product without changing your steps — steps must be specific to what was in the basket.
 
 BASKET INTEGRITY (mandatory):
-- The plate's conceptual STAR must match ROLE HIERARCHY for this course — not a hidden rule that "protein = center." On dessert, STAR = sweet identity; meat/charcuterie cannot carry the dish name. STAR elements must come from REQUIRED + PANTRY. Do NOT add a new centerpiece (chicken, beef, pork, salmon, etc.) unless that exact protein appears in REQUIRED or PANTRY.
+- The plate's conceptual STAR must match ROLE HIERARCHY for this course — not a hidden rule that "protein = center." On dessert, STAR = sweet identity; meat/charcuterie cannot carry the dish name. On snack, STAR = the bite/handheld format itself; any fish/meat is accent-scale on that vehicle — never a center-plate fillet or steak portion as the dish head noun. STAR elements must come from REQUIRED + PANTRY. Do NOT add a new centerpiece (chicken, beef, pork, salmon, etc.) unless that exact protein appears in REQUIRED or PANTRY.
 - Each REQUIRED item: name its course-correct role (PRIMARY sweet spine vs ACCENT vs SUPPORT on dessert; appetizer/entree per hierarchy above — filling, crust, sauce base, relish, main veg, etc.).
 - Prefer one bold coherent idea — at most ${maxSteps} steps before PLATE, believable in ${ch.totalTime} min.
 - RICHNESS: oily fish + aged cheese + heavy cream is usually overload; choose at most one fat-forward anchor unless you explicitly lighten the others.
@@ -1997,6 +2097,8 @@ STRUCTURE / ONE BASE (control creativity — avoid "AI fusion" that fights itsel
 - If the basket supplies items that imply two starches (pizza + rice): choose a SINGLE cleaner story — e.g. crisped crust with beer-braised veg and sauce OR a true risotto with only a whisper of crust; not "risotto that is also loaded with bread."
 - LIMIT COMPOUND CLEVERNESS: at most ONE high-concept move per dish (the big idea). Do not stack multiple wow-fusions; prefer what a confident competitor would pitch in one clear sentence — natural beats over-constructed.
 - DISH CLARITY: In one breath, a competitor could say what this IS ("custard tart," "seared fish with X," "composed appetizer"). If you cannot name it plainly, simplify until you can.
+${challengeTypeIsSnack(ch.ctype)?`- SNACK — NAME THE BITE: Plain name must read as handheld or 1–3 bites ("flaked bass puff square," "date-caramel crostini") — NOT an entrée headline ("pan-seared sea bass with …") or full-portion protein as subject.\n`:""}
+${challengeTypeIsElevateCheap(ch.ctype)?`- ELEVATE — SAME DISH, BETTER: Plain name / pitch must still be the baseline dish ("elevated tuna salad — …," "boxed mac, …") — NOT a new entrée that abandoned the baseline (e.g. quinoa pilaf + fillet when baseline was tuna salad). If a judge asks "where's the [baseline]?" your steps and plating must make that obvious.\n`:""}
 ${challengeTypeIsRecreateClassic(ch.ctype)?`- BRIEF LOCK (Recreate a Classic): That plain name MUST include the classic reference ("our tonkatsu build," "cassoulet logic from the basket") — not ONLY a cute original title with no named tradition.\n`:""}
 - SWEET LAYERING: dried fruit (prunes, raisins), malty beer, honey/maple/brown sugar are cumulative — do not add extra concentrated sweetness without trimming elsewhere. Default: if prunes anchor the sauce, skip added honey/syrup unless balance.flavor explains the bitter/acid/salt hammer you are using and why it stays savory.
 
@@ -2024,12 +2126,12 @@ BALANCE (honest):
 - Let basket supply flavor/texture; no extra components just to sound cheffy.
 - Completeness from basket+allowed pantry — never "rescue protein."
 
-${recreateJsonRule}${elevateJsonRule}
+${recreateJsonRule}${elevateJsonRule}${snackJsonRule}
 JSON keys (fill all):
 {"title":"","tagline":"","serves":"2","balance":{"flavor":"","basket":"","texture":"","richness":"","visual":"","complete":""},"ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"time":"0:00","dur":"","phase":"PREP","what":"","how":""}],"plating":"","tip":""}
-balance.basket: If RECREATE A CLASSIC rules apply, sentence 1 must name the classic. If ELEVATE A CHEAP MEAL rules apply, sentence 1 MUST be "Cheap baseline: … — …" per elevate brief lock. Otherwise sentence 1 = chosen flavor direction / dish lane (the “best dish” you committed to). Then — stars vs hides; for EACH required item tag PRIMARY FOUNDATION / SUPPORTING / ACCENT / MINIMAL-USE (or PRIMARY/ACCENT/SUPPORT per ROLE HIERARCHY), consistent with CHEF PROCESS above. If something is store-bought or messy, say you're using THAT item, not a posh substitute.
+balance.basket: If RECREATE A CLASSIC rules apply, sentence 1 must name the classic. If ELEVATE A CHEAP MEAL rules apply, sentence 1 MUST be "Cheap baseline: … — …" and you MUST include how the plate still reads as that baseline (see elevate brief lock — "Still reads as: …"). If SNACK rules apply, include early the bite/handheld format and confirm protein is not a full portion. Otherwise sentence 1 = chosen flavor direction / dish lane (the “best dish” you committed to). Then — stars vs hides; for EACH required item tag PRIMARY FOUNDATION / SUPPORTING / ACCENT / MINIMAL-USE (or PRIMARY/ACCENT/SUPPORT per ROLE HIERARCHY), consistent with CHEF PROCESS above. If something is store-bought or messy, say you're using THAT item, not a posh substitute.
 balance.flavor: name sweet drivers (fruit, beer malt, honey, etc.) and confirm you did not stack them blindly — one clear sweet spine max unless you explain the counterweight.
-balance.complete: single starch/body choice (or explain minor vs major); component count vs ${maxComponents}; timing honesty for ${ch.totalTime} min; optional "purer plate" omission; flag dual-base or gumminess risks if you bent the rule.
+balance.complete: single starch/body choice (or explain minor vs major); component count vs ${maxComponents}; timing honesty for ${ch.totalTime} min; optional "purer plate" omission; flag dual-base or gumminess risks if you bent the rule.${challengeTypeIsElevateCheap(ch.ctype)?" For ELEVATE: add one short phrase on transformation (how the judge still sees the cheap baseline — not a new dish).":""}
 balance.richness: if any REQUIRED item is sugary/processed, concrete sweetness limits + residual-sugar realism (see BASKET IDENTITY).
 balance.texture: each texture choice tied to a reason; no orphan crunch layers.
 Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
