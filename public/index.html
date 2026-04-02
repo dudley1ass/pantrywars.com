@@ -9,6 +9,14 @@
   gtag('js', new Date());
   gtag('config', 'G-YZ5BN8Y95L');
 </script>
+<script>
+  function trackPWEvent(eventName, params) {
+    params = params || {};
+    if (typeof gtag === "function") {
+      gtag("event", eventName, params);
+    }
+  }
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Pantry Wars</title>
@@ -856,6 +864,27 @@ function pwTrackDailyLimitHit(context) {
   } catch (_e) {}
 }
 
+/** GA4 funnel params from live builder (basket not launched yet). */
+function pwParamsBuilder() {
+  return {
+    difficulty: String(state.diff || "unknown"),
+    course_type: String((state.ctype && state.ctype.label) || "unknown"),
+    basket_count: (state.req || []).length,
+    restriction_count: (state.res || []).length,
+  };
+}
+/** GA4 funnel params from frozen challenge (after Launch / on recipe & score flows). */
+function pwParamsChallenge(ch) {
+  ch = ch || state.challenge;
+  if (!ch) return pwParamsBuilder();
+  return {
+    difficulty: String(ch.diff || "unknown"),
+    course_type: String((ch.ctype && ch.ctype.label) || "unknown"),
+    basket_count: (ch.required || []).length,
+    restriction_count: (ch.restrictions || []).length,
+  };
+}
+
 // ── AI CALL ───────────────────────────────────────────────────────────────────
 async function ai(prompt, tokens=300) {
   await loadAppConfig();
@@ -1309,6 +1338,7 @@ function doLaunch() {
   state.res=sanitizeRestrictionList(state.res);
   const pool = pantryPool();
   state.challenge={diff:state.diff,ctype:state.ctype,totalTime:state.total,prepTime:state.prep,cookTime:state.cook,surpriseCut:state.cut,required:state.req,restrictions:state.res,reqEquip:state.reqEq,forbEquip:state.forbEq,limitBurners:state.lim,pantry:pool.filter(p=>!state.req.includes(p))};
+  trackPWEvent("start_battle", pwParamsChallenge(state.challenge));
   state.userCookPlan={dish:"",techniques:"",timing:""};
   state.contestRecipe=null;
   showScreen("screen-recipe");
@@ -1365,6 +1395,7 @@ function openBattleScorecards() {
   syncUserCookPlanFromDom();
   if(!userPlanFilled()){alert("Fill in Your battle plan (dish, techniques, or timing) — then run Battle.");return;}
   if(!state.recipe){alert("Wait for the rival chef to finish.");return;}
+  trackPWEvent("submit_battle_plan", pwParamsChallenge());
   resetDuelScores();
   showScreen("screen-score");renderScore();
   runAutoBattleScoring();
@@ -1437,6 +1468,11 @@ ${JSON.stringify({
     if(st) st.textContent="Auto-judge unavailable — set scores manually.";
   } finally{
     state.duelAutoScoring=false;
+    const base=pwParamsChallenge();
+    trackPWEvent("battle_result_viewed", {
+      ...base,
+      score_total: calcTotal(state.scoresYou),
+    });
   }
 }
 
@@ -2348,6 +2384,7 @@ function runMysteryRandomize(){
         const bar=host.querySelector(".basket-spin-h span:last-child");
         if(bar) bar.textContent=cfg.label+" · locked in";
         state.mysterySpinLocked=true;
+        trackPWEvent("spin_basket", pwParamsBuilder());
         renderBuild();
       }catch(err){
         console.error("Mystery basket spin failed", err);
