@@ -952,11 +952,13 @@ function pwParamsChallenge(ch) {
 }
 
 // ── AI CALL ───────────────────────────────────────────────────────────────────
-async function ai(prompt, tokens=300) {
+/** opts.bypassDailyPrecheck — internal retries after a successful parse (same user action). opts.skipQuotaRecord — do not increment daily AI count (pair with bypass for regen attempts). */
+async function ai(prompt, tokens=300, opts) {
+  opts=opts||{};
   await loadAppConfig();
   const apiKey = getAnthropicKey();
   if (!apiKey && !_serverAnthropicConfigured) throw new Error("No API key — cancelled or empty");
-  if (!pwCanUseAiRound()) {
+  if (!opts.bypassDailyPrecheck && !pwCanUseAiRound()) {
     pwTrackDailyLimitHit("blocked_precheck");
     throw new Error(PW_DAILY_LIMIT_MESSAGE);
   }
@@ -984,7 +986,7 @@ async function ai(prompt, tokens=300) {
           return;
         }
         const parsed = parseModelJsonObject(txt);
-        pwRecordSuccessfulAiRound();
+        if(!opts.skipQuotaRecord) pwRecordSuccessfulAiRound();
         resolve(parsed);
       } catch (err) {
         reject(err);
@@ -1511,7 +1513,7 @@ SCORING RUBRIC:
 - Creativity: originality without nonsense — but for "Recreate a Classic," creativity must serve a NAMED classic; pure original with no classic = lower creativity/challenge execution
 - Presentation: plating clarity from described dish
 - Difficulty: technical ambition that fits time
-${challengeIntentJudgeAddon(ch.ctype)}${dessertJudgeAddon(ch)}${snackJudgeAddon(ch)}${elevateCheapJudgeAddon(ch)}${recreateClassicJudgeAddon(ch)}
+${challengeIntentJudgeAddon(ch.ctype)}${restrictionsJudgeAddon(ch)}${dessertJudgeAddon(ch)}${snackJudgeAddon(ch)}${elevateCheapJudgeAddon(ch)}${recreateClassicJudgeAddon(ch)}
 
 Challenge:
 - Type: ${ch.ctype.label}
@@ -1756,6 +1758,16 @@ FAIL THE BRIEF IF:
   return "";
 }
 
+function restrictionsJudgeAddon(ch){
+  const r=sanitizeRestrictionList((ch&&ch.restrictions)||[]);
+  if(!r.length) return "";
+  return `
+RESTRICTIONS — JUDGING LENS (non-negotiable):
+- Penalize HARD if either competitor's plan breaks a stated restriction (e.g. dairy under No Dairy, meat under Vegetarian). "Classic needs cheese" or "just a finish of cream" is still disqualifying-level bad in real comps.
+- Rule compliance outweighs delicious flavor: say so in summary when one side is tastier but illegal.
+- Reward honest substitutes that stay inside the rules while still respecting the challenge type.`;
+}
+
 function challengeIntentJudgeAddon(ctype){
   if(challengeTypeIsRecreateClassic(ctype)){
     return `
@@ -1826,7 +1838,8 @@ function recreateClassicJudgeAddon(ch){
 RECREATE A CLASSIC — JUDGING LENS:
 - Penalize plans that never state a specific classic (fish and chips, chicken parmesan, etc.) or hide behind region/style words only.
 - Reward basket-smart swaps that a judge still reads as "that's X with Y substituted," not a different dish.
-- Creativity points when it serves recognition of the named classic — not when it becomes an unrelated original.`;
+- Creativity points when it serves recognition of the named classic — not when it becomes an unrelated original.
+- If restrictions forbid dairy/meat/etc., penalize heavily for smuggling forbidden ingredients — authenticity of the classic never overrides posted rules.`;
 }
 
 /** Prompt block: enforce challenge course identity (esp. dessert vs savory hybrid failures). */
@@ -1895,6 +1908,8 @@ function courseEnforcementBlock(ch, sig) {
 - BANNED as sole story: vague regional vibes, "chef's original," or polished comp plate with NO named classic. If a judge asks "what classic is this?" and the answer isn't one dish name, the brief is missed.
 - REQUIRED: balance.basket must (1) name the classic, (2) say in one sentence how the basket substitutes or twists tradition without erasing recognition, (3) cite one concrete technique or flavor lineage tied to that classic (sauce style, breading method, braise architecture — not marketing words).
 - The basket ingredients bend the challenge; they do not cancel it. Prefer "classic X with basket-forced swaps" over abandoning the classic for random fusion.
+- CLASSIC SHAPE (avoid "reinterpretation" drift): Stay close to what diners recognize — e.g. eggplant or chicken Parm = breaded cutlet + marinara + melted cheese layer stack as the hero; pasta is optional side only, not a separate pasta-first entrée with guest cutlet. Extra chef swirls (tahini cream, white chocolate, many finisher sauces) only when the basket forces them — otherwise keep moves legible and few.
+- RESTRICTIONS TRUMP TWISTS: If Vegetarian / No Dairy / Vegan applies, every ingredient and technique must be legal — no heavy cream, no parmesan sneak, no "classic needs it" excuses. Use honest subs (cashew béchamel, vegan mozzarella, nutritional yeast) and name them.
 - SIMPLICITY: one classic, one clear read — avoid stacking unrelated techniques (extra custard, extra gastrique, extra sear story) unless each serves that single classic narrative.\n`;
   }
   if (challengeTypeIsElevateCheap(ch.ctype)) {
@@ -2042,7 +2057,9 @@ SNACK OVERRIDE — BITE FORMAT: One pickup vehicle only (crostini, mini tart, pu
     const recreateJsonRule=challengeTypeIsRecreateClassic(ch.ctype)
       ?`RECREATE A CLASSIC — JSON / BRIEF LOCK:
 - balance.basket MUST begin by naming the specific classic dish (standard name a judge could verify), e.g. first words: "Classic: fish and chips — …", "Homage to chicken parmesan — …", "Classic: lasagna — …". Synonyms OK if universal (chicken parm, parmigiana). Naming specificity must match CANONICAL CLASSICS in CHALLENGE INTENT (not a vague region).
-- title OR tagline MUST repeat that dish name — not only a cute original title. Region or mood labels ("coastal," "Tuscan-inspired") without naming the actual dish = failed brief.\n`
+- title OR tagline MUST repeat that dish name — not only a cute original title. Region or mood labels ("coastal," "Tuscan-inspired") without naming the actual dish = failed brief.
+- If ANY dietary/equipment RESTRICTIONS are active, the full JSON must comply — substitutions must be rule-legal, not "classic authenticity" exceptions.
+- Prefer the classic's usual plate architecture; if you add pasta, secondary sauces, or shelf-sweet moves, state clearly they are basket-driven — do not bury the recognizable parm / cutlet / sauce / melt stack.\n`
       :"";
     const elevateJsonRule=challengeTypeIsElevateCheap(ch.ctype)
       ?`ELEVATE A CHEAP MEAL — JSON / BRIEF LOCK:
@@ -2066,7 +2083,7 @@ SNACK OVERRIDE — BITE FORMAT: One pickup vehicle only (crostini, mini tart, pu
       :m<=45
         ?`TECHNIQUE vs TIME (${m} min, moderate): Advanced techniques are fine when step durations add up honestly and the dish still respects the component budget. If a foam or refined emulsion is marginal on time, prefer a stable sauce that delivers the same flavor intent.`
         :`TECHNIQUE vs TIME (${m} min, generous): Full cheffy range is allowed — foams, refined emulsions, more layers — as long as the timeline proves feasibility (no fantasy minutes). Technique must earn its place; avoid empty showboating.`;
-    const prompt=`CHOPPED-style competition recipe. ONE valid JSON object only — no markdown, no code fences, no extra text. ASCII quotes. No trailing commas. Step "how" max ~90 chars.
+    const promptCore=`CHOPPED-style competition recipe. ONE valid JSON object only — no markdown, no code fences, no extra text. ASCII quotes. No trailing commas. Step "how" max ~90 chars.
 
 CHALLENGE: ${ch.ctype.label} | DIFFICULTY: ${ch.diff} | TIME: ${ch.totalTime}min (Prep ${ch.prepTime}, Cook ${ch.cookTime})
 REQUIRED BASKET (each must CARRY the dish, not garnish-only): ${ch.required.join(", ")}
@@ -2074,6 +2091,7 @@ PANTRY you may use (only these + basics like salt/oil/water): ${pantryLines}
 ${res}
 ${fe} ${re} ${bl}
 
+${restrictionHardPriorityBlock(ch)}
 ${courseBlock}
 ${challengeIntentCoachBlock(ch.ctype)||""}
 ${flavorLeadershipBlock}
@@ -2085,6 +2103,7 @@ FOOD PRODUCT TRUTH (material honesty — not vocabulary checks):
 - Naming a required ingredient is NOT enough. For EACH required item: (1) ingredients[] must list it in the honest starting form from the store (or a clear portion of that package); (2) at least one step must show physical handling of that real product (squeeze bottle, scoop from tub, tear crust, chop whole fruit, grate from block).
 - balance.basket must include one concrete sensory/material note per required item (too sweet, thin vs thick, fake vanilla, waxy chocolate, salty pickle brine, etc.) so a judge recognizes the actual SKU — not a re-branded "chef version" with only the label in common.
 - The dish fails if a competitor could swap in a finer product without changing your steps — steps must be specific to what was in the basket.
+${whiteChocolateHonestyBlock(ch.required)}
 
 BASKET INTEGRITY (mandatory):
 - The plate's conceptual STAR must match ROLE HIERARCHY for this course — not a hidden rule that "protein = center." On dessert, STAR = sweet identity; meat/charcuterie cannot carry the dish name. On snack, STAR = the bite/handheld format itself; any fish/meat is accent-scale on that vehicle — never a center-plate fillet or steak portion as the dish head noun. STAR elements must come from REQUIRED + PANTRY. Do NOT add a new centerpiece (chicken, beef, pork, salmon, etc.) unless that exact protein appears in REQUIRED or PANTRY.
@@ -2135,7 +2154,18 @@ balance.complete: single starch/body choice (or explain minor vs major); compone
 balance.richness: if any REQUIRED item is sugary/processed, concrete sweetness limits + residual-sugar realism (see BASKET IDENTITY).
 balance.texture: each texture choice tied to a reason; no orphan crunch layers.
 Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
-    const data=await ai(prompt,8192);
+    const maxAttempts=(ch.restrictions&&ch.restrictions.length)?3:1;
+    let data=null;
+    let regenNote="";
+    state.recipeRestrictionWarnings=null;
+    for(let attempt=0; attempt<maxAttempts; attempt++){
+      const prompt=promptCore+(regenNote?`\n\nREGENERATION REQUIRED: ${regenNote}`:"");
+      data=await ai(prompt,8192,{ bypassDailyPrecheck:attempt>0, skipQuotaRecord:attempt>0 });
+      const viol=getRecipeRestrictionViolations(data,ch.restrictions);
+      if(!viol.length) break;
+      regenNote=`Previous output failed restriction check: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance. Rules outrank flavor, "classic" craving, and creativity. Verify every ingredient line and every step "how".`;
+      if(attempt===maxAttempts-1) state.recipeRestrictionWarnings=viol;
+    }
     state.recipe=data;
     showRecipeData(data);
   } catch(e) {
@@ -2169,7 +2199,11 @@ function contestRecipeHtml(cr, opts){
 
 function renderContestRecipeBox(){
   const box=$("contest-recipe-inline");
-  if(box) box.innerHTML=state.contestRecipe?contestRecipeHtml(state.contestRecipe):"";
+  if(!box) return;
+  const warn=(state.contestRecipeRestrictionWarnings&&state.contestRecipeRestrictionWarnings.length)
+    ?`<div style="background:#fff7ed;border:2px solid #f97316;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#9a3412"><strong>Restriction check:</strong><ul style="margin:6px 0 0 18px">${state.contestRecipeRestrictionWarnings.map(w=>`<li>${escapeHtml(w)}</li>`).join("")}</ul></div>`
+    :"";
+  box.innerHTML=state.contestRecipe?(warn+contestRecipeHtml(state.contestRecipe)):"";
 }
 
 /** Full-screen modal so the plan is impossible to miss (inline panel is easy to scroll past). */
@@ -2186,6 +2220,7 @@ function openContestPlanModal(cr){
         </div>
         <button type="button" onclick="closeModal()" style="flex-shrink:0;background:#f1f5f9;border:none;border-radius:8px;padding:6px 12px;font-size:18px;cursor:pointer;font-weight:700;line-height:1;color:#475569" aria-label="Close">×</button>
       </div>
+      ${(state.contestRecipeRestrictionWarnings&&state.contestRecipeRestrictionWarnings.length)?`<div style="background:#fff7ed;border:2px solid #f97316;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#9a3412"><strong>Restriction check:</strong><ul style="margin:6px 0 0 18px">${state.contestRecipeRestrictionWarnings.map(w=>`<li>${escapeHtml(w)}</li>`).join("")}</ul></div>`:""}
       ${contestRecipeHtml(cr,{wrapId:false})}
       <p style="margin:14px 0 0;font-size:11px;color:#64748b;line-height:1.45">You can close this — the same plan stays on the builder under <strong>Competition coach</strong>.</p>
     </div>`;
@@ -2215,6 +2250,7 @@ async function generateContestRecipe(){
   if(bStart){bStart.disabled=true;bStart.innerHTML="⏳ Calling the pass…";}
   setContestStatus("Contacting AI…","#64748b");
   try{
+    state.contestRecipeRestrictionWarnings=null;
     const courseLabel=(ch.ctype&&ch.ctype.label)?String(ch.ctype.label):"Entree";
     const prepT=Number(ch.prepTime)||0;
     const cookT=Number(ch.cookTime)||0;
@@ -2228,7 +2264,7 @@ Title: ${(rr.title||"").slice(0,120)}
 Tagline: ${(rr.tagline||"").slice(0,160)}
 `
       : `No rival draft loaded yet — build the plan from the basket and rules only.\n`;
-    const prompt=`You are a competition cooking coach for a timed TV-style FOOD cook-off. The cook will REALLY cook this on the clock — edible plate only, not drinks-only.
+    const promptCore=`You are a competition cooking coach for a timed TV-style FOOD cook-off. The cook will REALLY cook this on the clock — edible plate only, not drinks-only.
 Write a WINNING, execution-tight plan — not a copy of any rival draft. Different angles, clearer priorities, fewer moving parts.
 
 ${rivalBlock}
@@ -2238,19 +2274,30 @@ EQUIPMENT: must ${(ch.reqEquip||[]).join(", ")||"—"} · forbidden ${(ch.forbEq
 COURSE: ${courseLabel} | ${totT} min (prep ${prepT}, cook ${cookT})
 PANTRY ADD-ONS: ${pantryLines}
 
+${restrictionHardPriorityBlock(ch)}
+${whiteChocolateHonestyBlock(ch.required)}
 ${courseEnforcementBlock(ch, analyzeBasketForRecipe(ch.required||[]))}
 ${challengeIntentCoachBlock(ch.ctype)||""}
 ${basketFlavorLeadershipBlock(ch)}
 ${courseRoleHierarchyBlock(ch)}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
 {"title":"","tagline":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":""}],"lastMinuteTip":"one sentence"}
-Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts.`;
-    const data=await ai(prompt,4096);
+Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts. Self-check every ingredient and step before returning.`;
+    const maxAttempts=(ch.restrictions&&ch.restrictions.length)?3:1;
+    let data=null, regenNote="";
+    for(let att=0; att<maxAttempts; att++){
+      const prompt=promptCore+(regenNote?`\n\nREGENERATION REQUIRED: ${regenNote}`:"");
+      data=await ai(prompt,4096,{ bypassDailyPrecheck:att>0, skipQuotaRecord:att>0 });
+      const viol=getRecipeRestrictionViolations(data,ch.restrictions);
+      if(!viol.length) break;
+      regenNote=`Previous output failed restriction check: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance. Rules outrank flavor and authenticity claims.`;
+      if(att===maxAttempts-1) state.contestRecipeRestrictionWarnings=viol;
+    }
     state.contestRecipe=data;
     showScreen("screen-build");
     if(!state.recipe || !$("contest-recipe-inline")) renderBuild();
     else renderContestRecipeBox();
-    setContestStatus("Done — opened your game plan.","#15803d");
+    setContestStatus(state.contestRecipeRestrictionWarnings&&state.contestRecipeRestrictionWarnings.length?"Done — review restriction warning on the plan.":"Done — opened your game plan.",state.contestRecipeRestrictionWarnings&&state.contestRecipeRestrictionWarnings.length?"#b45309":"#15803d");
     openContestPlanModal(state.contestRecipe);
     const planBox=$("contest-recipe-inline");
     if(planBox){
@@ -2271,6 +2318,12 @@ function showRecipeData(r) {
   const cb=$("cook-btn");
   if(cb) cb.style.display="none";
   const ch=state.challenge;
+  const rw=state.recipeRestrictionWarnings;
+  const ruleWarnBanner=(rw&&rw.length)?`<div style="background:#450a0a;border:2px solid #dc2626;border-radius:12px;padding:12px 14px;margin-bottom:14px;color:#fecaca;font-size:12px;line-height:1.45">
+    <strong style="color:#fff">Restriction check:</strong> After auto-retries, the rival plan may still break your rules:
+    <ul style="margin:8px 0 0 18px">${rw.map(w=>`<li>${escapeHtml(w)}</li>`).join("")}</ul>
+    <span style="font-size:11px;color:#fca5a5">Verify every line before you cook or duel — treat as suspect.</span>
+  </div>`:"";
   const dishHead=`<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #334155">
     <div style="font-size:11px;font-weight:800;color:#a5b4fc;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">AI built</div>
     <div style="font-size:clamp(17px,2.4vw,22px);font-weight:900;color:#f8fafc;line-height:1.2">${escapeHtml(r.title||"Rival dish")}</div>
@@ -2306,8 +2359,8 @@ function showRecipeData(r) {
   const aiPanel=$("recipe-ai-panel");
   const aiHead='<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>';
   const foot=$("recipe-battle-footer");
-  if(aiPanel) aiPanel.innerHTML=aiHead+dishHead+html;
-  else $("recipe-body").innerHTML=aiHead+dishHead+html;
+  if(aiPanel) aiPanel.innerHTML=aiHead+ruleWarnBanner+dishHead+html;
+  else $("recipe-body").innerHTML=aiHead+ruleWarnBanner+dishHead+html;
   if(foot) foot.innerHTML=battleFooter;
   renderContestRecipeBox();
   wireUserCookPlanForm();
@@ -2706,6 +2759,139 @@ function ingredientConflictsWithRestriction(ingName, restriction){
 
 function ingredientConflictsWithAny(ingName, restrictions){
   return (restrictions||[]).some(r=>ingredientConflictsWithRestriction(ingName,r));
+}
+
+/** Flatten AI recipe JSON for restriction scanning (rival + contest coach shapes). */
+function recipeFlattenTextForCompliance(r){
+  if(!r||typeof r!=="object") return "";
+  const parts=[];
+  const push=x=>{if(x!=null&&String(x).trim())parts.push(String(x));};
+  push(r.title);push(r.tagline);push(r.plating);push(r.tip);
+  push(r.atThePass);push(r.flavorBalance);push(r.lastMinuteTip);
+  const b=r.balance;
+  if(b&&typeof b==="object") for(const v of Object.values(b)) push(v);
+  for(const i of r.ingredients||[]){
+    if(!i) continue;
+    const line=[i.item,i.prep,i.amount].filter(Boolean).join(" ").trim();
+    push(line);
+  }
+  for(const s of r.steps||[]){
+    if(!s) continue;
+    push(s.phase);push(s.what);push(s.how);
+  }
+  return parts.join("\n").toLowerCase();
+}
+
+function scrubComplianceFalsePositives(low){
+  return String(low||"")
+    .replace(/\bbutter\s+lettuce\b/gi," ")
+    .replace(/\bcream\s+of\s+tartar\b/gi," ")
+    .replace(/\b(coconut|cashew|almond|soy|oat)\s+cream\b/gi," __plantcream__ ")
+    .replace(/\b(oat|almond|soy|cashew|coconut|hemp)\s+milk\b/gi," __plantmilk__ ")
+    .replace(/\bpeanut\s+butter\b/gi," __pb__ ")
+    .replace(/\bcocoa\s+butter\b/gi," __cocoabutter__ ");
+}
+
+function textSuggestsAnimalDairy(low){
+  const t=scrubComplianceFalsePositives(low);
+  return /\b(heavy\s*cream|whipping\s*cream|double\s*cream|sour\s*cream|clotted\s*cream|cream\s*cheese|cr[eè]me\s*fra[iî]che|half\s*and\s*half|buttermilk|\bwhole\s*milk\b|\bskim\s*milk\b|condensed\s*milk|evaporated\s*milk|\bmilk\b|\bbutter\b|ghee|brown\s*butter|cheese\b|mozzarella|parmesan|parm\b|pecorino|ricotta|feta|halloumi|cheddar|brie|mascarpone|provolone|gruy[eè]re|paneer|yogurt|yoghurt|kefir|\bwhey\b|fromage|crema\b|\bdairy\b|\bcream\b)/i.test(t);
+}
+
+function textSuggestsButterFat(low){
+  const t=scrubComplianceFalsePositives(low);
+  return /\b(butter|ghee)\b/i.test(t);
+}
+
+function textSuggestsMeatOrFish(low){
+  return /\b(chicken|beef|pork|lamb|duck|turkey|bacon|prosciutto|pancetta|guanciale|anchovy|anchovies|sardine|salmon|tuna|cod|shrimp|prawn|crab|lobster|scallop|veal|oxtail|chorizo|sausage|ground\s+beef|steak|fish\s+sauce|oyster\s+sauce|worcestershire|gelatin\b)/i.test(low);
+}
+
+/** Post-check AI output vs challenge restrictions; drives regen + UI warning. */
+function getRecipeRestrictionViolations(recipe, restrictions){
+  const msgs=[];
+  const rlist=sanitizeRestrictionList(restrictions||[]);
+  if(!rlist.length||!recipe) return msgs;
+  const blob=recipeFlattenTextForCompliance(recipe);
+  const low=blob.toLowerCase();
+  const ingLines=[];
+  for(const i of recipe.ingredients||[]){
+    const line=[i&&i.item,i&&i.prep,i&&i.amount].filter(Boolean).join(" ").trim();
+    if(line) ingLines.push(line);
+  }
+  for(const rawR of rlist){
+    const norm=normalizeRestrictionKey(rawR);
+    let ingHit="";
+    for(const line of ingLines){
+      const checkLine=String(line||"").replace(/\b(coconut|cashew|almond|soy|oat)\s+cream\b/gi,"__plantcream__").replace(/\b(oat|almond|soy|cashew|coconut|hemp)\s+milk\b/gi,"__plantmilk__");
+      if(ingredientConflictsWithRestriction(checkLine,norm)){ingHit=line;break;}
+    }
+    if(ingHit){
+      msgs.push(`${norm}: conflicts with ingredient — "${ingHit.slice(0,120)}"`);
+      continue;
+    }
+    if(norm==="No Dairy"&&textSuggestsAnimalDairy(low))
+      msgs.push(`${norm}: text still references animal dairy (milk, cream, butter, cheese, yogurt, etc.)`);
+    else if(norm==="No Butter"&&textSuggestsButterFat(low))
+      msgs.push(`${norm}: text still references butter or ghee`);
+    else if(norm==="Vegetarian"&&textSuggestsMeatOrFish(low))
+      msgs.push(`${norm}: text suggests meat, fish, shellfish, or common non-veg sauces`);
+    else if(norm==="Vegan"){
+      const veganHit=textSuggestsAnimalDairy(low)||textSuggestsButterFat(low)||textSuggestsMeatOrFish(low)
+        ||/\b(honey|bee\s*honey)\b/i.test(low)||/\b(eggs?|egg\s+yolk|mayo|mayonnaise)\b/i.test(low);
+      if(veganHit) msgs.push(`${norm}: non-vegan ingredient or wording detected (dairy, meat, honey, gelatin, egg, etc.)`);
+    }
+    else if(norm==="No Alcohol"&&/\b(wine|beer|rum|vodka|whiskey|whisky|bourbon|brandy|sake|liqueur|champagne|prosecco)\b/i.test(low)
+      &&!/\b(alcohol-free|non-alcoholic|na beer)\b/i.test(low))
+      msgs.push(`${norm}: mentions alcoholic ingredient`);
+    else if(norm==="No Nuts"&&/\b(almond|cashew|pistachio|pecan|walnut|hazelnut|pine\s*nut|pesto|peanut)\b/i.test(low))
+      msgs.push(`${norm}: mentions nuts or peanut`);
+  }
+  return msgs;
+}
+
+/** Absolute rule priority + expanded bans for the model (and coach). */
+function restrictionHardPriorityBlock(ch){
+  const r=sanitizeRestrictionList((ch&&ch.restrictions)||[]);
+  if(!r.length) return "";
+  let s=`RULE PRIORITY (read before everything else — breaking these fails the run):
+1) ACTIVE RESTRICTIONS + forbidden equipment: absolute. A single violation (even "a little cream to finish") = failed compliance — worse than boring flavor or weak creativity.
+2) Challenge type brief (e.g. Recreate a Classic).
+3) Flavor and basket storytelling.
+
+You must scan your own output before returning: every ingredients[].item and prep, every step "how", plating, balance.* prose — all must satisfy EVERY restriction. If you catch a violation, rewrite the whole plan; do not return the bad version.
+
+ACTIVE RESTRICTIONS (fail closed):
+`;
+  for(const x of r){
+    const norm=normalizeRestrictionKey(x);
+    s+=`• ${x}`;
+    if(norm==="No Dairy")
+      s+=` — BANNED everywhere: cow/goat milk, cream, half-and-half, butter, ghee, cheese, yogurt, whey, traditional dairy. OK if honestly named: coconut/soy/oat/cashew cream or milk, cashew "ricotta," cultured non-dairy yogurt — label them as non-dairy. Never write "heavy cream" or "finish with butter" under this rule.\n`;
+    else if(norm==="No Butter")
+      s+=` — BANNED: butter, ghee, brown butter (including in prose).\n`;
+    else if(norm==="Vegetarian")
+      s+=` — BANNED: meat, poultry, fish, shellfish, gelatin, fish sauce, Worcestershire (fish-based), lard — use veg substitutes and say so.\n`;
+    else if(norm==="Vegan")
+      s+=` — BANNED: all animal products (meat, fish, dairy, eggs, honey, gelatin, butter, milk chocolate). Use plant-only subs; verify labels mentally.\n`;
+    else if(norm==="No Gluten")
+      s+=` — BANNED: wheat flour, standard pasta/bread, barley, rye, typical soy sauce unless gluten-free stated — use GF pasta/flour/tamari when needed.\n`;
+    else if(norm==="No Alcohol")
+      s+=` — BANNED: wine, beer, spirits in food; cooking wine counts.\n`;
+    else if(norm==="No Nuts")
+      s+=` — BANNED: tree nuts, peanuts, nut milks, pesto with pine nuts unless exception stated.\n`;
+    else s+=` — treat as strict; do not violate in any field.\n`;
+  }
+  s+=`SELF-CHECK: Output JSON must be restriction-clean on first save. Judges eliminate on rule breaks.\n`;
+  return s;
+}
+
+function whiteChocolateHonestyBlock(requiredArr){
+  const req=(requiredArr||[]).map(s=>String(s).toLowerCase()).join(" ");
+  if(!/\bwhite\s*chocolate\b/.test(req)) return "";
+  return `WHITE CHOCOLATE (material truth when it is in the basket):
+- Typical white chocolate is sugar + cocoa butter + milk solids / dairy — it does NOT deliver "cocoa depth" or dark-cocoa flavor (no cocoa solids). Honest descriptors: sweet, vanilla, fatty/waxy melt, mild dairy notes if applicable.
+- Do not claim "subtle cocoa depth" from white chocolate — that is false. If using it for savoriness, say sugar/fat/texture instead.
+- If the plate must stay dairy-free / vegan, say explicitly when your white chocolate is a dairy-free product or use another basket path — do not smuggle dairy via "white chocolate" without checking restrictions.\n`;
 }
 
 function filterPoolByRestrictions(pool, restrictions){
