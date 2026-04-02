@@ -2099,7 +2099,7 @@ function ingredientConflictsWithRestriction(ingName, restriction){
     return false;
   }
   if(restriction==="Vegetarian"){
-    if(/\b(chicken|beef|pork|lamb|turkey|duck|salmon|tuna|cod|halibut|trout|fish|shrimp|prawn|crab|lobster|scallop|mussel|clam|anchovy|sardine|bacon|sausage|prosciutto|chorizo|ground beef|steak|oxtail|veal)\b/i.test(n)) return true;
+    if(/\b(chicken|beef|pork|lamb|turkey|duck|salmon|tuna|cod|halibut|trout|fish|shrimp|prawn|crab|lobster|scallops?|mussels?|clams?|anchov(?:y|ies)|sardines?|bacon|sausage|prosciutto|chorizo|ground beef|steak|oxtail|veal)\b/i.test(n)) return true;
     if(cat==="proteins" && !/\b(egg|tofu|tempeh|bean|chickpea|lentil)\b/i.test(n)) return true;
     return false;
   }
@@ -2121,7 +2121,7 @@ function ingredientConflictsWithRestriction(ingName, restriction){
     if(/\b(lamb|veal|rabbit|bison|buffalo)\b/i.test(n)) return true;
     if(/\b(brisket|short rib|oxtail|beef liver|chicken liver|offal)\b/i.test(n)) return true;
     if(/\bground beef\b/i.test(n)) return true;
-    if(/\b(swordfish|lobster tail|crab meat|squid|octopus|mussel|clam)\b/i.test(n)) return true;
+    if(/\b(swordfish|lobster tail|crab meat|squid|octopus|mussels?|clams?)\b/i.test(n)) return true;
     if(/\bduck breast\b/i.test(n)) return true;
     if(cat==="proteins" && /\b(tofu|tempeh|seitan)\b/i.test(n)) return false;
     if(/\b(eggs?|egg)\b/i.test(n)) return false;
@@ -2172,7 +2172,7 @@ function classifyRequiredBucket(name){
   if(legumeRx.test(n)) return "produce";
 
   // Primary protein: meat, seafood, eggs, tofu/tempeh/seitan — not legumes (handled above).
-  const primaryRx=/\b(chicken|beef|pork|lamb|turkey|duck|salmon|tuna|cod|halibut|trout|fish|shrimp|prawn|crab|lobster|scallop|mussel|clam|tofu|tempeh|seitan|egg|eggs|anchovy|anchovies|ground beef|steak|bacon|sausage|prosciutto|chorizo|kielbasa|andouille)\b/;
+  const primaryRx=/\b(chicken|beef|pork|lamb|turkey|duck|salmon|tuna|cod|halibut|trout|fish|shrimp|prawn|crab|lobster|scallops?|mussels?|clams?|tofu|tempeh|seitan|egg|eggs|anchov(?:y|ies)|sardines?|ground beef|steak|bacon|sausage|prosciutto|chorizo|kielbasa|andouille)\b/;
   if(cat==="proteins" || /seafood|meat|poultry/.test(cat) || primaryRx.test(n)) return "protein";
 
   // Produce: veg, fruit, aromatics (onion family, etc.)
