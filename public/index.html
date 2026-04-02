@@ -2244,6 +2244,9 @@ function classifyRequiredBucket(name){
   const legumeRx=/\b(chickpea|chickpeas|garbanzo|black bean|black beans|kidney bean|kidney beans|navy bean|navy beans|pinto bean|pinto beans|cannellini|great northern beans|white beans|lima bean|lima beans|fava bean|fava beans|lentil|lentils|split pea|split peas)\b/i;
   if(legumeRx.test(n)) return "produce";
 
+  // Stocks, broths, fonds — liquid savory bases, not a centerpiece protein (Chicken Stock ≠ chicken on the plate).
+  if(/\b(stock|broth|bone\s*broth|bouillon|consomm[ée]|consomme|fumet|dashi)\b/i.test(n)) return "flavor";
+
   // Primary protein: meat, seafood, eggs, tofu/tempeh/seitan — not legumes (handled above).
   const primaryRx=/\b(chicken|beef|pork|lamb|turkey|duck|salmon|tuna|cod|halibut|trout|fish|shrimp|prawn|crab|lobster|scallops?|mussels?|clams?|tofu|tempeh|seitan|egg|eggs|anchov(?:y|ies)|sardines?|ground beef|steak|bacon|sausage|prosciutto|chorizo|kielbasa|andouille)\b/;
   if(cat==="proteins" || /seafood|meat|poultry/.test(cat) || primaryRx.test(n)) return "protein";
