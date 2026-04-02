@@ -55,6 +55,7 @@
   #spin-host .rnd-slot.rnd-done-ing{color:#3730a3;border-color:#818cf8;background:#eef2ff}
   #spin-host .rnd-slot.rnd-done-res{color:#b91c1c;border-color:#fca5a5;background:#fef2f2}
   #spin-host .rnd-slot.rnd-done-ct{color:#0f172a;border-color:#fbbf24;background:#fffbeb}
+  #spin-host .rnd-slot.rnd-done-forb{color:#9a3412;border-color:#fdba74;background:#fff7ed}
   #spin-host .basket-spin-bar{height:3px;border-radius:999px;background:#e2e8f0;overflow:hidden;margin-top:10px}
   #spin-host .basket-spin-bar>i{display:block;height:100%;width:30%;background:linear-gradient(90deg,#f59e0b,#fbbf24,#f59e0b);background-size:200% 100%;animation:rndShine .8s linear infinite;border-radius:999px}
 </style>
@@ -773,7 +774,7 @@ function renderBuild() {
   flowHint.innerHTML=`<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#1e40af;margin-bottom:8px">Next step</div>
   <p style="margin:0 0 10px"><strong>Easy path:</strong> pick a <strong>Difficulty</strong>, then <strong>Spin my mystery basket</strong> — it randomly fills ingredients, restrictions, and challenge type. Tap <strong>Launch — beat the AI</strong> and say what <em>you’d</em> make.</p>
   <p style="margin:0 0 10px"><strong>Or,</strong> set it all yourself — especially if you’re in a <strong>real cooking competition</strong> and want AI backup, or you’re having a <strong>cook-off with friends</strong>: dial in your own ingredients and restrictions, then have fun!</p>
-  <p style="margin:0;font-size:11px;color:#334155">The spinner stays open after a draw. Challenge type, equipment, and optional <em>AI-only</em> timing are in the cards below.</p>`;
+  <p style="margin:0;font-size:11px;color:#334155">The spinner shows every draw: basket items, pantry restrictions (e.g. No Sugar), and on Medium+ a <strong>no-equipment</strong> slot (e.g. ✕ Oven) that matches the red “Forbidden” chips below. Challenge type and timing are in the cards below.</p>`;
   wrap.appendChild(flowHint);
   const spinHost=el("div",{id:"spin-host"});
   if(state.mysterySpinLocked) spinHost.innerHTML=mysterySpinResultPanelHtml();
@@ -1911,6 +1912,7 @@ function mysterySpinResultPanelHtml(){
   const cfg=DIFF[state.diff];
   const need=cfg.req;
   const nRes=cfg.res;
+  const nForb=cfg.forb||0;
   const parts=[];
   for(let i=0;i<need;i++){
     const name=state.req[i]||"—";
@@ -1919,6 +1921,10 @@ function mysterySpinResultPanelHtml(){
   for(let j=0;j<nRes;j++){
     const txt=state.res[j]||"—";
     parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Restriction ${j+1}</span><div class="rnd-slot rnd-done-res">${escapeHtml(txt)}</div></div>`);
+  }
+  for(let f=0;f<nForb;f++){
+    const eq=state.forbEq[f]||"—";
+    parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">No equipment ${f+1}</span><div class="rnd-slot rnd-done-forb">✕ ${escapeHtml(eq)}</div></div>`);
   }
   const ct=`${state.ctype.emoji} ${state.ctype.label}`;
   parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Challenge</span><div class="rnd-slot rnd-done-ct">${escapeHtml(ct)}</div></div>`);
@@ -1937,11 +1943,13 @@ function runMysteryRandomize(){
   const cfg=DIFF[state.diff];
   const need=cfg.req;
   const nRes=cfg.res;
+  const nForb=cfg.forb||0;
   const ctypePool=[...CTYPES,...state.customTypes];
-  const totalSlots=need+nRes+1;
+  const totalSlots=need+nRes+nForb+1;
   const slotMeta=[];
   for(let i=0;i<need;i++) slotMeta.push({kind:"ing",lbl:"Basket "+(i+1)});
   for(let j=0;j<nRes;j++) slotMeta.push({kind:"res",lbl:"Restriction "+(j+1)});
+  for(let f=0;f<nForb;f++) slotMeta.push({kind:"forb",lbl:"No equipment "+(f+1)});
   slotMeta.push({kind:"ct",lbl:"Challenge"});
   const cells=slotMeta.map((m,i)=>`<div class="basket-spin-cell" data-i="${i}"><span class="basket-spin-lbl">${m.lbl}</span><div class="rnd-slot" data-kind="${m.kind}" aria-label="${escapeHtml(m.lbl)}">—</div></div>`).join("");
   host.innerHTML=`<div class="basket-spin-wrap">
@@ -1960,6 +1968,7 @@ function runMysteryRandomize(){
       const k=slotMeta[idx].kind;
       if(k==="ing") s.textContent=pool[Math.floor(Math.random()*pool.length)];
       else if(k==="res") s.textContent=RESTRICT[Math.floor(Math.random()*RESTRICT.length)];
+      else if(k==="forb") s.textContent="✕ "+EQUIP[Math.floor(Math.random()*EQUIP.length)];
       else { const ct=ctypePool[Math.floor(Math.random()*ctypePool.length)]; s.textContent=ct.emoji+" "+ct.label; }
       s.style.animation="none";
       void s.offsetWidth;
@@ -1981,7 +1990,13 @@ function runMysteryRandomize(){
         s.textContent=txt||"—";
         s.classList.add("rnd-done-res");
       }
-      const sCt=slots[slots.length-1];
+      for(let f=0;f<nForb;f++){
+        const s=slots[need+nRes+f];
+        const eq=state.forbEq[f]||"";
+        s.textContent=eq?"✕ "+eq:"—";
+        s.classList.add("rnd-done-forb");
+      }
+      const sCt=slots[need+nRes+nForb];
       sCt.textContent=state.ctype.emoji+" "+state.ctype.label;
       sCt.classList.add("rnd-done-ct");
       const bar=host.querySelector(".basket-spin-h span:last-child");
