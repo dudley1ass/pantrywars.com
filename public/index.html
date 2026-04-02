@@ -1073,10 +1073,6 @@ function renderBuild() {
     forbChips.appendChild(b);
   });
   eqCard.appendChild(forbChips);
-  const limLbl=el("label",{style:{display:"flex",alignItems:"center",gap:"7px",cursor:"pointer",padding:"6px 9px",background:state.lim?"#fff7ed":"#f8fafc",border:"2px solid "+(state.lim?"#fdba74":"#e2e8f0"),borderRadius:"8px"}});
-  const limCb=el("input",{type:"checkbox"});limCb.checked=state.lim;limCb.addEventListener("change",e=>{state.lim=e.target.checked;renderBuild();});
-  const limTxt=el("span",{style:{fontSize:"11px",fontWeight:"700",color:state.lim?"#c2410c":"#475569"}});limTxt.textContent="1 burner only";
-  limLbl.append(limCb,limTxt);eqCard.appendChild(limLbl);
   grid.appendChild(eqCard);
 
   // REQUIRED INGREDIENTS
