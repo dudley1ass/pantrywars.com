@@ -418,6 +418,7 @@ let state = {
   total:30, prep:10, cook:20, cut:false,
   req:[], res:[], reqEq:[], forbEq:[], lim:false,
   challenge:null, recipe:null, contestRecipe:null,
+  spinConstraints: [],
   mysterySpinLocked:false,
   userCookPlan:{dish:"",techniques:"",timing:""},
   scoresYou:{taste:7,creativity:7,presentation:7,difficulty:7},
@@ -780,7 +781,7 @@ function renderBuild() {
   flowHint.innerHTML=`<div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#1e40af;margin-bottom:8px">Next step</div>
   <p style="margin:0 0 10px"><strong>Easy path:</strong> pick a <strong>Difficulty</strong>, then <strong>Spin my mystery basket</strong> — it randomly fills ingredients, restrictions, and challenge type. Tap <strong>Launch — beat the AI</strong> and say what <em>you’d</em> make.</p>
   <p style="margin:0 0 10px"><strong>Or,</strong> set it all yourself — especially if you’re in a <strong>real cooking competition</strong> and want AI backup, or you’re having a <strong>cook-off with friends</strong>: dial in your own ingredients and restrictions, then have fun!</p>
-  <p style="margin:0;font-size:11px;color:#334155">The spinner shows every draw: basket items, pantry restrictions (e.g. No Sugar), and on Medium+ a <strong>no-equipment</strong> slot (e.g. ✕ Oven) that matches the red “Forbidden” chips below. Challenge type and timing are in the cards below.</p>`;
+  <p style="margin:0;font-size:11px;color:#334155">The spinner shows every draw: <strong>Must use</strong> items plus unified <strong>Restrictions</strong>. A restriction can be pantry-based (e.g. No Sugar) or equipment-based (e.g. ✕ Oven), and matches the chips below.</p>`;
   wrap.appendChild(flowHint);
   const spinHost=el("div",{id:"spin-host"});
   if(state.mysterySpinLocked) spinHost.innerHTML=mysterySpinResultPanelHtml();
@@ -1918,20 +1919,16 @@ function pickRequiredPattern(pool,count,resList){
 function mysterySpinResultPanelHtml(){
   const cfg=DIFF[state.diff];
   const need=cfg.req;
-  const nRes=cfg.res;
-  const nForb=cfg.forb||0;
+  const nConstraints=Math.max(Number(cfg.res)||0, Number(cfg.forb)||0);
   const parts=[];
   for(let i=0;i<need;i++){
     const name=state.req[i]||"—";
-    parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Basket ${i+1}</span><div class="rnd-slot rnd-done-ing">${escapeHtml(name)}</div></div>`);
+    parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Must use ${i+1}</span><div class="rnd-slot rnd-done-ing">${escapeHtml(name)}</div></div>`);
   }
-  for(let j=0;j<nRes;j++){
-    const txt=state.res[j]||"—";
-    parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Restriction ${j+1}</span><div class="rnd-slot rnd-done-res">${escapeHtml(txt)}</div></div>`);
-  }
-  for(let f=0;f<nForb;f++){
-    const eq=state.forbEq[f]||"—";
-    parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">No equipment ${f+1}</span><div class="rnd-slot rnd-done-forb">✕ ${escapeHtml(eq)}</div></div>`);
+  for(let j=0;j<nConstraints;j++){
+    const txt=state.spinConstraints[j]||"—";
+    const isForb=txt.startsWith("✕ ");
+    parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Restriction ${j+1}</span><div class="rnd-slot ${isForb?"rnd-done-forb":"rnd-done-res"}">${escapeHtml(txt)}</div></div>`);
   }
   const ct=`${state.ctype.emoji} ${state.ctype.label}`;
   parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Challenge</span><div class="rnd-slot rnd-done-ct">${escapeHtml(ct)}</div></div>`);
@@ -1949,14 +1946,12 @@ function runMysteryRandomize(){
   const pool=(window.USER_PANTRY&&window.USER_PANTRY.length)?window.USER_PANTRY:PANTRY;
   const cfg=DIFF[state.diff];
   const need=cfg.req;
-  const nRes=cfg.res;
-  const nForb=cfg.forb||0;
+  const nConstraints=Math.max(Number(cfg.res)||0, Number(cfg.forb)||0);
   const ctypePool=[...CTYPES,...state.customTypes];
-  const totalSlots=need+nRes+nForb+1;
+  const totalSlots=need+nConstraints+1;
   const slotMeta=[];
-  for(let i=0;i<need;i++) slotMeta.push({kind:"ing",lbl:"Basket "+(i+1)});
-  for(let j=0;j<nRes;j++) slotMeta.push({kind:"res",lbl:"Restriction "+(j+1)});
-  for(let f=0;f<nForb;f++) slotMeta.push({kind:"forb",lbl:"No equipment "+(f+1)});
+  for(let i=0;i<need;i++) slotMeta.push({kind:"ing",lbl:"Must use "+(i+1)});
+  for(let j=0;j<nConstraints;j++) slotMeta.push({kind:"con",lbl:"Restriction "+(j+1)});
   slotMeta.push({kind:"ct",lbl:"Challenge"});
   const cells=slotMeta.map((m,i)=>`<div class="basket-spin-cell" data-i="${i}"><span class="basket-spin-lbl">${m.lbl}</span><div class="rnd-slot" data-kind="${m.kind}" aria-label="${escapeHtml(m.lbl)}">—</div></div>`).join("");
   host.innerHTML=`<div class="basket-spin-wrap">
@@ -1974,8 +1969,12 @@ function runMysteryRandomize(){
     slots.forEach((s,idx)=>{
       const k=slotMeta[idx].kind;
       if(k==="ing") s.textContent=pool[Math.floor(Math.random()*pool.length)];
-      else if(k==="res") s.textContent=RESTRICT[Math.floor(Math.random()*RESTRICT.length)];
-      else if(k==="forb") s.textContent="✕ "+EQUIP[Math.floor(Math.random()*EQUIP.length)];
+      else if(k==="con"){
+        const preview=Math.random()<0.5;
+        s.textContent=preview
+          ? RESTRICT[Math.floor(Math.random()*RESTRICT.length)]
+          : "✕ "+EQUIP[Math.floor(Math.random()*EQUIP.length)];
+      }
       else { const ct=ctypePool[Math.floor(Math.random()*ctypePool.length)]; s.textContent=ct.emoji+" "+ct.label; }
       s.style.animation="none";
       void s.offsetWidth;
@@ -1996,19 +1995,13 @@ function runMysteryRandomize(){
           if(name){ s.textContent=name; s.classList.add("rnd-done-ing"); }
           else { s.textContent="—"; s.style.opacity="0.5"; }
         }
-        for(let r=0;r<nRes;r++){
-          const s=slots[need+r];
-          const txt=state.res[r]||"";
-          s.textContent=txt||"—";
-          s.classList.add("rnd-done-res");
+        for(let c=0;c<nConstraints;c++){
+          const s=slots[need+c];
+          const txt=state.spinConstraints[c]||"—";
+          s.textContent=txt;
+          s.classList.add(txt.startsWith("✕ ")?"rnd-done-forb":"rnd-done-res");
         }
-        for(let f=0;f<nForb;f++){
-          const s=slots[need+nRes+f];
-          const eq=state.forbEq[f]||"";
-          s.textContent=eq?"✕ "+eq:"—";
-          s.classList.add("rnd-done-forb");
-        }
-        const sCt=slots[need+nRes+nForb];
+        const sCt=slots[need+nConstraints];
         if(!sCt) throw new Error("Missing challenge slot");
         sCt.textContent=state.ctype.emoji+" "+state.ctype.label;
         sCt.classList.add("rnd-done-ct");
@@ -2028,8 +2021,15 @@ function runMysteryRandomize(){
 
 function doRandomize(){
   const d=DIFF[state.diff];
-  state.res=pick(RESTRICT,d.res);
-  state.forbEq=pick(EQUIP,d.forb);
+  const nConstraints=Math.max(Number(d.res)||0, Number(d.forb)||0);
+  const candidates=[
+    ...RESTRICT.map(r=>({type:"res",label:r})),
+    ...EQUIP.map(e=>({type:"forb",label:"✕ "+e,raw:e})),
+  ];
+  const chosen=pick(candidates,nConstraints);
+  state.spinConstraints=chosen.map(c=>c.label);
+  state.res=chosen.filter(c=>c.type==="res").map(c=>c.label);
+  state.forbEq=chosen.filter(c=>c.type==="forb").map(c=>c.raw);
   state.lim=d.burners;state.cut=d.cut;
   const pool=window.USER_PANTRY||PANTRY;
   state.req=pickRequiredPattern(pool,d.req,state.res);
