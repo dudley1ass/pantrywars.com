@@ -1413,7 +1413,7 @@ function battleConstraintsHtml(ch){
   const req=(ch.required||[]).map(i=>`<span style="background:#312e81;border:1px solid #4f46e5;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#e0e7ff">${escapeHtml(i)}</span>`).join("");
   const blocks=[];
   if((ch.restrictions||[]).length){
-    const chips=(ch.restrictions||[]).map(r=>`<span style="background:#450a0a;border:1px solid #dc2626;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#fecaca">No ${escapeHtml(r)}</span>`).join("");
+    const chips=(ch.restrictions||[]).map(r=>`<span style="background:#450a0a;border:1px solid #dc2626;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#fecaca">${escapeHtml(r)}</span>`).join("");
     blocks.push(`<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:800;color:#f87171;margin-bottom:6px">Restrictions</div><div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div></div>`);
   }
   const eq=[];
@@ -1799,7 +1799,7 @@ function renderActive() {
           ${ch.required.map(i=>`<div style="padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:700;color:#0f172a">☐ ${i}</div>`).join("")}
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
-          ${ch.restrictions.length?`<div style="background:#fef2f2;border:2px solid #fecaca;border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:800;color:#dc2626;text-transform:uppercase;margin-bottom:6px">Restricted</div>${ch.restrictions.map(r=>`<div style="font-size:11px;font-weight:700;color:#b91c1c">X ${r}</div>`).join("")}</div>`:""}
+          ${ch.restrictions.length?`<div style="background:#fef2f2;border:2px solid #fecaca;border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:800;color:#dc2626;text-transform:uppercase;margin-bottom:6px">Rules</div>${ch.restrictions.map(r=>`<div style="font-size:11px;font-weight:700;color:#b91c1c">• ${escapeHtml(r)}</div>`).join("")}</div>`:""}
           ${(ch.reqEquip.length||ch.forbEquip.length||ch.limitBurners)?`<div style="background:#fff7ed;border:2px solid #fed7aa;border-radius:10px;padding:10px 12px"><div style="font-size:10px;font-weight:800;color:#c2410c;text-transform:uppercase;margin-bottom:6px">Equipment</div>${ch.reqEquip.map(e=>`<div style="font-size:11px;font-weight:700;color:#166534">✓ ${e}</div>`).join("")}${ch.forbEquip.map(e=>`<div style="font-size:11px;font-weight:700;color:#b91c1c">X ${e}</div>`).join("")}${ch.limitBurners?`<div style="font-size:11px;font-weight:700;color:#c2410c">1 burner only</div>`:""}</div>`:""}
         </div>
       </div>
