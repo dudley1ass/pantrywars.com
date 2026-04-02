@@ -784,12 +784,18 @@ function renderBuild() {
       <div style="font-size:10px;font-weight:900;color:#e9d5ff;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px">Competition coach (optional)</div>
       <div style="font-size:13px;color:#c4b5fd;line-height:1.5">Extra <strong style="color:#fff">tight, judge-style game plan</strong> from AI for <em>this</em> basket — before you launch. Handy for real comps or a friends cook-off.</div>
     </div>
-    <button type="button" id="contest-live-btn" onclick="generateContestRecipe()" style="flex-shrink:0;background:linear-gradient(180deg,#a855f7,#7c3aed);color:#fff;border:none;border-radius:12px;padding:12px 20px;font-size:13px;font-weight:900;cursor:pointer;box-shadow:0 6px 20px rgba(124,58,237,0.35);white-space:nowrap">🔴 Competition game plan</button>
+    <button type="button" id="contest-live-btn" style="flex-shrink:0;background:linear-gradient(180deg,#a855f7,#7c3aed);color:#fff;border:none;border-radius:12px;padding:12px 20px;font-size:13px;font-weight:900;cursor:pointer;box-shadow:0 6px 20px rgba(124,58,237,0.35);white-space:nowrap">🔴 Competition game plan</button>
   </div>
   <div id="contest-plan-status" style="font-size:12px;margin-top:8px;min-height:1.25em;font-weight:600" aria-live="polite"></div>
   <div id="contest-recipe-inline" style="margin-top:10px"></div>`;
   wrap.appendChild(contestRow);
   renderContestRecipeBox();
+  const contestLiveBtn=$("contest-live-btn");
+  if(contestLiveBtn){
+    contestLiveBtn.addEventListener("click",()=>{
+      void generateContestRecipe().catch(e=>console.error("Competition game plan",e));
+    });
+  }
 
   // DIFFICULTY
   const diffCard=div({class:"card full"});
@@ -1359,7 +1365,8 @@ function renderContestRecipeBox(){
 }
 
 async function generateContestRecipe(){
-  const ch=state.challenge||challengeFromBuilder();
+  // Always snapshot the live builder — state.challenge is only set at Launch and goes stale after edits or Back.
+  const ch=challengeFromBuilder();
   if(!(ch.required&&ch.required.length)){alert("Pick at least one required ingredient (or spin the mystery basket) first.");return;}
   const setContestStatus=(text,color)=>{
     const el=$("contest-plan-status");
@@ -1405,6 +1412,8 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
     state.contestRecipe=data;
     renderContestRecipeBox();
     setContestStatus("Done — your plan is below.","#15803d");
+    const planBox=$("contest-recipe-inline");
+    if(planBox) planBox.scrollIntoView({behavior:"smooth",block:"nearest"});
     if(state.recipe){
       try{
         const sr=$("screen-recipe");
