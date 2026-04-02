@@ -39,6 +39,7 @@
   .hidden{display:none!important;}
   .overlay{position:fixed;inset:0;background:rgba(15,23,42,0.7);display:flex;align-items:center;justify-content:center;z-index:999;padding:16px;}
   .modal{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+  #modal-overlay .modal.contest-plan-modal{max-width:min(560px,96vw);max-height:88vh;overflow:auto;}
   @keyframes spin{to{transform:rotate(360deg);}}
   .spinner{position:relative;width:76px;height:76px;margin:0 auto 18px;}
   .spinner-ring{position:absolute;inset:0;border-radius:50%;border:4px solid #1e293b;}
@@ -251,10 +252,10 @@ function sanitizeSpinConstraints(arr){
 /** AI rival “on the clock” minutes after mystery spin (realistic plates — not 15 min Wellington) */
 const SPIN_AI_TIMES=[20,25,30,35,40,45];
 const DIFF={
-  easy:  {label:"Easy",  emoji:"🟢",req:2,res:0,forb:0,burners:false,cut:false},
-  medium:{label:"Medium",emoji:"🟡",req:3,res:1,forb:1,burners:false,cut:false},
-  hard:  {label:"Hard",  emoji:"🔴",req:4,res:2,forb:2,burners:true, cut:true},
-  insane:{label:"Insane",emoji:"💀",req:5,res:3,forb:3,burners:true, cut:true},
+  easy:  {label:"Easy",  emoji:"🟢",req:2,res:0,forb:0,cut:false},
+  medium:{label:"Medium",emoji:"🟡",req:3,res:1,forb:1,cut:false},
+  hard:  {label:"Hard",  emoji:"🔴",req:4,res:2,forb:2,cut:true},
+  insane:{label:"Insane",emoji:"💀",req:5,res:3,forb:3,cut:true},
 };
 const FULL_PANTRY = [
   {id:1,  name:"All-Purpose Flour",   cat:"Baking & Bases",          flavor:["salty"],                texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Essential for dredging, roux, dough, batter."},
@@ -1170,7 +1171,7 @@ function renderBuild() {
     const totalRestr=Math.max(Number(d.res)||0, Number(d.forb)||0);
     const b=el("button",{style:{flex:"1",minWidth:"80px",background:state.diff===k?"#1e293b":"#f8fafc",border:"2px solid "+(state.diff===k?"#6366f1":"#e2e8f0"),borderRadius:"10px",padding:"9px 6px",cursor:"pointer",textAlign:"center"}});
     b.innerHTML=`<div style="font-size:17px;margin-bottom:2px">${d.emoji}</div><div style="font-size:12px;font-weight:800;color:${state.diff===k?"#fff":"#0f172a"}">${d.label}</div><div style="font-size:10px;color:#94a3b8">${d.req} must-use · ${totalRestr} restriction</div>`;
-    b.addEventListener("click",()=>{state.diff=k;state.mysterySpinLocked=false;renderBuild();});
+    b.addEventListener("click",()=>{state.diff=k;state.mysterySpinLocked=false;state.lim=false;renderBuild();});
     drow.appendChild(b);
   });
   diffCard.appendChild(drow);
@@ -1434,9 +1435,10 @@ Return ONLY compact JSON with this shape:
 
 SCORING RUBRIC:
 - Taste: flavor logic, balance, plausibility
-- Creativity: originality without nonsense
+- Creativity: originality without nonsense — but for "Recreate a Classic," creativity must serve a NAMED classic; pure original with no classic = lower creativity/challenge execution
 - Presentation: plating clarity from described dish
 - Difficulty: technical ambition that fits time
+${challengeIntentJudgeAddon(ch.ctype)}
 
 Challenge:
 - Type: ${ch.ctype.label}
@@ -1581,6 +1583,53 @@ function analyzeBasketForRecipe(required) {
   return { hardBasket, cleanBasket, processedSweet, junkHits };
 }
 
+/** Challenge-type intent for prompts & judging (builtin ids + label heuristics for custom types). */
+function challengeTypeIsRecreateClassic(ctype){
+  const id=String((ctype&&ctype.id)||"");
+  const label=String((ctype&&ctype.label)||"").toLowerCase();
+  if(id==="recreate") return true;
+  if(/\brecreate\s+a\s+classic\b/.test(label)) return true;
+  if(/\brecreate\b/.test(label)&&/\bclassic\b/.test(label)) return true;
+  if(/\bhomage\b/.test(label)&&/\b(classic|dish|iconic)\b/.test(label)) return true;
+  return false;
+}
+function challengeTypeIsElevateCheap(ctype){
+  const id=String((ctype&&ctype.id)||"");
+  const label=String((ctype&&ctype.label)||"").toLowerCase();
+  if(id==="elevate") return true;
+  if(/\belevate\b/.test(label)&&/\b(cheap|budget|store-bought|boxed|instant|frozen|diner|microwave)\b/.test(label)) return true;
+  return false;
+}
+
+/** Short block for competition-coach prompt (same intent as rival chef). */
+function challengeIntentCoachBlock(ctype){
+  if(challengeTypeIsRecreateClassic(ctype)){
+    return `CHALLENGE INTENT (mandatory): This is RECREATE A CLASSIC. The cook must NAME one specific, judge-recognizable classic dish (e.g. tonkatsu, saltimbocca, cassoulet, choucroute, schnitzel — not "Asian-inspired" or "French-leaning" alone). Plan must read as homage/riff to that dish, not a generic original plate. Say the classic in title, tagline, or first sentence of atThePass.\n`;
+  }
+  if(challengeTypeIsElevateCheap(ctype)){
+    return `CHALLENGE INTENT (mandatory): ELEVATE A CHEAP MEAL — name the cheap/everyday starting point (boxed mix, instant noodles, etc.) and show a clear elevation path. Not an unrelated luxury dish.\n`;
+  }
+  return "";
+}
+
+function challengeIntentJudgeAddon(ctype){
+  if(challengeTypeIsRecreateClassic(ctype)){
+    return `
+CHALLENGE TYPE — RECREATE A CLASSIC (critical):
+- Penalize either side if they never state WHAT classic dish is being recreated (specific name or universally known dish — not a region or mood).
+- A "polished original" with no named classic = poor challenge execution even if flavor sounds strong.
+- Reward: explicit classic named + basket-smart substitutions that still read as that tradition.
+- Factor this into creativity scores and your summary; call out "missed the brief" when applicable.`;
+  }
+  if(challengeTypeIsElevateCheap(ctype)){
+    return `
+CHALLENGE TYPE — ELEVATE A CHEAP MEAL:
+- Penalize if the everyday/cheap starting dish is never identified or the plate ignores the elevation brief.
+- Reward clear "before → after" story anchored in the challenge.`;
+  }
+  return "";
+}
+
 /** Prompt block: enforce challenge course identity (esp. dessert vs savory hybrid failures). */
 function courseEnforcementBlock(ch, sig) {
   const id = String((ch.ctype && ch.ctype.id) || "");
@@ -1593,8 +1642,10 @@ function courseEnforcementBlock(ch, sig) {
   if (isDessert) {
     let s = `COURSE LOCK — DESSERT (hard rule):
 - A judge must instantly read the plate as dessert (title + tagline + story). It must NOT scan as a savory main with sugar on top.
-- BANNED center of the plate: savory entree or tart identity (e.g. mushroom cream filling, bacon-fat-forward base, miso-heavy savory broth/ganache) as the "dessert." Umami/salt may only support the sweet story (accent, garnish, tiny shard, trace in caramel) — not dominate.
-- REQUIRED sweet backbone (choose what fits the basket): honest pastry/tart shell, cake/cookie, custard/pudding, fruit compote, chocolate dessert use, caramel/butterscotch with real sugar cook, mousse, ice cream/sorbet if time allows. If the basket skews savory, pivot ingredients with CLEAR sweet technique (candied bacon crumb, tiny mushroom only in dulce-adjacent base, etc.) — still dessert-first, fewer parts.
+- MEAT / POULTRY / GAME / FISH / SHELLFISH — BANNED in dessert, period: not whole, not sear, not crumb, not powder, not chip, not “dust,” not leather. Those flavors read metallic/umami-savory and fail dessert identity. Plant proteins (tofu, silken tofu, tempeh, seitan) and EGGS are OK only inside an unmistakably sweet build (custard, cake, pudding, curd, soufflé-style sweet, mousse).
+- NUTRITIONAL YEAST / fish sauce / anchovy / bacon-fat tricks: do NOT use in dessert — cheesy-umami powder on a sweet plate reads confused; judges will cut you.
+- BANNED center of the plate: savory entree or tart identity (e.g. mushroom cream filling, miso-heavy savory broth/ganache) as the "dessert." Umami/salt may only support the sweet story (trace in caramel, pinch in chocolate) — not dominate and never from animal protein.
+- REQUIRED sweet backbone (choose what fits the basket): honest pastry/tart shell, cake/cookie, custard/pudding, fruit compote, chocolate dessert use, caramel/butterscotch with real sugar cook, mousse, ice cream/sorbet if time allows. If the basket skews savory veg, pivot with sweet technique (roast fruit, sugar cook, dairy, citrus curd) — still dessert-first, fewer parts; do NOT “use up” steak or chicken in dessert.
 - No fake "hybrid" excuse: do not label a confused savory plate as dessert.
 - Texture honesty: only call it brittle if sugar/syrup is cooked to snap; "dust" is fine powder — not chopped nuts renamed.
 - In balance.complete, one sentence must state why this READS as dessert (not why it's clever).
@@ -1614,9 +1665,18 @@ function courseEnforcementBlock(ch, sig) {
   if (id === "snack") {
     return `COURSE LOCK — SNACK: Hand food or casual small plate — not a composed restaurant entree.\n`;
   }
-  if (id === "elevate" || id === "recreate") {
-    const L = String((ch.ctype && ch.ctype.label) || id).toUpperCase();
-    return `COURSE LOCK — ${L}: Deliver the promise of the challenge name in one readable sentence — no genre drift.\n`;
+  if (challengeTypeIsRecreateClassic(ch.ctype)) {
+    return `CHALLENGE INTENT — RECREATE A CLASSIC (hard brief — misses fail judging):
+- You MUST name ONE specific, recognizable CLASSIC DISH a judge could verify — early and plainly: in title OR tagline OR the very first clause of balance.basket (e.g. "Homage to tonkatsu…", "Cassoulet logic from the basket…", "Saltimbocca-style pork…"). Examples of classics: dishes with standard names (Wiener schnitzel, moussaka, beef Wellington, pad kra pao, chicken teriyaki plate, fish & chips, chilaquiles, etc.) — NOT just "French" or "Asian" or "pork dinner."
+- BANNED as sole story: vague regional vibes, "chef's original," or polished comp plate with NO named classic. If a judge asks "what classic is this?" and the answer isn't one dish name, the brief is missed.
+- REQUIRED: balance.basket must (1) name the classic, (2) say in one sentence how the basket substitutes or twists tradition without erasing recognition, (3) cite one concrete technique or flavor lineage tied to that classic (sauce style, breading method, braise architecture — not marketing words).
+- The basket ingredients bend the challenge; they do not cancel it. Prefer "classic X with basket-forced swaps" over abandoning the classic for random fusion.
+- SIMPLICITY: one classic, one clear read — avoid stacking unrelated techniques (extra custard, extra gastrique, extra sear story) unless each serves that single classic narrative.\n`;
+  }
+  if (challengeTypeIsElevateCheap(ch.ctype)) {
+    return `CHALLENGE INTENT — ELEVATE A CHEAP MEAL:
+- Name the cheap/everyday STARTING dish or product in title or tagline (e.g. "from boxed mac…", "convenience ramen → …"). The judge must see cheap DNA + elevation, not an unrelated fine-dining original.
+- Steps must show transformation of THAT starting point — not smuggling in a new luxury centerpiece from nowhere.\n`;
   }
   return "";
 }
@@ -1649,6 +1709,9 @@ async function generateRecipe() {
       ?` PROCESSED SWEET ALERT: At least one required item is shelf-sweet. It must read as that product in use (squeeze, scoop, from bottle) — not re-labeled as artisan chocolate. Keep it a supporting player unless dessert.`
       :"";
     const courseBlock=courseEnforcementBlock(ch,sig);
+    const recreateJsonRule=challengeTypeIsRecreateClassic(ch.ctype)
+      ?`RECREATE A CLASSIC — JSON: balance.basket MUST start by naming the specific classic (e.g. first words: "Classic: Wiener schnitzel — …" or "Homage to fish and chips — …"). title OR tagline MUST repeat or restate that dish so a judge never wonders "what classic?" Vague regions without a dish name = failed brief.\n`
+      :"";
     const m=ch.totalTime;
     const techniquePolicy=m<=30
       ?`TECHNIQUE vs TIME (${m} min, tight): Nothing is "banned." Finicky work (foam/aeration, spherification, fluid gels, LN2, long-setting gels) may ONLY appear if your step times prove each stage fits inside Prep+Cook with a realistic buffer. If the math is doubtful, use a simpler method (crema, reduction, melted cheese, pan sauce, vinaigrette).`
@@ -1683,6 +1746,7 @@ STRUCTURE / ONE BASE (control creativity — avoid "AI fusion" that fights itsel
 - If the basket supplies items that imply two starches (pizza + rice): choose a SINGLE cleaner story — e.g. crisped crust with beer-braised veg and sauce OR a true risotto with only a whisper of crust; not "risotto that is also loaded with bread."
 - LIMIT COMPOUND CLEVERNESS: at most ONE high-concept move per dish (the big idea). Do not stack multiple wow-fusions; prefer what a confident competitor would pitch in one clear sentence — natural beats over-constructed.
 - DISH CLARITY: In one breath, a competitor could say what this IS ("custard tart," "seared fish with X," "composed appetizer"). If you cannot name it plainly, simplify until you can.
+${challengeTypeIsRecreateClassic(ch.ctype)?`- BRIEF LOCK (Recreate a Classic): That plain name MUST include the classic reference ("our tonkatsu build," "cassoulet logic from the basket") — not ONLY a cute original title with no named tradition.\n`:""}
 - SWEET LAYERING: dried fruit (prunes, raisins), malty beer, honey/maple/brown sugar are cumulative — do not add extra concentrated sweetness without trimming elsewhere. Default: if prunes anchor the sauce, skip added honey/syrup unless balance.flavor explains the bitter/acid/salt hammer you are using and why it stays savory.
 
 BASKET IDENTITY (no "laundering" ugly or processed items):
@@ -1709,6 +1773,7 @@ BALANCE (honest):
 - Let basket supply flavor/texture; no extra components just to sound cheffy.
 - Completeness from basket+allowed pantry — never "rescue protein."
 
+${recreateJsonRule}
 JSON keys (fill all):
 {"title":"","tagline":"","serves":"2","balance":{"flavor":"","basket":"","texture":"","richness":"","visual":"","complete":""},"ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"time":"0:00","dur":"","phase":"PREP","what":"","how":""}],"plating":"","tip":""}
 balance.basket: 2-4 sentences — stars vs hides; name each REQUIRED item and its starring role. If something is store-bought or messy, say you're using THAT item, not a posh substitute.
@@ -1729,11 +1794,13 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
   }
 }
 
-function contestRecipeHtml(cr){
+function contestRecipeHtml(cr, opts){
   if(!cr) return "";
+  opts=opts||{};
+  const idAttr=(opts.wrapId===false)?"":` id="${opts.wrapId||"contest-recipe-box"}"`;
   const ing=(cr.ingredients||[]).map(i=>`<div style="font-size:11px;color:#e9d5ff;padding:4px 0;border-bottom:1px solid #4c1d95"><span style="color:#fbbf24;font-weight:700">${escapeHtml(i.amount||"")}</span> ${escapeHtml(i.item||"")}${i.prep?` <span style="color:#94a3b8;font-size:10px">(${escapeHtml(i.prep)})</span>`:""}</div>`).join("");
   const steps=(cr.steps||[]).map(s=>`<div style="margin-bottom:8px"><span style="font-size:9px;font-weight:800;color:#a78bfa">${escapeHtml(s.phase||"")}</span> <strong style="color:#fff;font-size:12px">${escapeHtml(s.what||"")}</strong><div style="font-size:11px;color:#c4b5fd;margin-top:2px;line-height:1.4">${escapeHtml(s.how||"")}</div></div>`).join("");
-  return `<div id="contest-recipe-box" style="margin-bottom:14px;background:linear-gradient(160deg,#1e1b4b 0%,#0f172a 100%);border:2px solid #a855f7;border-radius:14px;padding:14px 16px">
+  return `<div${idAttr} style="margin-bottom:14px;background:linear-gradient(160deg,#1e1b4b 0%,#0f172a 100%);border:2px solid #a855f7;border-radius:14px;padding:14px 16px">
     <div style="font-size:10px;font-weight:900;color:#e9d5ff;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">Competition game plan</div>
     <div style="font-size:17px;font-weight:900;color:#fff;margin-bottom:4px">${escapeHtml(cr.title||"Your winning run")}</div>
     ${cr.tagline?`<div style="font-size:12px;color:#c4b5fd;margin-bottom:10px;font-style:italic">${escapeHtml(cr.tagline)}</div>`:""}
@@ -1750,10 +1817,35 @@ function renderContestRecipeBox(){
   if(box) box.innerHTML=state.contestRecipe?contestRecipeHtml(state.contestRecipe):"";
 }
 
+/** Full-screen modal so the plan is impossible to miss (inline panel is easy to scroll past). */
+function openContestPlanModal(cr){
+  if(!cr) return;
+  const ov=$("modal-overlay");
+  if(!ov) return;
+  ov.innerHTML=`
+    <div class="modal contest-plan-modal">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px">
+        <div>
+          <div style="font-size:10px;font-weight:900;color:#7c3aed;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px">Competition coach</div>
+          <div style="font-size:16px;font-weight:900;color:#0f172a">Your game plan</div>
+        </div>
+        <button type="button" onclick="closeModal()" style="flex-shrink:0;background:#f1f5f9;border:none;border-radius:8px;padding:6px 12px;font-size:18px;cursor:pointer;font-weight:700;line-height:1;color:#475569" aria-label="Close">×</button>
+      </div>
+      ${contestRecipeHtml(cr,{wrapId:false})}
+      <p style="margin:14px 0 0;font-size:11px;color:#64748b;line-height:1.45">You can close this — the same plan stays on the builder under <strong>Competition coach</strong>.</p>
+    </div>`;
+  ov.classList.remove("hidden");
+}
+
 async function generateContestRecipe(){
   // Always snapshot the live builder — state.challenge is only set at Launch and goes stale after edits or Back.
   const ch=challengeFromBuilder();
   if(!(ch.required&&ch.required.length)){alert("Pick at least one required ingredient (or spin the mystery basket) first.");return;}
+  if(!pwCanUseAiRound()){
+    pwTrackDailyLimitHit("contest_plan_blocked");
+    alert(PW_DAILY_LIMIT_MESSAGE);
+    return;
+  }
   const setContestStatus=(text,color)=>{
     const el=$("contest-plan-status");
     if(!el) return;
@@ -1791,26 +1883,21 @@ EQUIPMENT: must ${(ch.reqEquip||[]).join(", ")||"—"} · forbidden ${(ch.forbEq
 COURSE: ${courseLabel} | ${totT} min (prep ${prepT}, cook ${cookT})
 PANTRY ADD-ONS: ${pantryLines}
 
+${challengeIntentCoachBlock(ch.ctype)||""}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
-{"title":"","tagline":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":""}],"lastMinuteTip":"one sentence"}
+{"title":"","tagline":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":""}],"lastMinuteTip":"one sentence"}
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts.`;
     const data=await ai(prompt,4096);
     state.contestRecipe=data;
-    if(state.recipe){
-      try{
-        const sr=$("screen-recipe");
-        const onRecipeScreen=sr && !sr.classList.contains("hidden");
-        if(onRecipeScreen) showRecipeData(state.recipe);
-      }catch(err){
-        console.error("showRecipeData after contest",err);
-      }
-    }else{
-      renderBuild();
-    }
-    renderContestRecipeBox();
-    setContestStatus("Done — your plan is below.","#15803d");
+    showScreen("screen-build");
+    if(!state.recipe || !$("contest-recipe-inline")) renderBuild();
+    else renderContestRecipeBox();
+    setContestStatus("Done — opened your game plan.","#15803d");
+    openContestPlanModal(state.contestRecipe);
     const planBox=$("contest-recipe-inline");
-    if(planBox) planBox.scrollIntoView({behavior:"smooth",block:"nearest"});
+    if(planBox){
+      planBox.scrollIntoView({behavior:"smooth",block:"center"});
+    }
   }catch(e){
     console.error("Competition game plan",e);
     const msg=(e&&e.message)?String(e.message):String(e);
@@ -2314,6 +2401,21 @@ function courseIsDessert(ctype){
   return /\bdessert\b/i.test(String(ctype.label||""));
 }
 
+/** Eggs + soy proteins OK in sweet applications; meat/fish/shellfish read savory. */
+function isDessertBlockingSavoryProtein(name){
+  const n=String(name||"").toLowerCase();
+  if(/\b(egg|eggs)\b/.test(n)) return false;
+  if(/\b(tofu|tempeh|seitan)\b/.test(n)) return false;
+  return classifyRequiredBucket(name)==="protein";
+}
+
+/** Ingredients that break dessert identity even with “dessert” technique. */
+function isDessertSpoilerIngredient(name){
+  if(isDessertBlockingSavoryProtein(name)) return true;
+  if(/\bnutritional yeast\b/i.test(String(name||""))) return true;
+  return false;
+}
+
 function classifyRequiredBasketType(name){
   const b=classifyRequiredBucket(name);
   if(b==="wildcard") return "wildcard";
@@ -2424,7 +2526,11 @@ function pickLeastUsefulIndexForCourse(req, ctype){
   const scored=(req||[]).map((name,i)=>({i,name,meta:getIngredientCompatibilityMeta(name),bucket:classifyRequiredBucket(name)}));
   if(!scored.length) return 0;
   if(courseIsDessert(ctype)){
-    scored.sort((a,b)=>a.meta.dessertCompatibility-b.meta.dessertCompatibility);
+    scored.sort((a,b)=>{
+      const sa=isDessertSpoilerIngredient(a.name)?0:1, sb=isDessertSpoilerIngredient(b.name)?0:1;
+      if(sa!==sb) return sa-sb;
+      return a.meta.dessertCompatibility-b.meta.dessertCompatibility;
+    });
     return scored[0].i;
   }
   const rank=x=>{
@@ -2453,8 +2559,10 @@ function ensureCourseBasketViability(req, ctype, diffKey, pool, restrictions, ch
   const tries=viabilitySwapAttempts(diffKey,chaos,ctype);
   for(let t=0;t<tries;t++){
     let needFix=false;
-    if(courseIsDessert(ctype)&&!dessertBasketHasPath(out,restrictions)) needFix=true;
-    if(!courseIsDessert(ctype)&&!savoryBasketHasPath(out)) needFix=true;
+    if(courseIsDessert(ctype)){
+      if(!dessertBasketHasPath(out,restrictions)) needFix=true;
+      if(out.some(isDessertSpoilerIngredient)) needFix=true;
+    }else if(!savoryBasketHasPath(out)) needFix=true;
     if(!needFix) break;
     const spare=filt.filter(x=>!out.includes(x));
     const anchor=courseIsDessert(ctype)
@@ -2477,6 +2585,11 @@ function pickRequiredPattern(pool,count,resList){
   }
   const by={protein:[],produce:[],wildcard:[],flavor:[]};
   uniq.forEach(n=>by[classifyRequiredBucket(n)].push(n));
+  if(courseIsDessert(state.ctype)){
+    by.protein=by.protein.filter(n=>!isDessertBlockingSavoryProtein(n));
+    by.flavor=by.flavor.filter(n=>!isDessertSpoilerIngredient(n));
+    by.produce=by.produce.filter(n=>!isDessertSpoilerIngredient(n));
+  }
   const ordered=count>=4?["protein","produce","wildcard","flavor"]:count===3?["protein","produce","flavor"]:["protein","produce"];
   const out=[];
   const pickOne=(k)=>{
@@ -2648,7 +2761,8 @@ function doRandomize(){
   state.spinConstraints=sanitizeSpinConstraints(draw.spinConstraints);
   state.res=sanitizeRestrictionList(draw.restrictions);
   state.forbEq=draw.forbEquip;
-  state.lim=d.burners;state.cut=d.cut;
+  state.lim=false;
+  state.cut=d.cut;
   const allTypes=[...CTYPES,...state.customTypes];
   state.ctype=allTypes[Math.floor(Math.random()*allTypes.length)];
   state.req=pickRequiredPattern(pool,d.req,state.res);
