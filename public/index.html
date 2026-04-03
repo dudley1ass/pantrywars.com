@@ -751,6 +751,13 @@ const btn=(text,bg,fg="#fff",extra={},onClick)=>{
 const showScreen = id => {
   ["screen-landing","screen-pantry","screen-build","screen-recipe","screen-active","screen-score"].forEach(s=>$(s).classList.add("hidden"));
   $(id).classList.remove("hidden");
+  // Keep screen transitions predictable: always open at top.
+  try{
+    window.scrollTo(0,0);
+    if(document.scrollingElement) document.scrollingElement.scrollTop=0;
+    document.body.scrollTop=0;
+    document.documentElement.scrollTop=0;
+  }catch(_e){}
 };
 
 function renderLanding() {
@@ -2130,6 +2137,7 @@ ${res}
 ${fe} ${re} ${bl}
 
 ${restrictionHardPriorityBlock(ch)}
+${equipmentHardPriorityBlock(ch)}
 ${courseBlock}
 ${challengeIntentCoachBlock(ch.ctype)||""}
 ${flavorLeadershipBlock}
@@ -2202,10 +2210,11 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
       const prompt=promptCore+(regenNote?`\n\nREGENERATION REQUIRED: ${regenNote}`:"");
       data=await ai(prompt,8192,{ bypassDailyPrecheck:attempt>0, skipQuotaRecord:attempt>0 });
       const restrictionViol=getRecipeRestrictionViolations(data,ch.restrictions);
+      const equipmentViol=getRecipeEquipmentViolations(data,ch);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(classicViol);
+      const viol=restrictionViol.concat(equipmentViol, classicViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance. For Recreate a Classic, transformation and classic-function mapping are mandatory; do not just substitute ingredients. Verify every ingredient line and every step "how".`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (including equipment rules). For Recreate a Classic, transformation and classic-function mapping are mandatory; do not just substitute ingredients. Verify every ingredient line and every step "how".`;
       if(attempt===maxAttempts-1) state.recipeRestrictionWarnings=viol;
     }
     state.recipe=data;
@@ -2317,6 +2326,7 @@ COURSE: ${courseLabel} | ${totT} min (prep ${prepT}, cook ${cookT})
 PANTRY ADD-ONS: ${pantryLines}
 
 ${restrictionHardPriorityBlock(ch)}
+${equipmentHardPriorityBlock(ch)}
 ${whiteChocolateHonestyBlock(ch.required)}
 ${courseEnforcementBlock(ch, analyzeBasketForRecipe(ch.required||[]))}
 ${challengeIntentCoachBlock(ch.ctype)||""}
@@ -2332,10 +2342,11 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
       const prompt=promptCore+(regenNote?`\n\nREGENERATION REQUIRED: ${regenNote}`:"");
       data=await ai(prompt,4096,{ bypassDailyPrecheck:att>0, skipQuotaRecord:att>0 });
       const restrictionViol=getRecipeRestrictionViolations(data,ch.restrictions);
+      const equipmentViol=getRecipeEquipmentViolations(data,ch);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(classicViol);
+      const viol=restrictionViol.concat(equipmentViol, classicViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance. For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (including equipment rules). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
       if(att===maxAttempts-1) state.contestRecipeRestrictionWarnings=viol;
     }
     state.contestRecipe=data;
@@ -2924,6 +2935,66 @@ function getRecipeRestrictionViolations(recipe, restrictions){
   return msgs;
 }
 
+function equipmentAliasRegex(name){
+  const n=String(name||"").toLowerCase();
+  if(n==="stovetop") return /\b(stovetop|range|burner|hob|cooktop|on\s+the\s+stove|over\s+medium\s+heat|over\s+high\s+heat|saut[eé]|skillet\s+over)\b/i;
+  if(n==="food processor") return /\b(food\s*processor|processor\s+bowl)\b/i;
+  if(n==="air fryer") return /\bair\s*fryer\b/i;
+  if(n==="instant pot") return /\binstant\s*pot|pressure\s*cooker\b/i;
+  if(n==="sheet pan") return /\bsheet\s*pan\b/i;
+  return new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s*")}\\b`,"i");
+}
+
+function mentionsEquipment(low, equipName){
+  const rx=equipmentAliasRegex(equipName);
+  return rx.test(String(low||""));
+}
+
+/** Equipment compliance gate: forbidden gear bans + must-use checks + practical stovetop exception logic. */
+function getRecipeEquipmentViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const clauses=String(low).split(/[.!?;\n]+/).map(s=>s.trim()).filter(Boolean);
+
+  // Forbidden equipment checks.
+  for(const raw of (ch.forbEquip||[])){
+    const eq=String(raw||"").trim();
+    if(!eq) continue;
+    const rx=equipmentAliasRegex(eq);
+    if(eq.toLowerCase()==="stovetop"){
+      const bad=clauses.find(c=>{
+        if(!rx.test(c)) return false;
+        // Allowed edge case: pan/skillet use explicitly tied to grill heat.
+        const grillCtx=/\b(grill|griddle|plancha|bbq)\b/.test(c);
+        const panCtx=/\b(pan|skillet|cast\s*iron)\b/.test(c);
+        return !(grillCtx&&panCtx);
+      });
+      if(bad) msgs.push(`Forbidden equipment: Stovetop appears in method text ("${bad.slice(0,120)}").`);
+      continue;
+    }
+    if(rx.test(low)) msgs.push(`Forbidden equipment: ${eq} appears in method text.`);
+  }
+
+  // Must-use equipment checks: require explicit mention in steps/prose.
+  for(const raw of (ch.reqEquip||[])){
+    const eq=String(raw||"").trim();
+    if(!eq) continue;
+    if(!mentionsEquipment(low, eq)){
+      msgs.push(`Must-use equipment missing: ${eq} is required but not clearly used in the written method.`);
+    }
+  }
+
+  // Optional one-burner guardrail language check.
+  if(ch.limitBurners){
+    if(/\b(two|2)\s+burners?\b|\bboth\s+burners?\b|\bsecond\s+burner\b|\banother\s+burner\b/i.test(low)){
+      msgs.push(`1 burner only: method text suggests multiple burners.`);
+    }
+  }
+
+  return msgs;
+}
+
 /** Recreate-a-Classic quality gate: reject "swap-only" outputs that miss classic function mapping. */
 function getRecreateClassicTransformationViolations(recipe, ch){
   const msgs=[];
@@ -2998,6 +3069,25 @@ ACTIVE RESTRICTIONS (fail closed):
     else s+=` — treat as strict; do not violate in any field.\n`;
   }
   s+=`SELF-CHECK: Output JSON must be restriction-clean on first save. Judges eliminate on rule breaks.\n`;
+  return s;
+}
+
+function equipmentHardPriorityBlock(ch){
+  const req=(ch&&ch.reqEquip)||[];
+  const forb=(ch&&ch.forbEquip)||[];
+  const oneBurner=!!(ch&&ch.limitBurners);
+  if(!req.length&&!forb.length&&!oneBurner) return "";
+  let s=`EQUIPMENT COMPLIANCE (hard rule):
+- Forbidden means forbidden in wording and method — do not mention or use banned tools/heat sources.
+- Must-use means explicit usage in the method; include the tool by name where used.
+`;
+  if(forb.length) s+=`- FORBIDDEN: ${forb.join(", ")}.\n`;
+  if(req.length) s+=`- MUST USE: ${req.join(", ")}.\n`;
+  if(oneBurner) s+=`- LIMIT: 1 burner only — avoid multi-burner choreography.\n`;
+  if(forb.some(x=>String(x).toLowerCase()==="stovetop")){
+    s+=`- Outside-the-box allowance: if Stovetop is forbidden, pan/skillet work is allowed ONLY when explicitly tied to an allowed non-stovetop heat source (e.g. cast-iron skillet on grill/plancha), never on a burner/range.\n`;
+  }
+  s+=`- Self-check before returning: ingredients, steps, and prose must all be equipment-compliant.\n`;
   return s;
 }
 
