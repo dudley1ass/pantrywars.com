@@ -2822,14 +2822,29 @@ function scrubComplianceFalsePositives(low){
     .replace(/\bcocoa\s+butter\b/gi," __cocoabutter__ ");
 }
 
+/** Strip disclaimers like "no butter" so compliance prose does not trip butter/ghee detectors. */
+function scrubNegatedButterGhee(low){
+  let s=String(low||"");
+  const reps=[
+    /\b(no|without|sans|avoid(?:ing|s)?|skip(?:ping)?|omit(?:ting)?|never|free\s+of|instead\s+of|not\s+using|contains\s+no|zero|don'?t\s+use|do\s+not\s+use|excluding|except\s+no)\s+brown\s+butter\b/gi,
+    /\b(no|without|sans|avoid(?:ing|s)?|skip(?:ping)?|omit(?:ting)?|never|free\s+of|instead\s+of|not\s+using|contains\s+no|zero|don'?t\s+use|do\s+not\s+use|excluding|except\s+no)\s+(butter|ghee)\b/gi,
+    /\b(butter|ghee|brown\s+butter)[\s-]*free\b/gi,
+    /\b(butter|ghee)\s+(omitted|avoided|excluded|not\s+used|not\s+included)\b/gi,
+  ];
+  for(const re of reps) s=s.replace(re," ");
+  return s;
+}
+
 function textSuggestsAnimalDairy(low){
-  const t=scrubComplianceFalsePositives(low);
+  let t=scrubComplianceFalsePositives(low);
+  t=scrubNegatedButterGhee(t);
   return /\b(heavy\s*cream|whipping\s*cream|double\s*cream|sour\s*cream|clotted\s*cream|cream\s*cheese|cr[eè]me\s*fra[iî]che|half\s*and\s*half|buttermilk|\bwhole\s*milk\b|\bskim\s*milk\b|condensed\s*milk|evaporated\s*milk|\bmilk\b|\bbutter\b|ghee|brown\s*butter|cheese\b|mozzarella|parmesan|parm\b|pecorino|ricotta|feta|halloumi|cheddar|brie|mascarpone|provolone|gruy[eè]re|paneer|yogurt|yoghurt|kefir|\bwhey\b|fromage|crema\b|\bdairy\b|\bcream\b)/i.test(t);
 }
 
 function textSuggestsButterFat(low){
-  const t=scrubComplianceFalsePositives(low);
-  return /\b(butter|ghee)\b/i.test(t);
+  let t=scrubComplianceFalsePositives(low);
+  t=scrubNegatedButterGhee(t);
+  return /\b(butter|ghee|brown\s+butter)\b/i.test(t);
 }
 
 /** Meat, seafood, and common animal-derived savory bases (stocks, demi, animal fats, fish/oyster sauce). */
@@ -2913,7 +2928,7 @@ ACTIVE RESTRICTIONS (fail closed):
     if(norm==="No Dairy")
       s+=` — BANNED everywhere: cow/goat milk, cream, half-and-half, butter, ghee, cheese, yogurt, whey, traditional dairy. OK if honestly named: coconut/soy/oat/cashew cream or milk, cashew "ricotta," cultured non-dairy yogurt — label them as non-dairy. Never write "heavy cream" or "finish with butter" under this rule.\n`;
     else if(norm==="No Butter")
-      s+=` — BANNED: butter, ghee, brown butter (including in prose).\n`;
+      s+=` — BANNED: butter, ghee, brown butter (including in prose). Do not name butter or ghee even to say you avoided them; describe fats as olive oil, neutral oil, etc.\n`;
     else if(norm==="Vegetarian")
       s+=` — BANNED: meat, poultry, fish, shellfish, gelatin, fish/oyster sauce, Worcestershire (fish-based), lard, chicken/beef/fish stock and bone broth — use vegetable stock, mushroom broth, or kombu.\n`;
     else if(norm==="Vegan")
