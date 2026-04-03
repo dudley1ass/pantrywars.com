@@ -934,7 +934,7 @@ function pwTrackDailyLimitHit(context) {
 function pwParamsBuilder() {
   return {
     difficulty: String(state.diff || "unknown"),
-    course_type: String((state.ctype && state.ctype.label) || "unknown"),
+    challenge_type: String((state.ctype && state.ctype.label) || "unknown"),
     basket_count: (state.req || []).length,
     restriction_count: (state.res || []).length,
   };
@@ -945,10 +945,20 @@ function pwParamsChallenge(ch) {
   if (!ch) return pwParamsBuilder();
   return {
     difficulty: String(ch.diff || "unknown"),
-    course_type: String((ch.ctype && ch.ctype.label) || "unknown"),
+    challenge_type: String((ch.ctype && ch.ctype.label) || "unknown"),
     basket_count: (ch.required || []).length,
     restriction_count: (ch.restrictions || []).length,
   };
+}
+
+function onBasketModified() {
+  trackPWEvent("basket_modified", pwParamsBuilder());
+}
+
+function onDifficultySelected(level) {
+  trackPWEvent("difficulty_selected", {
+    difficulty: String(level || "unknown"),
+  });
 }
 
 // ── AI CALL ───────────────────────────────────────────────────────────────────
@@ -1240,7 +1250,13 @@ function renderBuild() {
     const totalRestr=Math.max(Number(d.res)||0, Number(d.forb)||0);
     const b=el("button",{style:{flex:"1",minWidth:"80px",background:state.diff===k?"#1e293b":"#f8fafc",border:"2px solid "+(state.diff===k?"#6366f1":"#e2e8f0"),borderRadius:"10px",padding:"9px 6px",cursor:"pointer",textAlign:"center"}});
     b.innerHTML=`<div style="font-size:17px;margin-bottom:2px">${d.emoji}</div><div style="font-size:12px;font-weight:800;color:${state.diff===k?"#fff":"#0f172a"}">${d.label}</div><div style="font-size:10px;color:#94a3b8">${d.req} must-use · ${totalRestr} restriction</div>`;
-    b.addEventListener("click",()=>{state.diff=k;state.mysterySpinLocked=false;state.lim=false;renderBuild();});
+    b.addEventListener("click",()=>{
+      state.diff=k;
+      state.mysterySpinLocked=false;
+      state.lim=false;
+      onDifficultySelected(k);
+      renderBuild();
+    });
     drow.appendChild(b);
   });
   diffCard.appendChild(drow);
@@ -1298,7 +1314,12 @@ function renderBuild() {
     const on=state.res.includes(r);
     const b=el("button",{style:{background:on?"#fef2f2":"#f8fafc",border:"2px solid "+(on?"#fca5a5":"#e2e8f0"),borderRadius:"6px",padding:"3px 7px",fontSize:"11px",cursor:"pointer",color:on?"#b91c1c":"#475569",fontWeight:on?"700":"500"}});
     b.textContent=(on?"X ":"")+r;
-    b.addEventListener("click",()=>{state.res=on?state.res.filter(x=>x!==r):[...state.res,r];pruneConflictingReq(cfg);renderBuild();});
+    b.addEventListener("click",()=>{
+      state.res=on?state.res.filter(x=>x!==r):[...state.res,r];
+      pruneConflictingReq(cfg);
+      onBasketModified();
+      renderBuild();
+    });
     resChips.appendChild(b);
   });
   resCard.appendChild(resChips);
@@ -1352,7 +1373,12 @@ function renderBuild() {
     ch.textContent=r;
     ch.setAttribute("title",mysteryBasketIngTitleAttr(r));
     const x=el("button",{style:{background:"none",border:"none",color:"#818cf8",cursor:"pointer",fontSize:"12px",padding:"0",lineHeight:"1",marginLeft:"2px"}});x.textContent="×";
-    x.addEventListener("click",ev=>{ev.stopPropagation();state.req=state.req.filter(i=>i!==r);renderBuild();});
+    x.addEventListener("click",ev=>{
+      ev.stopPropagation();
+      state.req=state.req.filter(i=>i!==r);
+      onBasketModified();
+      renderBuild();
+    });
     ch.appendChild(x);wrap.appendChild(ch);
     const tipHtml=mysteryBasketIngTooltipHtml(r);
     if(tipHtml) wrap.insertAdjacentHTML("beforeend",tipHtml);
@@ -1368,7 +1394,9 @@ function renderBuild() {
         alert(`"${p}" conflicts with: ${bad.join(", ")}`);
         return;
       }
-      state.req.push(p);renderBuild();
+      state.req.push(p);
+      onBasketModified();
+      renderBuild();
     });
     pantryScroll.appendChild(b);
   });
@@ -1485,7 +1513,7 @@ function openBattleScorecards() {
   syncUserCookPlanFromDom();
   if(!userPlanFilled()){alert("Fill in Your battle plan (dish, techniques, or timing) — then run Battle.");return;}
   if(!state.recipe){alert("Wait for the rival chef to finish.");return;}
-  trackPWEvent("submit_battle_plan", pwParamsChallenge());
+  trackPWEvent("user_submission", pwParamsChallenge());
   resetDuelScores();
   showScreen("screen-score");renderScore();
   runAutoBattleScoring();
@@ -1560,7 +1588,7 @@ ${JSON.stringify({
   } finally{
     state.duelAutoScoring=false;
     const base=pwParamsChallenge();
-    trackPWEvent("battle_result_viewed", {
+    trackPWEvent("battle_completed", {
       ...base,
       score_total: calcTotal(state.scoresYou),
     });
@@ -2154,7 +2182,8 @@ balance.complete: single starch/body choice (or explain minor vs major); compone
 balance.richness: if any REQUIRED item is sugary/processed, concrete sweetness limits + residual-sugar realism (see BASKET IDENTITY).
 balance.texture: each texture choice tied to a reason; no orphan crunch layers.
 Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
-    const maxAttempts=(ch.restrictions&&ch.restrictions.length)?3:1;
+    const rSan=sanitizeRestrictionList(ch.restrictions||[]);
+    const maxAttempts=(ch.restrictions&&ch.restrictions.length)?(rSan.some(x=>normalizeRestrictionKey(x)==="Vegan")?4:3):1;
     let data=null;
     let regenNote="";
     state.recipeRestrictionWarnings=null;
@@ -2283,7 +2312,8 @@ ${courseRoleHierarchyBlock(ch)}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
 {"title":"","tagline":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":""}],"lastMinuteTip":"one sentence"}
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts. Self-check every ingredient and step before returning.`;
-    const maxAttempts=(ch.restrictions&&ch.restrictions.length)?3:1;
+    const rCoach=sanitizeRestrictionList(ch.restrictions||[]);
+    const maxAttempts=(ch.restrictions&&ch.restrictions.length)?(rCoach.some(x=>normalizeRestrictionKey(x)==="Vegan")?4:3):1;
     let data=null, regenNote="";
     for(let att=0; att<maxAttempts; att++){
       const prompt=promptCore+(regenNote?`\n\nREGENERATION REQUIRED: ${regenNote}`:"");
@@ -2644,7 +2674,7 @@ async function doModalLookup(){
 function doModalAdd(data){
   const t=state.modalType;
   if(t==="type"){const nt={id:"c"+Date.now(),label:data.label||data.name,emoji:data.emoji||"🍴",custom:true};state.customTypes.push(nt);state.ctype=nt;}
-  else if(t==="ingredient"){const n=data.name||data.label;if(n&&!state.req.includes(n)){if(ingredientConflictsWithAny(n,state.res)){alert("That ingredient conflicts with a restriction (e.g. dairy under No Dairy).");return;}state.req.push(n);}}
+  else if(t==="ingredient"){const n=data.name||data.label;if(n&&!state.req.includes(n)){if(ingredientConflictsWithAny(n,state.res)){alert("That ingredient conflicts with a restriction (e.g. dairy under No Dairy).");return;}state.req.push(n);onBasketModified();}}
   else if(t==="pantry_item"){
     const n=(data.name||data.label||"").trim();
     if(!n){closeModal();refreshAfterModalAdd();return;}
@@ -2663,7 +2693,7 @@ function doModalAdd(data){
   }
   else if(t==="restriction"){
     const n=normalizeRestrictionKey(data.label);
-    if(n&&!state.res.includes(n)){state.res=sanitizeRestrictionList([...state.res,n]);}
+    if(n&&!state.res.includes(n)){state.res=sanitizeRestrictionList([...state.res,n]);onBasketModified();}
     pruneConflictingReq(DIFF[state.diff]);
   }
   else if(t==="equipment"){const n=data.label;if(n&&!state.reqEq.includes(n))state.reqEq.push(n);}
@@ -2802,8 +2832,23 @@ function textSuggestsButterFat(low){
   return /\b(butter|ghee)\b/i.test(t);
 }
 
+/** Meat, seafood, and common animal-derived savory bases (stocks, demi, animal fats, fish/oyster sauce). */
+function textSuggestsAnimalFleshOrBroth(low){
+  const l=String(low||"").toLowerCase();
+  if(/\b(chicken|beef|pork|lamb|duck|turkey|goose|quail|venison|bison|veal|mutton|rabbit|bacon|pancetta|guanciale|prosciutto|salami|chorizo|andouille|kielbasa|sausage|mortadella|capicola|nduja|hot\s+dog|frankfurter|bratwurst|lard|tallow|suet|crackl(?:e|ing)s?|oxtail|brisket|short\s*rib|ribeye|offal|sweetbreads|foie|liver\b|ground\s+(beef|pork|lamb|turkey|chicken)|meatball|meat\s+loaf|carnitas|barbacoa)\b/i.test(l)) return true;
+  if(/\b(anchov|sardine|mackerel|salmon|tuna|cod|halibut|trout|bass|fish\b|fillet|sea\s+bass|shrimp|prawn|scallop|clam|mussel|oyster|crab|lobster|calamari|squid|octopus|eel|caviar|\broe\b|uni\b|surimi)\b/i.test(l)) return true;
+  if(/\b(chicken|beef|veal|fish|turkey|ham|shrimp|bone)\s+(stock|broth|broths|base|bases)\b/i.test(l)) return true;
+  if(/\bbone\s+broth\b/i.test(l)) return true;
+  if(/\b(fish|oyster)\s+sauce\b/i.test(l)) return true;
+  if(/\bworcestershire\b/i.test(l)) return true;
+  if(/\bdemi[\s-]?glace\b/i.test(l)) return true;
+  if(/\b(duck|chicken|bacon|pork)\s+fat\b/i.test(l)) return true;
+  if(/\b(beef|chicken|fish)\s+(bouillon|powder)\b/i.test(l)) return true;
+  if(/\b(gelatin|isinglass|rennet)\b/i.test(l)) return true;
+  return false;
+}
 function textSuggestsMeatOrFish(low){
-  return /\b(chicken|beef|pork|lamb|duck|turkey|bacon|prosciutto|pancetta|guanciale|anchovy|anchovies|sardine|salmon|tuna|cod|shrimp|prawn|crab|lobster|scallop|veal|oxtail|chorizo|sausage|ground\s+beef|steak|fish\s+sauce|oyster\s+sauce|worcestershire|gelatin\b)/i.test(low);
+  return textSuggestsAnimalFleshOrBroth(low);
 }
 
 /** Post-check AI output vs challenge restrictions; drives regen + UI warning. */
@@ -2833,12 +2878,12 @@ function getRecipeRestrictionViolations(recipe, restrictions){
       msgs.push(`${norm}: text still references animal dairy (milk, cream, butter, cheese, yogurt, etc.)`);
     else if(norm==="No Butter"&&textSuggestsButterFat(low))
       msgs.push(`${norm}: text still references butter or ghee`);
-    else if(norm==="Vegetarian"&&textSuggestsMeatOrFish(low))
-      msgs.push(`${norm}: text suggests meat, fish, shellfish, or common non-veg sauces`);
+    else if(norm==="Vegetarian"&&textSuggestsAnimalFleshOrBroth(low))
+      msgs.push(`${norm}: text suggests meat, fish, shellfish, or animal stock/fish sauce`);
     else if(norm==="Vegan"){
-      const veganHit=textSuggestsAnimalDairy(low)||textSuggestsButterFat(low)||textSuggestsMeatOrFish(low)
-        ||/\b(honey|bee\s*honey)\b/i.test(low)||/\b(eggs?|egg\s+yolk|mayo|mayonnaise)\b/i.test(low);
-      if(veganHit) msgs.push(`${norm}: non-vegan ingredient or wording detected (dairy, meat, honey, gelatin, egg, etc.)`);
+      const veganHit=textSuggestsAnimalDairy(low)||textSuggestsButterFat(low)||textSuggestsAnimalFleshOrBroth(low)
+        ||/\b(honey|bee\s*honey)\b/i.test(low)||/\b(eggs?|egg\s+yolk|egg\s+white|mayo|mayonnaise)\b/i.test(low);
+      if(veganHit) msgs.push(`${norm}: non-vegan wording detected (meat, seafood, dairy, egg, honey, animal stock/broth, fish sauce, gelatin, etc.)`);
     }
     else if(norm==="No Alcohol"&&/\b(wine|beer|rum|vodka|whiskey|whisky|bourbon|brandy|sake|liqueur|champagne|prosecco)\b/i.test(low)
       &&!/\b(alcohol-free|non-alcoholic|na beer)\b/i.test(low))
@@ -2870,9 +2915,9 @@ ACTIVE RESTRICTIONS (fail closed):
     else if(norm==="No Butter")
       s+=` — BANNED: butter, ghee, brown butter (including in prose).\n`;
     else if(norm==="Vegetarian")
-      s+=` — BANNED: meat, poultry, fish, shellfish, gelatin, fish sauce, Worcestershire (fish-based), lard — use veg substitutes and say so.\n`;
+      s+=` — BANNED: meat, poultry, fish, shellfish, gelatin, fish/oyster sauce, Worcestershire (fish-based), lard, chicken/beef/fish stock and bone broth — use vegetable stock, mushroom broth, or kombu.\n`;
     else if(norm==="Vegan")
-      s+=` — BANNED: all animal products (meat, fish, dairy, eggs, honey, gelatin, butter, milk chocolate). Use plant-only subs; verify labels mentally.\n`;
+      s+=` — BANNED: all animal products (meat, poultry, fish, shellfish, dairy, eggs, honey, gelatin, rennet, butter, milk chocolate, bonito, dashi with fish). NO chicken/beef/fish stock or bone broth — only veg stock, mushroom broth, kombu/dried mushroom, or water + aromatics. NO fish sauce, oyster sauce, Worcestershire (fish-based) unless you state an approved vegan brand and the brief allows that sauce. Do not “borrow” animal depth.\n`;
     else if(norm==="No Gluten")
       s+=` — BANNED: wheat flour, standard pasta/bread, barley, rye, typical soy sauce unless gluten-free stated — use GF pasta/flour/tamari when needed.\n`;
     else if(norm==="No Alcohol")
@@ -3059,7 +3104,25 @@ function pickDessertAnchorFromPool(candidates, restrictions){
   return ok[randomIndex(ok.length)];
 }
 
-function pickSavoryAnchorFromPool(candidates){
+/** Vegan baskets: diversify plant proteins — deprioritize tempeh and avoid stacking tofu+tempeh+seitan when legumes/produce exist. */
+function pickPlantProteinForBasketSlot(avail, restrictions, alreadyPicked){
+  if(!avail||!avail.length) return null;
+  const r=sanitizeRestrictionList(restrictions||[]);
+  const vegan=r.some(x=>normalizeRestrictionKey(x)==="Vegan");
+  if(!vegan) return avail[randomIndex(avail.length)];
+  let pool=avail.slice();
+  const picked=alreadyPicked||[];
+  const hasSoy=picked.some(n=>/\b(tofu|tempeh|seitan)\b/i.test(String(n)));
+  if(hasSoy){
+    const noMoreSoy=pool.filter(n=>!/\b(tofu|tempeh|seitan)\b/i.test(String(n)));
+    if(noMoreSoy.length) pool=noMoreSoy;
+  }
+  const nonTempeh=pool.filter(n=>!/\btempeh\b/i.test(String(n)));
+  if(nonTempeh.length&&randomUnit()<0.82) return nonTempeh[randomIndex(nonTempeh.length)];
+  return pool[randomIndex(pool.length)];
+}
+
+function pickSavoryAnchorFromPool(candidates, restrictions, currentReq){
   if(!candidates||!candidates.length) return null;
   const ok=candidates.filter(n=>{
     const s=String(n||"");
@@ -3069,7 +3132,7 @@ function pickSavoryAnchorFromPool(candidates){
     return false;
   });
   if(!ok.length) return null;
-  return ok[randomIndex(ok.length)];
+  return pickPlantProteinForBasketSlot(ok, restrictions, currentReq||[]);
 }
 
 function pickLeastUsefulIndexForCourse(req, ctype){
@@ -3117,7 +3180,7 @@ function ensureCourseBasketViability(req, ctype, diffKey, pool, restrictions, ch
     const spare=filt.filter(x=>!out.includes(x));
     const anchor=courseIsDessert(ctype)
       ?pickDessertAnchorFromPool(spare,restrictions)
-      :pickSavoryAnchorFromPool(spare);
+      :pickSavoryAnchorFromPool(spare,restrictions,out);
     if(!anchor) break;
     const replaceIdx=pickLeastUsefulIndexForCourse(out,ctype);
     out[replaceIdx]=anchor;
@@ -3152,13 +3215,33 @@ function pickRequiredPattern(pool,count,resList){
       });
       const pickPool=vegFruit.length?vegFruit:avail;
       out.push(pickPool[randomIndex(pickPool.length)]);
+    } else if(k==="protein"){
+      out.push(pickPlantProteinForBasketSlot(avail,r,out));
     } else {
       out.push(avail[randomIndex(avail.length)]);
     }
   };
   ordered.forEach(k=>pickOne(k));
   const leftovers=shuffleArray(uniq.filter(x=>!out.includes(x)));
-  while(out.length<count&&leftovers.length) out.push(leftovers.splice(randomIndex(leftovers.length),1)[0]);
+  const veganSpin=sanitizeRestrictionList(r||[]).some(x=>normalizeRestrictionKey(x)==="Vegan");
+  while(out.length<count&&leftovers.length){
+    if(veganSpin){
+      const hasSoy=out.some(n=>/\b(tofu|tempeh|seitan)\b/i.test(String(n)));
+      let pool=leftovers.filter(x=>!out.includes(x));
+      if(hasSoy){
+        const noSoy=pool.filter(n=>!/\b(tofu|tempeh|seitan)\b/i.test(String(n)));
+        if(noSoy.length) pool=noSoy;
+      }
+      const nonTem=pool.filter(n=>!/\btempeh\b/i.test(String(n)));
+      if(nonTem.length&&randomUnit()<0.75) pool=nonTem;
+      const pick=pool[randomIndex(pool.length)];
+      const ix=leftovers.indexOf(pick);
+      if(ix>=0) leftovers.splice(ix,1);
+      out.push(pick);
+    }else{
+      out.push(leftovers.splice(randomIndex(leftovers.length),1)[0]);
+    }
+  }
   return out.slice(0,count);
 }
 
@@ -3321,7 +3404,7 @@ function runMysteryRandomize(){
     const bar=host.querySelector(".basket-spin-h span:last-child");
     if(bar) bar.textContent=cfg.label+" · locked in";
     state.mysterySpinLocked=true;
-    trackPWEvent("spin_basket", pwParamsBuilder());
+    trackPWEvent("basket_generated", pwParamsBuilder());
     renderBuild();
   }
   try{
