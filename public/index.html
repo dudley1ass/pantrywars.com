@@ -961,6 +961,10 @@ function onDifficultySelected(level) {
   });
 }
 
+function onPlayAgain() {
+  trackPWEvent("play_again");
+}
+
 // ── AI CALL ───────────────────────────────────────────────────────────────────
 /** opts.bypassDailyPrecheck — internal retries after a successful parse (same user action). opts.skipQuotaRecord — do not increment daily AI count (pair with bypass for regen attempts). */
 async function ai(prompt, tokens=300, opts) {
@@ -1867,6 +1871,7 @@ RECREATE A CLASSIC — JUDGING LENS:
 - Penalize plans that never state a specific classic (fish and chips, chicken parmesan, etc.) or hide behind region/style words only.
 - Reward basket-smart swaps that a judge still reads as "that's X with Y substituted," not a different dish.
 - Creativity points when it serves recognition of the named classic — not when it becomes an unrelated original.
+- Penalize "swap-only" logic: require clear functional mapping (what replaces gravy/body/umami/acid roles) so the dish tastes like the classic, not a sweet or random variation.
 - If restrictions forbid dairy/meat/etc., penalize heavily for smuggling forbidden ingredients — authenticity of the classic never overrides posted rules.`;
 }
 
@@ -1935,6 +1940,11 @@ function courseEnforcementBlock(ch, sig) {
 - You MUST name that dish early and plainly: in title OR tagline OR the very first clause of balance.basket (e.g. "Classic: fish and chips — …", "Homage to chicken parm — …", "Cassoulet from the basket — …").
 - BANNED as sole story: vague regional vibes, "chef's original," or polished comp plate with NO named classic. If a judge asks "what classic is this?" and the answer isn't one dish name, the brief is missed.
 - REQUIRED: balance.basket must (1) name the classic, (2) say in one sentence how the basket substitutes or twists tradition without erasing recognition, (3) cite one concrete technique or flavor lineage tied to that classic (sauce style, breading method, braise architecture — not marketing words).
+- TRANSFORM, DON'T JUST SUBSTITUTE: for each major classic component, explain its FUNCTION and your basket-based equivalent:
+  • classic_component (e.g. brown gravy, cutlet crust, tomato-cheese cap)
+  • required_function (savory depth, body, acidity lift, melt, crunch)
+  • basket_strategy (which required items do that function)
+  • why_it_still_reads_classic (one short line)
 - The basket ingredients bend the challenge; they do not cancel it. Prefer "classic X with basket-forced swaps" over abandoning the classic for random fusion.
 - CLASSIC SHAPE (avoid "reinterpretation" drift): Stay close to what diners recognize — e.g. eggplant or chicken Parm = breaded cutlet + marinara + melted cheese layer stack as the hero; pasta is optional side only, not a separate pasta-first entrée with guest cutlet. Extra chef swirls (tahini cream, white chocolate, many finisher sauces) only when the basket forces them — otherwise keep moves legible and few.
 - RESTRICTIONS TRUMP TWISTS: If Vegetarian / No Dairy / Vegan applies, every ingredient and technique must be legal — no heavy cream, no parmesan sneak, no "classic needs it" excuses. Use honest subs (cashew béchamel, vegan mozzarella, nutritional yeast) and name them.
@@ -2177,6 +2187,7 @@ ${recreateJsonRule}${elevateJsonRule}${snackJsonRule}
 JSON keys (fill all):
 {"title":"","tagline":"","serves":"2","balance":{"flavor":"","basket":"","texture":"","richness":"","visual":"","complete":""},"ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"time":"0:00","dur":"","phase":"PREP","what":"","how":""}],"plating":"","tip":""}
 balance.basket: If RECREATE A CLASSIC rules apply, sentence 1 must name the classic. If ELEVATE A CHEAP MEAL rules apply, sentence 1 MUST be "Cheap baseline: … — …" and you MUST include how the plate still reads as that baseline (see elevate brief lock — "Still reads as: …"). If SNACK rules apply, include early the bite/handheld format and confirm protein is not a full portion. Otherwise sentence 1 = chosen flavor direction / dish lane (the “best dish” you committed to). Then — stars vs hides; for EACH required item tag PRIMARY FOUNDATION / SUPPORTING / ACCENT / MINIMAL-USE (or PRIMARY/ACCENT/SUPPORT per ROLE HIERARCHY), consistent with CHEF PROCESS above. If something is store-bought or messy, say you're using THAT item, not a posh substitute.
+${challengeTypeIsRecreateClassic(ch.ctype)?"For RECREATE A CLASSIC, append 2-4 concise function-mapping clauses in balance.basket using this pattern: [classic component] -> [required function] -> [basket ingredient strategy] -> [why it still reads classic]. Avoid generic 'swap X for Y' phrasing.":""}
 balance.flavor: name sweet drivers (fruit, beer malt, honey, etc.) and confirm you did not stack them blindly — one clear sweet spine max unless you explain the counterweight.
 balance.complete: single starch/body choice (or explain minor vs major); component count vs ${maxComponents}; timing honesty for ${ch.totalTime} min; optional "purer plate" omission; flag dual-base or gumminess risks if you bent the rule.${challengeTypeIsElevateCheap(ch.ctype)?" For ELEVATE: add one short phrase on transformation (how the judge still sees the cheap baseline — not a new dish).":""}
 balance.richness: if any REQUIRED item is sugary/processed, concrete sweetness limits + residual-sugar realism (see BASKET IDENTITY).
@@ -2190,9 +2201,11 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     for(let attempt=0; attempt<maxAttempts; attempt++){
       const prompt=promptCore+(regenNote?`\n\nREGENERATION REQUIRED: ${regenNote}`:"");
       data=await ai(prompt,8192,{ bypassDailyPrecheck:attempt>0, skipQuotaRecord:attempt>0 });
-      const viol=getRecipeRestrictionViolations(data,ch.restrictions);
+      const restrictionViol=getRecipeRestrictionViolations(data,ch.restrictions);
+      const classicViol=getRecreateClassicTransformationViolations(data,ch);
+      const viol=restrictionViol.concat(classicViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed restriction check: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance. Rules outrank flavor, "classic" craving, and creativity. Verify every ingredient line and every step "how".`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance. For Recreate a Classic, transformation and classic-function mapping are mandatory; do not just substitute ingredients. Verify every ingredient line and every step "how".`;
       if(attempt===maxAttempts-1) state.recipeRestrictionWarnings=viol;
     }
     state.recipe=data;
@@ -2318,9 +2331,11 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
     for(let att=0; att<maxAttempts; att++){
       const prompt=promptCore+(regenNote?`\n\nREGENERATION REQUIRED: ${regenNote}`:"");
       data=await ai(prompt,4096,{ bypassDailyPrecheck:att>0, skipQuotaRecord:att>0 });
-      const viol=getRecipeRestrictionViolations(data,ch.restrictions);
+      const restrictionViol=getRecipeRestrictionViolations(data,ch.restrictions);
+      const classicViol=getRecreateClassicTransformationViolations(data,ch);
+      const viol=restrictionViol.concat(classicViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed restriction check: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance. Rules outrank flavor and authenticity claims.`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance. For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
       if(att===maxAttempts-1) state.contestRecipeRestrictionWarnings=viol;
     }
     state.contestRecipe=data;
@@ -2592,7 +2607,7 @@ function submitScore(){
         </div>
         <div style="font-size:12px;color:#94a3b8;margin-bottom:12px">${(state.challenge.ctype&&state.challenge.ctype.emoji)?state.challenge.ctype.emoji+" ":""}${escapeHtml((state.challenge.ctype&&state.challenge.ctype.label)||"—")} · ${escapeHtml(String(state.challenge.diff||"").toUpperCase())} · ${Number(state.challenge.totalTime)||0} min</div>
         ${notes?`<div style="background:#f8fafc;border-radius:8px;padding:10px;font-size:12px;color:#334155;text-align:left;margin-bottom:14px">${escapeHtml(notes)}</div>`:""}
-        <button onclick="resetDuelScores();showScreen('screen-pantry');renderPantry();" style="width:100%;padding:12px;font-size:13px;font-weight:800;border-radius:10px;background:#6366f1;color:#fff;border:none;cursor:pointer;margin-bottom:8px">Pantry Wars — Play again</button>
+        <button onclick="onPlayAgain();resetDuelScores();showScreen('screen-pantry');renderPantry();" style="width:100%;padding:12px;font-size:13px;font-weight:800;border-radius:10px;background:#6366f1;color:#fff;border:none;cursor:pointer;margin-bottom:8px">Pantry Wars — Play again</button>
         <button onclick="resetDuelScores();renderLanding();" style="width:100%;padding:10px;font-size:12px;font-weight:700;border-radius:10px;background:#f1f5f9;color:#475569;border:2px solid #e2e8f0;cursor:pointer">Home</button>
       </div>
     </div>`;
@@ -2906,6 +2921,47 @@ function getRecipeRestrictionViolations(recipe, restrictions){
     else if(norm==="No Nuts"&&/\b(almond|cashew|pistachio|pecan|walnut|hazelnut|pine\s*nut|pesto|peanut)\b/i.test(low))
       msgs.push(`${norm}: mentions nuts or peanut`);
   }
+  return msgs;
+}
+
+/** Recreate-a-Classic quality gate: reject "swap-only" outputs that miss classic function mapping. */
+function getRecreateClassicTransformationViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch||!challengeTypeIsRecreateClassic(ch.ctype)) return msgs;
+
+  const title=String(recipe.title||"");
+  const tagline=String(recipe.tagline||"");
+  const basketLine=String((recipe.balance&&recipe.balance.basket)||"");
+  const flavorLine=String((recipe.balance&&recipe.balance.flavor)||"");
+  const lowBlob=recipeFlattenTextForCompliance(recipe);
+  const low=(lowBlob||"").toLowerCase();
+  const head=(title+" "+tagline).toLowerCase();
+  const basketLow=basketLine.toLowerCase();
+
+  // Broad but practical classic dish-name detector.
+  const classicNameRx=/\b(fish and chips|chicken parmesan|chicken parm(?:igiana)?|eggplant parmesan|eggplant parm(?:igiana)?|salisbury steak|meatloaf|beef stroganoff|shepherd'?s pie|cottage pie|coq au vin|beef bourguignon|steak frites|shrimp scampi|sole meuni[eè]re|lobster thermidor|cioppino|bouillabaisse|spaghetti (?:and )?meatballs|carbonara|cacio e pepe|lasagna|bolognese|alfredo|pasta primavera|risotto milanese|mac (?:and|&) cheese|fried chicken|chicken pot pie|biscuits and gravy|cheeseburger|club sandwich|pad thai|fried rice|ramen|pho|shawarma|falafel|gyro|eggs benedict|french toast|pancakes|omelette|huevos rancheros)\b/i;
+  const hasNamedClassic=classicNameRx.test(head)||classicNameRx.test(basketLine);
+  if(!hasNamedClassic){
+    msgs.push(`Recreate brief: title/tagline/balance.basket must name one specific classic dish (menu-level name), not just style vibes.`);
+  }
+
+  // Require explicit function mapping language, not only ingredient swapping.
+  const functionMapRx=/\b(function|role|acts as|serves as|mimic|mimics|mimicking|stand[-\s]?in|replaces?|still reads as|classic (?:structure|architecture)|umami depth|brown gravy|savory depth)\b/i;
+  const lineageRx=/\b(gravy|pan sauce|roux|reduction|braise|batter|breading|cutlet|rag[uù]|marinara|bechamel|bechamel|au jus|demi|fond)\b/i;
+  if(!(functionMapRx.test(basketLine)||functionMapRx.test(flavorLine))||!lineageRx.test(low)){
+    msgs.push(`Recreate brief: explain how basket ingredients preserve classic FUNCTION (not just substitutions), and cite one concrete classic technique lineage.`);
+  }
+
+  // Savory classics should not drift sweet-forward unless explicitly counterbalanced.
+  const isDessertClassic=(String((ch.ctype&&ch.ctype.id)||"")==="dessert"||/\bdessert\b/.test(String((ch.ctype&&ch.ctype.label)||"").toLowerCase()));
+  if(!isDessertClassic){
+    const sweetLean=/\b(maple|honey|sweet|syrup|gastrique|glaze)\b/i.test(low);
+    const savoryCounter=/\b(umami|savory|gravy|fond|browned|maillard|allium|stock|reduction|acid balance|vinegar balance|peppery|salty)\b/i.test(low);
+    if(sweetLean&&!savoryCounter){
+      msgs.push(`Recreate brief: flavor read drifts sweet without a clear savory-depth counterweight expected by the named classic.`);
+    }
+  }
+
   return msgs;
 }
 
@@ -3289,19 +3345,30 @@ function mysteryBasketIngTooltipHtml(name){
   return `<div class="pw-pantry-ing-tooltip" role="tooltip"><div class="pw-pantry-ing-tooltip-h">Flavor profile</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(flavorProfile)}</div><div class="pw-pantry-ing-tooltip-h" style="margin-top:8px">Cooking technique</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(technique)}</div></div>`;
 }
 
+/** Constraints shown in spinner/result: dietary + forbidden equip + must-use equip + burner lock. */
+function spinConstraintDisplayItems(){
+  const out=[...(state.spinConstraints||[])];
+  (state.reqEq||[]).forEach(e=>out.push("✓ "+e));
+  if(state.lim) out.push("1 burner only");
+  return out;
+}
+
 function mysterySpinResultPanelHtml(){
   const cfg=DIFF[state.diff];
   const need=cfg.req;
-  const nConstraints=Math.max(Number(cfg.res)||0, Number(cfg.forb)||0);
+  const constraints=spinConstraintDisplayItems();
+  const nConstraints=constraints.length;
   const parts=[];
   for(let i=0;i<need;i++){
     const name=state.req[i]||"—";
     parts.push(`<div class="basket-spin-cell pw-pantry-ing-tip-wrap"><span class="basket-spin-lbl">Must use ${i+1}</span><div class="rnd-slot rnd-done-ing basket-ing-hover" tabindex="0" title="${escapeHtml(mysteryBasketIngTitleAttr(name))}">${escapeHtml(name)}</div>${mysteryBasketIngTooltipHtml(name)}</div>`);
   }
   for(let j=0;j<nConstraints;j++){
-    const txt=state.spinConstraints[j]||"—";
+    const txt=constraints[j]||"—";
     const isForb=txt.startsWith("✕ ");
-    parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Restriction ${j+1}</span><div class="rnd-slot ${isForb?"rnd-done-forb":"rnd-done-res"}">${escapeHtml(txt)}</div></div>`);
+    const isReq=txt.startsWith("✓ ");
+    const slotCls=isForb?"rnd-done-forb":isReq?"rnd-done-ct":"rnd-done-res";
+    parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Rule ${j+1}</span><div class="rnd-slot ${slotCls}">${escapeHtml(txt)}</div></div>`);
   }
   parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">AI clock</span><div class="rnd-slot rnd-done-time">${Number(state.total)||30} min</div></div>`);
   const ct=`${state.ctype.emoji} ${state.ctype.label}`;
@@ -3319,13 +3386,23 @@ function runMysteryRandomize(){
   state.mysterySpinLocked=false;
   const pool=(window.USER_PANTRY&&window.USER_PANTRY.length)?window.USER_PANTRY:PANTRY;
   const cfg=DIFF[state.diff];
+  try{
+    doRandomize();
+  }catch(err){
+    console.error("Mystery basket spin failed", err);
+    state.mysterySpinLocked=false;
+    alert("Mystery basket hit an error: "+(err&&err.message?err.message:String(err)));
+    renderBuild();
+    return;
+  }
   const need=cfg.req;
-  const nConstraints=Math.max(Number(cfg.res)||0, Number(cfg.forb)||0);
+  const constraints=spinConstraintDisplayItems();
+  const nConstraints=constraints.length;
   const ctypePool=[...CTYPES,...state.customTypes];
   const totalSlots=need+nConstraints+2;
   const slotMeta=[];
   for(let i=0;i<need;i++) slotMeta.push({kind:"ing",lbl:"Must use "+(i+1)});
-  for(let j=0;j<nConstraints;j++) slotMeta.push({kind:"con",lbl:"Restriction "+(j+1)});
+  for(let j=0;j<nConstraints;j++) slotMeta.push({kind:"con",lbl:"Rule "+(j+1)});
   slotMeta.push({kind:"time",lbl:"AI clock"});
   slotMeta.push({kind:"ct",lbl:"Challenge"});
   const cells=slotMeta.map((m,i)=>{
@@ -3361,10 +3438,10 @@ function runMysteryRandomize(){
       const k=slotMeta[idx].kind;
       if(k==="ing") s.textContent=pool[randomIndex(pool.length)];
       else if(k==="con"){
-        const preview=randomUnit()<0.5;
-        s.textContent=preview
-          ? RESTRICT[randomIndex(RESTRICT.length)]
-          : "✕ "+EQUIP[randomIndex(EQUIP.length)];
+        const r=randomUnit();
+        if(r<0.45) s.textContent=RESTRICT[randomIndex(RESTRICT.length)];
+        else if(r<0.85) s.textContent="✕ "+EQUIP[randomIndex(EQUIP.length)];
+        else s.textContent="✓ "+EQUIP[randomIndex(EQUIP.length)];
       }
       else if(k==="time") s.textContent=String(SPIN_AI_TIMES[randomIndex(SPIN_AI_TIMES.length)])+" min";
       else { const ct=ctypePool[randomIndex(ctypePool.length)]; s.textContent=ct.emoji+" "+ct.label; }
@@ -3403,9 +3480,11 @@ function runMysteryRandomize(){
         s.removeAttribute("tabindex");
       }
     }else if(k==="con"){
-      const txt=state.spinConstraints[idx-need]||"—";
+      const txt=constraints[idx-need]||"—";
       s.textContent=txt;
-      s.classList.add(txt.startsWith("✕ ")?"rnd-done-forb":"rnd-done-res");
+      if(txt.startsWith("✕ ")) s.classList.add("rnd-done-forb");
+      else if(txt.startsWith("✓ ")) s.classList.add("rnd-done-ct");
+      else s.classList.add("rnd-done-res");
     }else if(k==="time"){
       s.textContent=(Number(state.total)||0)+" min";
       s.classList.add("rnd-done-time");
@@ -3421,15 +3500,6 @@ function runMysteryRandomize(){
     state.mysterySpinLocked=true;
     trackPWEvent("basket_generated", pwParamsBuilder());
     renderBuild();
-  }
-  try{
-    doRandomize();
-  }catch(err){
-    console.error("Mystery basket spin failed", err);
-    state.mysterySpinLocked=false;
-    alert("Mystery basket hit an error: "+(err&&err.message?err.message:String(err)));
-    renderBuild();
-    return;
   }
   let ticks=0;
   const iv=setInterval(()=>{
