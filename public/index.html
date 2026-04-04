@@ -339,7 +339,7 @@ const FULL_PANTRY = [
   {id:57, name:"Sesame Oil",          cat:"Oils & Vinegars",         flavor:["umami","bitter"],       texture:[],                   richness:"rich",   acidity:"none", intensity:"strong", notes:"Finishing oil ONLY — burns and turns bitter over direct heat."},
   {id:58, name:"Sriracha",            cat:"Oils & Vinegars",         flavor:["sweet","sour","bitter"],texture:[],                   richness:"lean",   acidity:"mild", intensity:"strong", notes:"Garlic-forward sweet heat. Mix with mayo for aioli."},
   {id:59, name:"Smoked Paprika",      cat:"Spices & Herbs",          flavor:["sweet","bitter"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"Blooming in oil 30 sec amplifies smokiness dramatically."},
-  {id:60, name:"Cumin",               cat:"Spices & Herbs",          flavor:["bitter","umami"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"Toast whole in dry pan 60 sec before grinding — game changer."},
+  {id:60, name:"Cumin",               cat:"Spices & Herbs",          flavor:["bitter","umami"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"Toast whole in dry pan 60 sec before grinding — game changer.",cookSheet:"Toast/bloom in oil 30–60 s before liquid; mix into sauce or rub on protein — sprinkle-only on a finished plate reads weak unless called micro-garnish."},
   {id:61, name:"Thyme",               cat:"Spices & Herbs",          flavor:["bitter","umami"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"Strip leaves from woody stem. Essential aromatic."},
   {id:62, name:"Basil",               cat:"Spices & Herbs",          flavor:["sweet","bitter"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"medium", notes:"Tear or chiffonade at last second. Loses aroma when cooked."},
   {id:63, name:"Rosemary",            cat:"Spices & Herbs",          flavor:["bitter","umami"],       texture:[],                   richness:"lean",   acidity:"none", intensity:"strong", notes:"Very strong — use sparingly. Infuse in oil."},
@@ -431,7 +431,7 @@ const FULL_PANTRY = [
   {id:149,name:"Ribeye Steak",        cat:"Proteins",                flavor:["rich","beefy"],        texture:["juicy","tender"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Hot sear; rest; fat cap flavor."},
   {id:150,name:"Flank Steak",         cat:"Proteins",                flavor:["beefy","minerally"],    texture:["firm","fibrous"],    richness:"medium", acidity:"none", intensity:"strong", notes:"Slice across grain; marinade helps."},
   {id:151,name:"Skirt Steak",         cat:"Proteins",                flavor:["beefy","minerally"],    texture:["loose","juicy"],     richness:"medium", acidity:"none", intensity:"strong", notes:"High heat; rare; tacos."},
-  {id:152,name:"Brisket",             cat:"Proteins",                flavor:["beefy","smoky"],        texture:["tender","shreddy"],  richness:"rich",   acidity:"none", intensity:"strong", notes:"Smoke or braise; rest sliced.",cookSheet:"Smoke/braise many hours; pressure ~70–90 min for sliceable. Thin-slice hot for faster plates if pre-tender."},
+  {id:152,name:"Brisket",             cat:"Proteins",                flavor:["beefy","smoky"],        texture:["tender","shreddy"],  richness:"rich",   acidity:"none", intensity:"strong", notes:"Smoke or braise; rest sliced.",cookSheet:"Not a 5–10 min cut from raw — collagen needs hours open-pot, or pressure ~70–90 min, or use leftover/shredded/smoked brisket or paper-thin hot slices of pre-cooked meat. Raw cubes + short sear = tough."},
   {id:153,name:"Oxtail",              cat:"Proteins",                flavor:["rich","beefy"],        texture:["gelatinous","tender"], richness:"rich",   acidity:"none", intensity:"strong", notes:"Collagen-rich — classic stew needs long braise OR pressure cooker for a fast tender result; otherwise use as flavor accent / inspired-by plates on a short clock.",cookSheet:"Stew/braise 2½–4 hr stovetop; pressure ~40–55 min. Grill raw = chewy. Shred after pressure for tacos; grind raw not typical."},
   {id:154,name:"Halibut Fillet",      cat:"Proteins",                flavor:["mild","sweet"],         texture:["firm","flaky"],      richness:"lean",   acidity:"none", intensity:"mild",   notes:"Don’t overcook; brown butter capers."},
   {id:155,name:"Cod Fillet",          cat:"Proteins",                flavor:["mild","sweet"],         texture:["flaky","delicate"],  richness:"lean",   acidity:"none", intensity:"mild",   notes:"Fish and chips; gentle poach.",cookSheet:"Pan-fry 3–5 min/side; bake 10–14 min; poach 5–8 min. Flakes when done — easy to overcook."},
@@ -2003,6 +2003,7 @@ function noSaltRestrictionJudgeAddon(ch){
   return `
 NO SALT — JUDGING LENS:
 - Letter of rule: penalize explicit table salt, "salt to taste," or obvious salt-forward finishes. Stock, butter, cheese, soy, miso carry latent sodium — borderline acceptable if other rules allow; note risk if judges are strict.
+- Penalize plans that ignore the brief: no clear answer to "how did you solve NO SALT?" (acid, umami, char, reduction, honest latent sodium) — only fat/cream richness.
 - Reward plans that compensate with acid (citrus, vinegar), tomato or char for depth, bitter char on veg, and aggressive reduction — especially when maple/honey/sweet items are in play — so the dish does not read flat or dessert-sweet.
 - Call out when a plan leans on commercial stock/butter without acknowledging sodium tradeoffs under a strict read.`;
 }
@@ -2357,6 +2358,7 @@ ${classicArchetypeHardBlock()}`
 - Long pasta + pan sauce or gastrique: steps MUST include an emulsified pasta finish (reserve water + reduce + toss to glossy) when noodles are sauced — not only "toss spaghetti in sauce" with no starchy bind.
 - EMULSIONS: ingredients/steps must not label cream + acid alone as "mayonnaise" or "aioli" — use egg yolk, jarred mayo, or honest sauce name.
 - SANDWICH / TOAST FORMATS: ingredients must list baked bread or wrap — never flour by the slice.
+- BOXED MAC / CHEESE-SAUCE DISHES: still reads as mac — better sauce, cheese behavior, optional crust/broil finish, acid bump — not only "stir in brisket/protein" with bland cream. If the basket has dry spices, toast/bloom or integrate into the sauce — not garnish-only dust.
 - BANNED without explicit baseline tie: new foundations like quinoa/farro pilaf, "grain bowl" reboot, or center-plate protein + separate starch when baseline was sandwich/salad/ramen bowl/etc.
 - If REQUIRED items do not obviously imply one cheap dish, you MUST still commit to one plausible recognizable baseline — NOT a silent jump to restaurant risotto or luxury templates without naming the budget analogue.\n`
       :"";
@@ -2457,6 +2459,7 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     let maxAttempts=(ch.restrictions&&ch.restrictions.length)?(rSan.some(x=>normalizeRestrictionKey(x)==="Vegan")?4:3):1;
     if(challengeTypeIsRecreateClassic(ch.ctype)) maxAttempts=Math.max(maxAttempts,4);
     if(challengeTypeIsElevateCheap(ch.ctype)) maxAttempts=Math.max(maxAttempts,3);
+    if(rSan.some(x=>normalizeRestrictionKey(x)==="No Salt")) maxAttempts=Math.max(maxAttempts,3);
     let data=null;
     let regenNote="";
     state.recipeRestrictionWarnings=null;
@@ -2464,14 +2467,16 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
       const prompt=promptCore+(regenNote?`\n\nREGENERATION REQUIRED: ${regenNote}`:"");
       data=await ai(prompt,8192,{ bypassDailyPrecheck:attempt>0, skipQuotaRecord:attempt>0 });
       const restrictionViol=getRecipeRestrictionViolations(data,ch.restrictions);
+      const noSaltViol=getNoSaltCompensationViolations(data,ch.restrictions);
+      const brisketViol=getBrisketPhysicsViolations(data,ch);
       const equipmentViol=getRecipeEquipmentViolations(data,ch);
       const timelineViol=getRecipeTimelineViolations(data,ch);
       const formatViol=getRecipeFormatHonestyViolations(data);
       const kitchenViol=getKitchenScienceHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(equipmentViol, timelineViol, formatViol, kitchenViol, classicViol);
+      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, formatViol, kitchenViol, classicViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (equipment centrality, timeline, format honesty, kitchen science — real emulsion names, bread not flour slices, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy, brisket/collagen realism, equipment centrality, timeline, format honesty, kitchen science, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
       if(attempt===maxAttempts-1) state.recipeRestrictionWarnings=viol;
     }
     state.recipe=data;
@@ -2598,17 +2603,20 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
     let maxAttempts=(ch.restrictions&&ch.restrictions.length)?(rCoach.some(x=>normalizeRestrictionKey(x)==="Vegan")?4:3):1;
     if(challengeTypeIsRecreateClassic(ch.ctype)) maxAttempts=Math.max(maxAttempts,4);
     if(challengeTypeIsElevateCheap(ch.ctype)) maxAttempts=Math.max(maxAttempts,3);
+    if(rCoach.some(x=>normalizeRestrictionKey(x)==="No Salt")) maxAttempts=Math.max(maxAttempts,3);
     let data=null, regenNote="";
     for(let att=0; att<maxAttempts; att++){
       const prompt=promptCore+(regenNote?`\n\nREGENERATION REQUIRED: ${regenNote}`:"");
       data=await ai(prompt,4096,{ bypassDailyPrecheck:att>0, skipQuotaRecord:att>0 });
       const restrictionViol=getRecipeRestrictionViolations(data,ch.restrictions);
+      const noSaltViol=getNoSaltCompensationViolations(data,ch.restrictions);
+      const brisketViol=getBrisketPhysicsViolations(data,ch);
       const equipmentViol=getRecipeEquipmentViolations(data,ch);
       const timelineViol=getRecipeTimelineViolations(data,ch);
       const formatViol=getRecipeFormatHonestyViolations(data);
       const kitchenViol=getKitchenScienceHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(equipmentViol, timelineViol, formatViol, kitchenViol, classicViol);
+      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, formatViol, kitchenViol, classicViol);
       if(!viol.length) break;
       regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (equipment centrality, timeline, format honesty, kitchen science — real emulsion names, bread not flour slices). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
       if(att===maxAttempts-1) state.contestRecipeRestrictionWarnings=viol;
@@ -3183,6 +3191,36 @@ function getRecipeRestrictionViolations(recipe, restrictions){
   return msgs;
 }
 
+/** No Salt: judges expect an explicit flavor strategy, not only rich dairy. */
+function getNoSaltCompensationViolations(recipe, restrictions){
+  const msgs=[];
+  if(!recipe) return msgs;
+  const rlist=sanitizeRestrictionList(restrictions||[]);
+  if(!rlist.some(x=>normalizeRestrictionKey(x)==="No Salt")) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const strat=/\b(no\s+salt|salt[- ]?free|without\s+(added\s+)?salt|compensat|acid\s+balance|brighten|vinegar|citrus|lemon|lime|pickle|brine|capers?\b|ferment|umami|tomato\s+paste|charred|aggressive\s+reduction|low[\s-]?sodium|unsalted|sodium\s+from|latent\s+sodium)\b/i.test(low);
+  if(!strat) msgs.push(`No Salt: state how you build savor without added salt — acid (citrus/vinegar/pickles), umami you name honestly, char, reduction, herbs/spices integrated into the sauce — not only butter/cream richness.`);
+  return msgs;
+}
+
+/** Brisket on competition clocks: forbid fantasy quick-cook from raw. */
+function getBrisketPhysicsViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase());
+  if(!req.some(r=>/\bbrisket\b/.test(r))) return msgs;
+  const total=Math.max(1, Number(ch.totalTime)||30);
+  if(total>90) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const legit=/\b(pressure|instant\s*pot|pre[\s-]?cooked|leftover|smoked|already\s+tender|brais(ed|e)|hours|low\s+and\s+slow|shredded|pulled|prepared|deli|corned|pastrami|sous\s*vide)\b/i.test(low);
+  if(legit) return msgs;
+  const rawCube=/\b(raw\s+)?brisket\s+(cubes?|dice|chunks?|pieces)\b|\b(cubes?|dice)\s+of\s+brisket\b/i.test(low);
+  const quickCook=/\b(sear|saut|simmer|cook|brown)\b[^.]{0,120}\bbrisket[^.]{0,140}?\b([1-9]|1[0-9]|20)\s*(?:min|minutes)\b/i.test(low)
+    ||/\bbrisket[^.]{0,140}?\b(sear|saut|simmer|cook|brown)\b[^.]{0,120}?\b([1-9]|1[0-9]|20)\s*(?:min|minutes)\b/i.test(low);
+  if(rawCube||quickCook) msgs.push(`Physics: brisket will not tenderize from raw in a few minutes on a ~${total} min clock — use pressure (if allowed), leftover/shredded/smoked brisket, or honest longer braise; not raw cubes + short sear.`);
+  return msgs;
+}
+
 function equipmentAliasRegex(name){
   const n=String(name||"").toLowerCase();
   if(n==="stovetop") return /\b(stovetop|range|burner|hob|cooktop|on\s+the\s+stove|over\s+medium\s+heat|over\s+high\s+heat|saut[eé]|skillet\s+over)\b/i;
@@ -3360,7 +3398,13 @@ function getRecipeEquipmentCentralityViolations(recipe, ch){
       else if(/instant\s*pot|pressure/i.test(en)) ok=/\b(instant\s*pot|pressure\s*cook)\b/i.test(blob);
       else if(/^oven$/i.test(en)) ok=/\b(oven|bake|roast)\b/i.test(blob);
       else if(/sheet\s*pan/i.test(en)) ok=/COOK|SAUCE|PREP/.test(ph)&&/\b(sheet\s*pan|sheetpan|tray)\b/i.test(blob)&&/\b(roast|bake|sheet)\b/i.test(blob);
-      else if(/cast\s*iron|wok/i.test(en)) ok=/COOK|SAUCE/.test(ph)&&/\b(sear|saut[eé]|braise|brown|simmer|reduce|deglaze|fond|toast|char|caramel|pan\s+sauce)\b/i.test(blob);
+      else if(/cast\s*iron/i.test(en)){
+        const fullSteps=steps.map(st=>String(st.what||"")+" "+String(st.how||"")).join(" ").toLowerCase();
+        const depthMove=/\b(deglaze|fond|reduction|pan\s+sauce|braise|simmer|reduce|scrape|brown\s+bits|build\s+on)\b/i.test(fullSteps);
+        const searOnly=/\b(sear|saut[eé])\b/i.test(fullSteps)&&!depthMove;
+        ok=/COOK|SAUCE/.test(ph)&&!searOnly;
+      }
+      else if(/wok/i.test(en)) ok=/COOK|SAUCE/.test(ph)&&/\b(sear|saut[eé]|braise|brown|simmer|reduce|deglaze|fond|toast|char|caramel|stir[\s-]?fry|wok|pan\s+sauce)\b/i.test(blob);
       else ok=true;
       if(ok) break;
     }
@@ -3649,7 +3693,8 @@ ACTIVE RESTRICTIONS (fail closed):
     else if(norm==="No Salt")
       s+=` — BANNED: table salt, kosher salt, finishing salt, seasoned salt, explicit "season with salt" / "salt to taste" in steps. MSG-as-salt is off unless you label an allowed exception (usually avoid).
 - Latent sodium is real: commercial stock, butter, cheese, soy sauce, miso, fish sauce, bacon, ham, brined pickles, many condiments — still allowed if your other rules permit them; name the source honestly. Prefer unsalted butter / low-sodium stock wording when the story allows so strict judges see intent.
-- Flavor architecture without added salt: push acid (citrus, vinegar), bitter (charred veg, greens), tomato paste or charred tomato for "red sauce" memory, aggressive reduction, herbs — especially when the basket has maple/honey/sweet; finish with extra acid so the plate stays savory, not dessert-leaning.\n`;
+- Flavor architecture without added salt: push acid (citrus, vinegar), bitter (charred veg, greens), tomato paste or charred tomato for "red sauce" memory, aggressive reduction, herbs — especially when the basket has maple/honey/sweet; finish with extra acid so the plate stays savory, not dessert-leaning.
+- MANDATORY in balance.basket or balance.flavor: one explicit sentence on how you solve "no added salt" for judges — acid/umami/char/reduction/latent sodium tradeoffs — not only "cream and butter for richness."\n`;
     else s+=` — treat as strict; do not violate in any field.\n`;
   }
   s+=`SELF-CHECK: Output JSON must be restriction-clean on first save. Judges eliminate on rule breaks.\n`;
@@ -3672,6 +3717,7 @@ function equipmentHardPriorityBlock(ch){
     s+=`- Outside-the-box allowance: if Stovetop is forbidden, pan/skillet work is allowed ONLY when explicitly tied to an allowed non-stovetop heat source (e.g. cast-iron skillet on grill/plancha), never on a burner/range.\n`;
   }
   if(req.length) s+=`- Centrality: must-use gear must drive a primary step for that tool (sear/braise in the cast iron, blend in the processor) — not only a side garnish while the main cook happens elsewhere.\n`;
+  if(req.some(x=>/\bcast[\s-]*iron/i.test(String(x)))) s+=`- CAST IRON: A quick sear alone is weak — use the pan for fond, deglaze, reduction, or a real braise/simmer so the skillet earns its keep.\n`;
   if(req.some(x=>/\bblender\b/i.test(String(x)))||req.some(x=>/food\s*processor/i.test(String(x))))
     s+=`- BLENDER / FOOD PROCESSOR: Put the tool name ("blender", "Vitamix", "immersion blender", or "food processor") in at least one step "how" line where you purée, blend, pulse, or process — not only in the ingredient list. If you describe puréeing without repeating the word "blender", still make the blend/pulse action unmistakable in that step.\n`;
   const st=req.some(x=>String(x).toLowerCase().includes("stovetop"));
