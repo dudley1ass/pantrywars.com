@@ -1071,20 +1071,37 @@ function pwTrackDailyLimitHit(context) {
   } catch (_e) {}
 }
 
-/** Clears this browser’s daily AI round counter (simulations / testing). Also: open site with <code>?reset_ai=1</code> once. */
-function pwResetDailyAiQuota() {
+/** Re-render whichever screen is visible so “games left” updates after quota changes. */
+function pwRefreshAiQuotaDisplay() {
   try {
-    localStorage.removeItem(PW_DAILY_AI_STORAGE_KEY);
-  } catch (_e) {}
-  try {
-    const vis = ["screen-build", "screen-pantry", "screen-landing", "screen-recipe", "screen-active", "screen-score"].find(id => {
-      const el = document.getElementById(id);
+    const order = ["screen-build", "screen-pantry", "screen-landing", "screen-recipe", "screen-active", "screen-score"];
+    const vis = order.find((id) => {
+      const el = $(id);
       return el && !el.classList.contains("hidden");
     });
     if (vis === "screen-build" && typeof renderBuild === "function") renderBuild();
     else if (vis === "screen-pantry" && typeof renderPantry === "function") renderPantry();
     else if (vis === "screen-landing" && typeof renderLanding === "function") renderLanding();
+    else if (vis === "screen-recipe" && typeof renderRecipeDisplay === "function" && state.recipe) renderRecipeDisplay();
+    else if (vis === "screen-active" && typeof renderActive === "function") renderActive();
+    else if (vis === "screen-score" && typeof renderScore === "function") renderScore();
   } catch (_e) {}
+}
+
+/**
+ * Resets this browser’s daily AI round counter to 0 used today (full allowance).
+ * Also: open site with <code>?reset_ai=1</code> once.
+ * Uses explicit localStorage write — some environments behave oddly with removeItem alone.
+ */
+function pwResetDailyAiQuota() {
+  try {
+    localStorage.setItem(PW_DAILY_AI_STORAGE_KEY, JSON.stringify({ d: pwLocalDateKey(), n: 0 }));
+  } catch (_e) {
+    try {
+      localStorage.removeItem(PW_DAILY_AI_STORAGE_KEY);
+    } catch (_e2) {}
+  }
+  pwRefreshAiQuotaDisplay();
 }
 window.pwResetDailyAiQuota = pwResetDailyAiQuota;
 
