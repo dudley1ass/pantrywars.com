@@ -2182,6 +2182,7 @@ Return ONLY compact JSON with this shape:
 
 SCORING RUBRIC:
 - Taste: flavor logic, balance, plausibility
+- Basket compliance: heavily penalize the AI entry if any required basket ingredient is missing from the described dish (ingredients + steps). A missing required item is a major failure; note it in the summary if it occurs.
 - Creativity: originality without nonsense — but for "Recreate a Classic," creativity must serve a NAMED classic; pure original with no classic = lower creativity/challenge execution
 - Presentation: plating clarity from described dish
 - Difficulty: technical ambition that fits time
@@ -2864,6 +2865,10 @@ ${challengeTypeIsSnack(ch.ctype)?`- SNACK — NAME THE BITE: Plain name must rea
 ${challengeTypeIsElevateCheap(ch.ctype)?`- ELEVATE — SAME DISH, BETTER: Plain name / pitch must still be the baseline dish ("elevated tuna salad — …," "boxed mac, …") — NOT a new entrée that abandoned the baseline (e.g. quinoa pilaf + fillet when baseline was tuna salad). If a judge asks "where's the [baseline]?" your steps and plating must make that obvious.\n`:""}
 ${challengeTypeIsRecreateClassic(ch.ctype)?`- BRIEF LOCK (Recreate a Classic): That plain name MUST include the classic reference ("our tonkatsu build," "cassoulet logic from the basket") — not ONLY a cute original title with no named tradition.\n`:""}
 - SWEET LAYERING: dried fruit (prunes, raisins), malty beer, honey/maple/brown sugar are cumulative — do not add extra concentrated sweetness without trimming elsewhere. Default: if prunes anchor the sauce, skip added honey/syrup unless balance.flavor explains the bitter/acid/salt hammer you are using and why it stays savory.
+- SWEET + SAVORY + CHOCOLATE: if chocolate and a savory centerpiece (meat, fish, sharp veg) share the plate, balance.flavor must name one bridge (acid, smoke, spice, bitterness, fat, umami) — forbid random drizzle with no logic.
+
+BASKET COVERAGE GATE (machine check — omission fails):
+- Every REQUIRED name must appear as plain text in ingredients[] (item/prep) and/or in steps what/how (title/tagline only if it clearly names the same SKU). Paraphrase only when unmistakable (e.g. "fire-roasted jarred peppers" for Roasted Red Peppers).
 
 BASKET IDENTITY (no "laundering" ugly or processed items):
 - Do not silently upgrade a required item into a fancier product. If the basket says chocolate frosting, canned soup, neon candy, etc., the ingredients list and at least one step must name that real starter. You may transform it — but a judge must see you used what was in the basket, not conceptually swapped it for couverture or demi-glace.
@@ -2906,6 +2911,7 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     if(challengeTypeIsRecreateClassic(ch.ctype)) maxAttempts=Math.max(maxAttempts,4);
     if(challengeTypeIsElevateCheap(ch.ctype)) maxAttempts=Math.max(maxAttempts,3);
     if(rSan.some(x=>normalizeRestrictionKey(x)==="No Salt")) maxAttempts=Math.max(maxAttempts,3);
+    if((ch.required||[]).length) maxAttempts=Math.max(maxAttempts,3);
     let data=null;
     let regenNote="";
     state.recipeRestrictionWarnings=null;
@@ -2917,12 +2923,13 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
       const brisketViol=getBrisketPhysicsViolations(data,ch);
       const equipmentViol=getRecipeEquipmentViolations(data,ch);
       const timelineViol=getRecipeTimelineViolations(data,ch);
+      const basketViol=getRequiredBasketCoverageViolations(data,ch);
       const formatViol=getRecipeFormatHonestyViolations(data);
       const kitchenViol=getKitchenScienceHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, formatViol, kitchenViol, classicViol);
+      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, formatViol, kitchenViol, classicViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy, brisket/collagen realism, equipment centrality, timeline, format honesty, kitchen science, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy, brisket/collagen realism, equipment centrality, timeline, basket coverage for every REQUIRED name, format honesty, kitchen science, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
       if(attempt===maxAttempts-1) state.recipeRestrictionWarnings=viol;
     }
     state.recipe=data;
@@ -3050,6 +3057,7 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
     if(challengeTypeIsRecreateClassic(ch.ctype)) maxAttempts=Math.max(maxAttempts,4);
     if(challengeTypeIsElevateCheap(ch.ctype)) maxAttempts=Math.max(maxAttempts,3);
     if(rCoach.some(x=>normalizeRestrictionKey(x)==="No Salt")) maxAttempts=Math.max(maxAttempts,3);
+    if((ch.required||[]).length) maxAttempts=Math.max(maxAttempts,3);
     let data=null, regenNote="";
     for(let att=0; att<maxAttempts; att++){
       const prompt=promptCore+(regenNote?`\n\nREGENERATION REQUIRED: ${regenNote}`:"");
@@ -3059,12 +3067,13 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
       const brisketViol=getBrisketPhysicsViolations(data,ch);
       const equipmentViol=getRecipeEquipmentViolations(data,ch);
       const timelineViol=getRecipeTimelineViolations(data,ch);
+      const basketViol=getRequiredBasketCoverageViolations(data,ch);
       const formatViol=getRecipeFormatHonestyViolations(data);
       const kitchenViol=getKitchenScienceHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, formatViol, kitchenViol, classicViol);
+      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, formatViol, kitchenViol, classicViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (equipment centrality, timeline, format honesty, kitchen science — real emulsion names, bread not flour slices). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (equipment centrality, timeline, basket coverage for every MUST USE name, format honesty, kitchen science — real emulsion names, bread not flour slices). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
       if(att===maxAttempts-1) state.contestRecipeRestrictionWarnings=viol;
     }
     state.contestRecipe=data;
@@ -3739,6 +3748,12 @@ function getProseTimelineViolations(low, total){
     const n=+om[1];
     if(n>t+5) msgs.push(`Timeline: slow-roast timing (~${n} min) does not fit a ${t} min competition clock — shorten or change technique.`);
   }
+  if(t<=55){
+    const negPastry=/\b(?:no\s+scratch|not\s+from\s+scratch|store[\s-]?bought|pre[\s-]?made|frozen\s+pastry|puff\s+from\s+(?:the\s+)?(?:pack|freezer|case)|phyllo\s+from\s+(?:the\s+)?(?:box|freezer))\b/i;
+    const scratchPastry=/\b(?:from\s+scratch|scratch\s+(?:puff|pastry|shortcrust|pie\s+dough)|make\s+(?:the\s+)?(?:rough\s+)?puff|laminate|laminated\s+dough|full\s+lamination|book\s+fold|turn(?:ing)?\s+the\s+dough|rest\s+(?:the\s+)?dough\s+(?:for\s+)?(?:\d+\s*(?:min|hr)|overnight)|bulk\s*fermentation|proof\s+(?:the\s+)?dough\s+for\s+(?:\d+\s*(?:min|hr)|overnight))\b/i;
+    if(scratchPastry.test(L)&&!negPastry.test(L))
+      msgs.push(`Timeline: from-scratch laminated/puff pastry or long dough rest/proof is not credible in a ${t} min round — use purchased pastry, phyllo, tortillas, or a fast honest dough; or reflow minutes.`);
+  }
   return msgs;
 }
 
@@ -3767,6 +3782,54 @@ function getRecipeTimelineViolations(recipe, ch){
   }
   msgs.push(...getProseTimelineViolations(low, total));
   return [...new Set(msgs)];
+}
+
+function escapeRegExpBasketToken(s){
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Word-level match for basket coverage (allows plural/singular). */
+function basketTokenMatchesBlob(t, blobLower){
+  const tok=String(t||"").trim().toLowerCase();
+  if(tok.length<=1) return true;
+  if(new RegExp("\\b"+escapeRegExpBasketToken(tok)+"(?:es|s)?\\b","i").test(blobLower)) return true;
+  const stem=tok.replace(/ies$/,"y").replace(/(?:es|s)$/,"");
+  if(stem.length>=2&&stem!==tok){
+    if(new RegExp("\\b"+escapeRegExpBasketToken(stem)+"(?:es|s|ies)?\\b","i").test(blobLower)) return true;
+  }
+  return false;
+}
+
+/**
+ * Each REQUIRED basket name must appear in flattened recipe text (ingredients, steps, balance, titles).
+ * Catches missing required items that prompts alone do not stop.
+ */
+function basketRequiredNameCovered(name, blobLower){
+  const raw=String(name||"").trim().toLowerCase();
+  if(!raw) return true;
+  if(blobLower.includes(raw)) return true;
+  if(/\bhalf\s+and\s+half\b/i.test(raw)&&/\bhalf\s+and\s+half\b/i.test(blobLower)) return true;
+  if(/\bhalf[\s-]and[\s-]half\b/i.test(blobLower)&&raw.replace(/[^a-z0-9]+/g," ").includes("half and half")) return true;
+  const STOP=new Set(["the","a","an","of","and","or","for","with","to","in","on","at"]);
+  const tokens=raw.split(/[^a-z0-9]+/).filter(x=>x.length>0).filter(x=>!STOP.has(x));
+  if(!tokens.length) return blobLower.includes(raw);
+  for(const t of tokens){
+    if(!basketTokenMatchesBlob(t, blobLower)) return false;
+  }
+  return true;
+}
+
+function getRequiredBasketCoverageViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const req=(ch.required||[]).map(s=>String(s).trim()).filter(Boolean);
+  if(!req.length) return msgs;
+  const blobLower=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  for(const name of req){
+    if(basketRequiredNameCovered(name, blobLower)) continue;
+    msgs.push(`Basket coverage: REQUIRED "${name}" must appear clearly in ingredients and/or steps (list it or describe using it — paraphrase only if unmistakably the same product).`);
+  }
+  return msgs;
 }
 
 /**
