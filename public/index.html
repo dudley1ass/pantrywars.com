@@ -305,15 +305,15 @@ const DIFF={
 const FULL_PANTRY = [
   {id:1,  name:"All-Purpose Flour",   cat:"Baking & Bases",          flavor:["salty"],                texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Essential for dredging, roux, dough, batter."},
   {id:2,  name:"Butter",              cat:"Baking & Bases",          flavor:["salty","umami"],        texture:["creamy"],            richness:"rich",   acidity:"none", intensity:"medium", notes:"Brown butter = free flavor upgrade on any dish."},
-  {id:3,  name:"Eggs",                cat:"Baking & Bases",          flavor:["umami"],                texture:["soft","creamy"],     richness:"medium", acidity:"none", intensity:"mild",   notes:"Poached egg elevates any composed dish. Emulsifies sauces."},
+  {id:3,  name:"Eggs",                cat:"Baking & Bases",          flavor:["umami"],                texture:["soft","creamy"],     richness:"medium", acidity:"none", intensity:"mild",   notes:"Poached egg elevates any composed dish. Emulsifies sauces.",cookSheet:"Soft scramble 2–4 min; fried 3–5 min; poach 3–4 min; hard-boil ~10 min. Grate frozen for cold applications."},
   {id:4,  name:"Heavy Cream",         cat:"Baking & Bases",          flavor:["sweet"],                texture:["creamy"],            richness:"rich",   acidity:"none", intensity:"mild",   notes:"Reduces fast to a sauce. Doesn't break like sour cream."},
   {id:5,  name:"Honey",               cat:"Baking & Bases",          flavor:["sweet"],                texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Reduces to sticky glaze fast. Varietal honey defines flavor."},
   {id:6,  name:"Maple Syrup",         cat:"Baking & Bases",          flavor:["sweet"],                texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Grade B darker = more flavor for cooking."},
   {id:7,  name:"Sugar (Brown)",       cat:"Baking & Bases",          flavor:["sweet"],                texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Molasses content adds depth. Great in glazes."},
   {id:8,  name:"Spaghetti",           cat:"Grains & Legumes",        flavor:["umami"],                texture:["chewy"],             richness:"lean",   acidity:"none", intensity:"mild",   notes:"Salt water aggressively. Reserve pasta water — thickens sauces."},
-  {id:9,  name:"Arborio Rice",        cat:"Grains & Legumes",        flavor:["umami"],                texture:["creamy","chewy"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Never stop stirring. Finish off heat with butter and parm."},
+  {id:9,  name:"Arborio Rice",        cat:"Grains & Legumes",        flavor:["umami"],                texture:["creamy","chewy"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Never stop stirring. Finish off heat with butter and parm.",cookSheet:"Risotto 18–28 min active simmer adding hot liquid; toast grains first. Not a 5-minute grain."},
   {id:10, name:"Quinoa",              cat:"Grains & Legumes",        flavor:["bitter"],               texture:["crunchy","soft"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Toast dry in pan before liquid for nutty depth."},
-  {id:11, name:"Chickpeas",           cat:"Grains & Legumes",        flavor:["umami"],                texture:["creamy","crunchy"],  richness:"lean",   acidity:"none", intensity:"mild",   notes:"Roast canned at 425F for crispy croutons. Puree into hummus."},
+  {id:11, name:"Chickpeas",           cat:"Grains & Legumes",        flavor:["umami"],                texture:["creamy","crunchy"],  richness:"lean",   acidity:"none", intensity:"mild",   notes:"Roast canned at 425F for crispy croutons. Puree into hummus.",cookSheet:"Canned: drain, warm 5 min or roast 15–20 min. Dry: soak overnight + simmer 1–2 hr until tender. Mash, fry, or purée."},
   {id:12, name:"Black Beans",         cat:"Grains & Legumes",        flavor:["umami"],                texture:["creamy","soft"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Smash half for creamy-chunky texture. Bloom cumin first."},
   {id:13, name:"Garlic",              cat:"Aromatics",               flavor:["umami","bitter"],       texture:["soft"],              richness:"lean",   acidity:"none", intensity:"strong", notes:"Confit in olive oil = sweet mellow paste. Raw = sharp."},
   {id:14, name:"Shallot",             cat:"Aromatics",               flavor:["sweet","umami"],        texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"More elegant than onion. Use raw in vinaigrettes."},
@@ -327,7 +327,7 @@ const FULL_PANTRY = [
   {id:22, name:"Mushrooms",           cat:"Vegetables",              flavor:["umami","bitter"],       texture:["chewy","soft"],      richness:"medium", acidity:"none", intensity:"strong", notes:"Don't crowd the pan — they steam. High heat, patience."},
   {id:23, name:"Spinach",             cat:"Vegetables",              flavor:["bitter","umami"],       texture:["soft"],              richness:"lean",   acidity:"mild", intensity:"mild",   notes:"1 lb raw = tiny handful cooked. Undersalt before wilting."},
   {id:24, name:"Cauliflower",         cat:"Vegetables",              flavor:["sweet","umami"],        texture:["crunchy","creamy"],  richness:"lean",   acidity:"none", intensity:"mild",   notes:"Charring transforms it. Steaks for drama. Puree rivals potato."},
-  {id:25, name:"Sweet Potatoes",      cat:"Vegetables",              flavor:["sweet","umami"],        texture:["soft","creamy"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Roasting whole concentrates sweetness. Pairs with miso, maple."},
+  {id:25, name:"Sweet Potatoes",      cat:"Vegetables",              flavor:["sweet","umami"],        texture:["soft","creamy"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Roasting whole concentrates sweetness. Pairs with miso, maple.",cookSheet:"Whole roast 45–75 min; wedges 25–40 min; 1\" dice boil ~10 min or roast 20–30 min. Spiralize or shred for quick sauté."},
   {id:26, name:"Asparagus",           cat:"Vegetables",              flavor:["bitter","umami"],       texture:["crunchy","soft"],    richness:"lean",   acidity:"none", intensity:"medium", notes:"Snap natural break point. Roast at high heat for char."},
   {id:27, name:"Corn",                cat:"Vegetables",              flavor:["sweet","umami"],        texture:["crunchy","creamy"],  richness:"lean",   acidity:"none", intensity:"medium", notes:"Char the cobs for smoky depth. Corn milk is liquid gold."},
   {id:28, name:"Beets",               cat:"Vegetables",              flavor:["sweet","umami","bitter"],texture:["soft","juicy"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Wrap in foil and roast; skins slip off. Pairs with goat cheese."},
@@ -340,14 +340,14 @@ const FULL_PANTRY = [
   {id:35, name:"Mango",               cat:"Fruits",                  flavor:["sweet","sour"],         texture:["juicy","soft"],      richness:"lean",   acidity:"mild", intensity:"medium", notes:"Slightly under-ripe is better for savory applications."},
   {id:36, name:"Apples",              cat:"Fruits",                  flavor:["sweet","sour"],         texture:["crunchy","soft"],    richness:"lean",   acidity:"mild", intensity:"medium", notes:"Granny Smith holds shape best. Toss with lemon to prevent browning."},
   {id:37, name:"Pomegranate",         cat:"Fruits",                  flavor:["sour","sweet","bitter"],texture:["crunchy","juicy"],   richness:"lean",   acidity:"high", intensity:"medium", notes:"Arils add texture and color. Reduce juice to molasses."},
-  {id:38, name:"Chicken Thigh",       cat:"Proteins",                flavor:["savory","umami"],       texture:["tender","juicy"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Forgiving cut. High fat keeps it moist. Braise or sear and roast."},
-  {id:39, name:"Chicken Breast",      cat:"Proteins",                flavor:["mild","savory"],        texture:["lean","firm"],       richness:"lean",   acidity:"none", intensity:"mild",   notes:"Dries out fast — pound thin or brine before competition."},
-  {id:40, name:"Salmon Fillet",       cat:"Proteins",                flavor:["rich","umami"],         texture:["flaky","silky"],     richness:"rich",   acidity:"none", intensity:"medium", notes:"Skin-side down first. Don't flip until it releases naturally."},
-  {id:41, name:"Ground Beef",         cat:"Proteins",                flavor:["rich","umami","savory"],texture:["loose","tender"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Versatile — burgers, ragu, stuffed veg, meatballs."},
-  {id:42, name:"Shrimp",              cat:"Proteins",                flavor:["sweet","briny"],        texture:["snappy","firm"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Cooks in 90 seconds. C-curve = done; O-curve = overcooked."},
-  {id:43, name:"Scallops",            cat:"Proteins",                flavor:["sweet","briny"],        texture:["silky","dense"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Dry-pack only. Pat very dry. Screaming hot pan. Don't touch."},
-  {id:44, name:"Pork Tenderloin",     cat:"Proteins",                flavor:["mild","sweet"],         texture:["tender","uniform"],  richness:"lean",   acidity:"none", intensity:"medium", notes:"Quick to cook, easy to overcook. Pull at 140F."},
-  {id:45, name:"Duck Breast",         cat:"Proteins",                flavor:["rich","gamey","fatty"], texture:["silky","dense"],     richness:"rich",   acidity:"none", intensity:"strong", notes:"Score fat cap deeply, render low-and-slow, finish high heat."},
+  {id:38, name:"Chicken Thigh",       cat:"Proteins",                flavor:["savory","umami"],       texture:["tender","juicy"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Forgiving cut. High fat keeps it moist. Braise or sear and roast.",cookSheet:"Bone-in sear skin-down 10–15 min then finish; boneless strips stir-fry 6–10 min; braise 35–50 min covered."},
+  {id:39, name:"Chicken Breast",      cat:"Proteins",                flavor:["mild","savory"],        texture:["lean","firm"],       richness:"lean",   acidity:"none", intensity:"mild",   notes:"Dries out fast — pound thin or brine before competition.",cookSheet:"Thin cutlet sear 3–5 min/side; whole breast roast 18–25 min; poach gently 12–18 min. Butterfly or pound for even speed."},
+  {id:40, name:"Salmon Fillet",       cat:"Proteins",                flavor:["rich","umami"],         texture:["flaky","silky"],     richness:"rich",   acidity:"none", intensity:"medium", notes:"Skin-side down first. Don't flip until it releases naturally.",cookSheet:"Skin-on sear 4–7 min skin side then flip; oven 10–14 min at 400–425F typical. Cubes for quick poke-style bowls."},
+  {id:41, name:"Ground Beef",         cat:"Proteins",                flavor:["rich","umami","savory"],texture:["loose","tender"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Versatile — burgers, ragu, stuffed veg, meatballs.",cookSheet:"Burger patty 3–5 min/side medium-high; crumble brown 6–10 min; meatball bake 15–22 min. No long collagen break — already ground."},
+  {id:42, name:"Shrimp",              cat:"Proteins",                flavor:["sweet","briny"],        texture:["snappy","firm"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Cooks in 90 seconds. C-curve = done; O-curve = overcooked.",cookSheet:"Sauté/grill 1–3 min until C-curve; poach gently 2–4 min. Chop small for quick curry or filling."},
+  {id:43, name:"Scallops",            cat:"Proteins",                flavor:["sweet","briny"],        texture:["silky","dense"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Dry-pack only. Pat very dry. Screaming hot pan. Don't touch.",cookSheet:"Sear 1½–2½ min/side for medium-rare center; overcooks fast. Slice thin for crudo-style only if quality-safe."},
+  {id:44, name:"Pork Tenderloin",     cat:"Proteins",                flavor:["mild","sweet"],         texture:["tender","uniform"],  richness:"lean",   acidity:"none", intensity:"medium", notes:"Quick to cook, easy to overcook. Pull at 140F.",cookSheet:"Medallions sear 3–4 min/side; whole roast 18–25 min; butterflied grill 12–18 min. Slice thin against grain."},
+  {id:45, name:"Duck Breast",         cat:"Proteins",                flavor:["rich","gamey","fatty"], texture:["silky","dense"],     richness:"rich",   acidity:"none", intensity:"strong", notes:"Score fat cap deeply, render low-and-slow, finish high heat.",cookSheet:"Skin-down render 8–12 min low, flip 3–5 min for med-rare breast. Rest; slice. Not a 5-minute total cook."},
   {id:46, name:"Lamb Chop",           cat:"Proteins",                flavor:["gamey","rich"],         texture:["tender","juicy"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Medium-rare is the sweet spot. French them for elegance."},
   {id:47, name:"Bacon",               cat:"Proteins",                flavor:["smoky","salty","fatty"],texture:["crispy","chewy"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Renders fat useful for cooking. A cheat code for richness."},
   {id:48, name:"Parmesan",            cat:"Dairy & Cheese",          flavor:["salty","umami","bitter"],texture:["crunchy","creamy"], richness:"rich",   acidity:"none", intensity:"strong", notes:"Rind adds umami to soups and braises. Save every rind."},
@@ -442,22 +442,22 @@ const FULL_PANTRY = [
   {id:137,name:"Green Cabbage",       cat:"Vegetables",              flavor:["sweet","peppery"],      texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"mild",   notes:"Slaw, stir-fry, ferment."},
   {id:138,name:"Red Cabbage",         cat:"Vegetables",              flavor:["peppery","sweet"],     texture:["crunchy","juicy"],   richness:"lean",   acidity:"none", intensity:"medium", notes:"Pickle pink with acid."},
   {id:139,name:"Turkey Breast",       cat:"Proteins",                flavor:["mild","savory"],        texture:["lean","firm"],       richness:"lean",   acidity:"none", intensity:"mild",   notes:"Brine; don’t overcook — dry fast."},
-  {id:140,name:"Whole Chicken",       cat:"Proteins",                flavor:["rich","savory"],        texture:["juicy","varied"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Spatchcock for even roast; stock bones."},
+  {id:140,name:"Whole Chicken",       cat:"Proteins",                flavor:["rich","savory"],        texture:["juicy","varied"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Spatchcock for even roast; stock bones.",cookSheet:"Spatchcock roast ~45–70 min; parts roast 35–50 min. Joint for faster pieces. Pressure ~25–35 min fall-off if allowed."},
   {id:141,name:"Chicken Wings",       cat:"Proteins",                flavor:["rich","savory"],        texture:["crispy","juicy"],    richness:"medium", acidity:"none", intensity:"medium", notes:"High heat; sauce at end."},
   {id:142,name:"Cornish Hen",         cat:"Proteins",                flavor:["mild","gamey"],        texture:["tender","small"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Individual plates; fast roast."},
   {id:143,name:"Ground Turkey",       cat:"Proteins",                flavor:["mild","savory"],        texture:["loose"],             richness:"lean",   acidity:"none", intensity:"mild",   notes:"Season boldly; burgers and ragu."},
   {id:144,name:"Ground Pork",         cat:"Proteins",                flavor:["rich","sweet"],        texture:["loose","juicy"],     richness:"medium", acidity:"none", intensity:"medium", notes:"Meatballs; dumpling filling."},
-  {id:145,name:"Pork Belly",          cat:"Proteins",                flavor:["rich","sweet"],         texture:["crispy","tender"],   richness:"rich",   acidity:"none", intensity:"strong", notes:"Low roast; crackling; braise."},
+  {id:145,name:"Pork Belly",          cat:"Proteins",                flavor:["rich","sweet"],         texture:["crispy","tender"],   richness:"rich",   acidity:"none", intensity:"strong", notes:"Low roast; crackling; braise.",cookSheet:"Crispy roast 1–2+ hr low then blast; braise 2–3 hr; pressure ~45–60 min then glaze. Cubes stir-fry faster than whole slab."},
   {id:146,name:"Pork Chop",           cat:"Proteins",                flavor:["mild","sweet"],         texture:["juicy","firm"],      richness:"medium", acidity:"none", intensity:"medium", notes:"Brine; pull at 145F with rest."},
-  {id:147,name:"Baby Back Ribs",      cat:"Proteins",                flavor:["rich","smoky"],        texture:["tender","sticky"],   richness:"rich",   acidity:"none", intensity:"strong", notes:"Low and slow; foil wrap stall."},
-  {id:148,name:"Beef Short Rib",      cat:"Proteins",                flavor:["rich","beefy"],        texture:["tender","silky"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Braise until fork-tender."},
+  {id:147,name:"Baby Back Ribs",      cat:"Proteins",                flavor:["rich","smoky"],        texture:["tender","sticky"],   richness:"rich",   acidity:"none", intensity:"strong", notes:"Low and slow; foil wrap stall.",cookSheet:"BBQ low 3–5 hr or oven 2½–4 hr; pressure ~35–45 min + glaze/broil. Not tender in 20 min open grill."},
+  {id:148,name:"Beef Short Rib",      cat:"Proteins",                flavor:["rich","beefy"],        texture:["tender","silky"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Braise until fork-tender.",cookSheet:"Bone-in braise 2½–4 hr; pressure ~45–55 min. Quick sear only = tough — need moist heat or pressure for collagen."},
   {id:149,name:"Ribeye Steak",        cat:"Proteins",                flavor:["rich","beefy"],        texture:["juicy","tender"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Hot sear; rest; fat cap flavor."},
   {id:150,name:"Flank Steak",         cat:"Proteins",                flavor:["beefy","minerally"],    texture:["firm","fibrous"],    richness:"medium", acidity:"none", intensity:"strong", notes:"Slice across grain; marinade helps."},
   {id:151,name:"Skirt Steak",         cat:"Proteins",                flavor:["beefy","minerally"],    texture:["loose","juicy"],     richness:"medium", acidity:"none", intensity:"strong", notes:"High heat; rare; tacos."},
-  {id:152,name:"Brisket",             cat:"Proteins",                flavor:["beefy","smoky"],        texture:["tender","shreddy"],  richness:"rich",   acidity:"none", intensity:"strong", notes:"Smoke or braise; rest sliced."},
-  {id:153,name:"Oxtail",              cat:"Proteins",                flavor:["rich","beefy"],        texture:["gelatinous","tender"], richness:"rich",   acidity:"none", intensity:"strong", notes:"Collagen-rich — classic stew needs long braise OR pressure cooker for a fast tender result; otherwise use as flavor accent / inspired-by plates on a short clock."},
+  {id:152,name:"Brisket",             cat:"Proteins",                flavor:["beefy","smoky"],        texture:["tender","shreddy"],  richness:"rich",   acidity:"none", intensity:"strong", notes:"Smoke or braise; rest sliced.",cookSheet:"Smoke/braise many hours; pressure ~70–90 min for sliceable. Thin-slice hot for faster plates if pre-tender."},
+  {id:153,name:"Oxtail",              cat:"Proteins",                flavor:["rich","beefy"],        texture:["gelatinous","tender"], richness:"rich",   acidity:"none", intensity:"strong", notes:"Collagen-rich — classic stew needs long braise OR pressure cooker for a fast tender result; otherwise use as flavor accent / inspired-by plates on a short clock.",cookSheet:"Stew/braise 2½–4 hr stovetop; pressure ~40–55 min. Grill raw = chewy. Shred after pressure for tacos; grind raw not typical."},
   {id:154,name:"Halibut Fillet",      cat:"Proteins",                flavor:["mild","sweet"],         texture:["firm","flaky"],      richness:"lean",   acidity:"none", intensity:"mild",   notes:"Don’t overcook; brown butter capers."},
-  {id:155,name:"Cod Fillet",          cat:"Proteins",                flavor:["mild","sweet"],         texture:["flaky","delicate"],  richness:"lean",   acidity:"none", intensity:"mild",   notes:"Fish and chips; gentle poach."},
+  {id:155,name:"Cod Fillet",          cat:"Proteins",                flavor:["mild","sweet"],         texture:["flaky","delicate"],  richness:"lean",   acidity:"none", intensity:"mild",   notes:"Fish and chips; gentle poach.",cookSheet:"Pan-fry 3–5 min/side; bake 10–14 min; poach 5–8 min. Flakes when done — easy to overcook."},
   {id:156,name:"Sea Bass",            cat:"Proteins",                flavor:["mild","sweet"],         texture:["buttery","flaky"],   richness:"medium", acidity:"none", intensity:"mild",   notes:"Crispy skin; Asian steam."},
   {id:157,name:"Mahi Mahi",           cat:"Proteins",                flavor:["mild","sweet"],         texture:["firm","steaky"],     richness:"lean",   acidity:"none", intensity:"mild",   notes:"Grill; holds up to salsa."},
   {id:158,name:"Swordfish Steak",     cat:"Proteins",                flavor:["mild","meaty"],         texture:["firm","steaky"],     richness:"medium", acidity:"none", intensity:"medium", notes:"Grill like steak; don’t dry out."},
@@ -468,7 +468,7 @@ const FULL_PANTRY = [
   {id:163,name:"Crab Meat",           cat:"Proteins",                flavor:["sweet","briny"],        texture:["flaky","delicate"],  richness:"lean",   acidity:"none", intensity:"medium", notes:"Fold gently; cakes and salad."},
   {id:164,name:"Squid",               cat:"Proteins",                flavor:["mild","briny"],         texture:["snappy","tender"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"30 seconds high heat or low braise."},
   {id:165,name:"Octopus",             cat:"Proteins",                flavor:["sweet","briny"],        texture:["tender","snappy"],   richness:"lean",   acidity:"none", intensity:"medium", notes:"Tenderize; char on grill."},
-  {id:166,name:"Tofu (Firm)",       cat:"Proteins",                flavor:["mild","nutty"],         texture:["firm","crispy"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Press; cornstarch dredge for crunch."},
+  {id:166,name:"Tofu (Firm)",       cat:"Proteins",                flavor:["mild","nutty"],         texture:["firm","crispy"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Press; cornstarch dredge for crunch.",cookSheet:"Press 15–30 min; pan-fry cubes 8–12 min; bake 20–30 min. Crumble for scramble; matchstick for fast stir-fry."},
   {id:167,name:"Tofu (Silken)",     cat:"Proteins",                flavor:["mild","creamy"],        texture:["silky","soft"],      richness:"lean",   acidity:"none", intensity:"mild",   notes:"Soups; mapo; gentle heat."},
   {id:168,name:"Tempeh",              cat:"Proteins",                flavor:["nutty","earthy"],       texture:["firm","crumbly"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Steam slice; marinate; sear."},
   {id:169,name:"Seitan",              cat:"Proteins",                flavor:["savory","meaty"],       texture:["chewy","firm"],      richness:"lean",   acidity:"none", intensity:"strong", notes:"Wheat gluten — braise or fry."},
@@ -477,8 +477,8 @@ const FULL_PANTRY = [
   {id:172,name:"Pinto Beans",         cat:"Grains & Legumes",        flavor:["earthy","umami"],       texture:["creamy"],            richness:"lean",   acidity:"none", intensity:"medium", notes:"Refried; ranch beans."},
   {id:173,name:"Cannellini Beans",    cat:"Grains & Legumes",        flavor:["nutty","creamy"],      texture:["soft","creamy"],     richness:"lean",   acidity:"none", intensity:"mild",   notes:"White bean stew; mash for dip."},
   {id:174,name:"Great Northern Beans",cat:"Grains & Legumes",        flavor:["mild","creamy"],       texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Soup bean; holds shape."},
-  {id:175,name:"Red Lentils",         cat:"Grains & Legumes",        flavor:["earthy","sweet"],       texture:["soft","mushy"],      richness:"lean",   acidity:"none", intensity:"mild",   notes:"Dal — cooks fast; watch foam."},
-  {id:176,name:"Green Lentils",       cat:"Grains & Legumes",        flavor:["peppery","earthy"],     texture:["firm","bite"],      richness:"lean",   acidity:"none", intensity:"medium", notes:"Du Puy — salad and side."},
+  {id:175,name:"Red Lentils",         cat:"Grains & Legumes",        flavor:["earthy","sweet"],       texture:["soft","mushy"],      richness:"lean",   acidity:"none", intensity:"mild",   notes:"Dal — cooks fast; watch foam.",cookSheet:"Split red lentils: simmer 15–25 min to dal; no soak. Puree for soup body."},
+  {id:176,name:"Green Lentils",       cat:"Grains & Legumes",        flavor:["peppery","earthy"],     texture:["firm","bite"],      richness:"lean",   acidity:"none", intensity:"medium", notes:"Du Puy — salad and side.",cookSheet:"Simmer 25–40 min until tender (soak optional); hold shape for salads. Longer than red split."},
   {id:177,name:"Split Peas",          cat:"Grains & Legumes",        flavor:["sweet","earthy"],       texture:["soft","thick"],      richness:"lean",   acidity:"none", intensity:"mild",   notes:"Soup; no soak needed."},
   {id:178,name:"Farro",               cat:"Grains & Legumes",        flavor:["nutty","wheaty"],       texture:["chewy"],             richness:"lean",   acidity:"none", intensity:"medium", notes:"Toss in salads; risotto-style."},
   {id:179,name:"Barley (Pearl)",      cat:"Grains & Legumes",        flavor:["mild","earthy"],       texture:["chewy","creamy"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Soup and risotto; long simmer."},
@@ -633,6 +633,36 @@ function pantryIdentityLine(meta){
   const o=PANTRY_IDENTITY_OVERRIDES[meta.name];
   if(o) return o;
   return categoryFallbackIdentity(meta);
+}
+
+/** Resolve built-in or custom pantry row by exact or case-insensitive name. */
+function pantryMetaByName(name){
+  const n=String(name||"").trim();
+  if(!n) return null;
+  if(PANTRY_BY_NAME[n]) return PANTRY_BY_NAME[n];
+  const low=n.toLowerCase();
+  for(const it of state.customPantryItems||[]){
+    if(String(it.name||"").toLowerCase()===low) return it;
+  }
+  return null;
+}
+
+/** Compact time/prep hints for required basket items — injected into rival + coach prompts only. */
+function basketCookFundamentalsBlock(ch){
+  const req=(ch&&ch.required)||[];
+  if(!req.length) return "";
+  const t=Math.max(1, Number((ch&&ch.totalTime)||30));
+  const lines=[];
+  for(const name of req){
+    const meta=pantryMetaByName(name);
+    const cs=meta&&meta.cookSheet!=null?String(meta.cookSheet).trim():"";
+    if(cs) lines.push(`• ${name}: ${cs}`);
+  }
+  if(!lines.length) return "";
+  return `BASKET COOK FUNDAMENTALS (typical times & prep — your round is ${t} min total; pick methods that fit; dice/grind/shave change surface area and time):
+${lines.join("\n")}
+
+`;
 }
 
 const CUSTOM_PANTRY_CAT = "My pantry";
@@ -1294,6 +1324,7 @@ function showItemDetail(item) {
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
       ${[["Richness",item.richness,item.richness==="rich"?"#c2410c":item.richness==="medium"?"#d97706":"#475569"],["Acidity",item.acidity,item.acidity==="high"?"#dc2626":item.acidity==="mild"?"#d97706":"#475569"],["Intensity",item.intensity,item.intensity==="strong"?"#7c3aed":item.intensity==="medium"?"#0369a1":"#475569"]].map(([l,v,col])=>`<div style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:8px;padding:8px;text-align:center"><div style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;margin-bottom:3px">${l}</div><div style="font-size:12px;font-weight:800;color:${col};text-transform:capitalize">${v}</div></div>`).join("")}
     </div>
+    ${item.cookSheet?`<div style="background:#fffbeb;border-left:4px solid #f59e0b;border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:14px"><div style="font-size:10px;color:#b45309;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Time & prep</div><div style="font-size:13px;color:#78350f;line-height:1.6">${escapeHtml(String(item.cookSheet))}</div></div>`:""}
     <div style="background:#f8fafc;border-left:4px solid #6366f1;border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:14px">
       <div style="font-size:10px;color:#6366f1;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Chef Notes</div>
       <div style="font-size:13px;color:#334155;line-height:1.6">${item.notes}</div>
@@ -2307,7 +2338,7 @@ ${classicArchetypeHardBlock()}`
 CHALLENGE: ${ch.ctype.label} | DIFFICULTY: ${ch.diff} | TIME: ${ch.totalTime}min (Prep ${ch.prepTime}, Cook ${ch.cookTime})
 ${hardDiffBar}REQUIRED BASKET (each must CARRY the dish, not garnish-only): ${ch.required.join(", ")}
 PANTRY you may use (only these + basics like salt/oil/water): ${pantryLines}
-${res}
+${basketCookFundamentalsBlock(ch)}${res}
 ${fe} ${re} ${bl}
 
 ${restrictionHardPriorityBlock(ch)}
@@ -2504,7 +2535,7 @@ EQUIPMENT: must ${(ch.reqEquip||[]).join(", ")||"—"} · forbidden ${(ch.forbEq
 COURSE: ${courseLabel} | ${totT} min (prep ${prepT}, cook ${cookT})
 PANTRY ADD-ONS: ${pantryLines}
 
-${restrictionHardPriorityBlock(ch)}
+${basketCookFundamentalsBlock(ch)}${restrictionHardPriorityBlock(ch)}
 ${equipmentHardPriorityBlock(ch)}
 ${whiteChocolateHonestyBlock(ch.required)}
 ${courseEnforcementBlock(ch, analyzeBasketForRecipe(ch.required||[]))}
@@ -3914,28 +3945,30 @@ function pickRequiredPattern(pool,count,resList){
 /** One-line browser title fallback (native tooltip). */
 function mysteryBasketIngTitleAttr(name){
   if(!name||String(name).trim()===""||name==="—")return "";
-  const meta=PANTRY_BY_NAME[name];
+  const meta=pantryMetaByName(name);
   if(!meta) return `Custom ingredient “${name}” — no catalog card; add details in My pantry if you use it often.`;
   const id=pantryIdentityLine(meta);
-  const line=[id,(meta.flavor||[]).join(", "),meta.notes||""].filter(Boolean).join(" · ");
+  const line=[id,(meta.flavor||[]).join(", "),meta.cookSheet?String(meta.cookSheet).trim():"",meta.notes||""].filter(Boolean).join(" · ");
   return line.slice(0,480)+(line.length>480?"…":"");
 }
 
 function mysteryBasketIngTooltipHtml(name){
   if(!name||String(name).trim()===""||name==="—")return "";
-  const meta=PANTRY_BY_NAME[name];
+  const meta=pantryMetaByName(name);
   if(!meta){
     const msg=`“${name}” isn’t in the built-in pantry — add it under My pantry with your own notes if you use it often.`;
     return `<div class="pw-pantry-ing-tooltip" role="tooltip"><div class="pw-pantry-ing-tooltip-h">What it is</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(msg)}</div></div>`;
   }
   const what=pantryIdentityLine(meta);
+  const cookS=meta.cookSheet?String(meta.cookSheet).trim():"";
   const flavorProfile=[
     (meta.flavor||[]).join(", ")||"—",
     (meta.texture||[]).length?`Texture: ${(meta.texture||[]).join(", ")}`:"",
     `Richness ${meta.richness||"—"} · acidity ${meta.acidity||"—"} · intensity ${meta.intensity||"—"}`
   ].filter(Boolean).join(" · ");
   const technique=meta.notes||"—";
-  return `<div class="pw-pantry-ing-tooltip" role="tooltip"><div class="pw-pantry-ing-tooltip-h">What it is</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(what)}</div><div class="pw-pantry-ing-tooltip-h" style="margin-top:8px">Flavor profile</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(flavorProfile)}</div><div class="pw-pantry-ing-tooltip-h" style="margin-top:8px">Chef tip</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(technique)}</div></div>`;
+  const cookBlock=cookS?`<div class="pw-pantry-ing-tooltip-h" style="margin-top:8px">Time &amp; prep</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(cookS)}</div>`:"";
+  return `<div class="pw-pantry-ing-tooltip" role="tooltip"><div class="pw-pantry-ing-tooltip-h">What it is</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(what)}</div>${cookBlock}<div class="pw-pantry-ing-tooltip-h" style="margin-top:8px">Flavor profile</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(flavorProfile)}</div><div class="pw-pantry-ing-tooltip-h" style="margin-top:8px">Chef tip</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(technique)}</div></div>`;
 }
 
 /** Constraints shown in spinner/result: dietary + forbidden equip + must-use equip + burner lock. */
@@ -3970,7 +4003,7 @@ function mysterySpinResultPanelHtml(){
   return `<div class="basket-spin-wrap">
     <div class="basket-spin-h"><span>🎰 Mystery basket</span><span style="font-size:11px;font-weight:700;color:#64748b">${escapeHtml(cfg.label)} · locked in</span></div>
     <div class="basket-spin-slots">${parts.join("")}</div>
-    <div style="font-size:11px;color:#64748b;margin-top:10px;text-align:center;line-height:1.45"><strong>AI clock</strong> is how long the rival-chef recipe assumes (20–45 min). <strong>Hover</strong> (or keyboard-focus) a <strong>must-use</strong> ingredient for <strong>what it is</strong>, flavor notes, and a chef tip. <strong>Must-use equipment</strong> sometimes rolls on spin — check <strong>Equipment</strong> below. Change <strong>restrictions</strong>, required ingredients, or equipment there, or <strong>spin again</strong> for a new haul.</div>
+    <div style="font-size:11px;color:#64748b;margin-top:10px;text-align:center;line-height:1.45"><strong>AI clock</strong> is how long the rival-chef recipe assumes (20–45 min). <strong>Hover</strong> (or keyboard-focus) a <strong>must-use</strong> ingredient for <strong>what it is</strong>, <strong>time &amp; prep</strong> (when listed), flavor notes, and a chef tip. <strong>Must-use equipment</strong> sometimes rolls on spin — check <strong>Equipment</strong> below. Change <strong>restrictions</strong>, required ingredients, or equipment there, or <strong>spin again</strong> for a new haul.</div>
   </div>`;
 }
 
