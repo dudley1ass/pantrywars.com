@@ -962,6 +962,16 @@ function stripCodeFences(text) {
 function stripTrailingCommas(jsonStr) {
   return jsonStr.replace(/,(\s*[\}\]])/g, "$1");
 }
+/** Apply trailing-comma fix repeatedly (nested arrays/objects). */
+function stripTrailingCommasDeep(jsonStr) {
+  let s = String(jsonStr || "");
+  for (let i = 0; i < 8; i++) {
+    const n = stripTrailingCommas(s);
+    if (n === s) break;
+    s = n;
+  }
+  return s;
+}
 function extractBalancedJsonObject(text) {
   const s = stripCodeFences(text);
   const start = s.indexOf("{");
@@ -989,6 +999,10 @@ function normalizeJsonText(s) {
     .replace(/[\u201c\u201d\u00ab\u00bb]/g, '"')
     .replace(/[\u2018\u2019]/g, "'");
 }
+/** Strip U+2028/U+2029 (line/paragraph sep) — JSON.parse rejects them inside strings unless escaped. */
+function stripJsonUnsafeSeparators(s) {
+  return String(s || "").replace(/\u2028/g, "\n").replace(/\u2029/g, "\n");
+}
 function parseModelJsonObject(raw) {
   let candidate = extractBalancedJsonObject(raw);
   if (!candidate) {
@@ -996,12 +1010,23 @@ function parseModelJsonObject(raw) {
     if (s !== -1 && e > s) candidate = String(raw).slice(s, e + 1);
   }
   if (!candidate) throw new Error("Model returned no JSON object");
-  candidate = normalizeJsonText(candidate);
+  candidate = stripJsonUnsafeSeparators(normalizeJsonText(candidate));
+  const tryParse = (str) => {
+    try {
+      return JSON.parse(str);
+    } catch (e) {
+      try {
+        return JSON.parse(stripTrailingCommasDeep(str));
+      } catch (_e2) {
+        throw e;
+      }
+    }
+  };
   try {
-    return JSON.parse(candidate);
+    return tryParse(candidate);
   } catch (e1) {
     try {
-      return JSON.parse(stripTrailingCommas(candidate));
+      return tryParse(candidate.replace(/\r\n/g, "\n"));
     } catch (_e2) {
       throw new Error(e1.message + " — Recipe JSON was malformed or cut off. Click Try Again.");
     }
@@ -1141,7 +1166,7 @@ function onPlayAgain() {
 }
 
 // ── AI CALL ───────────────────────────────────────────────────────────────────
-/** opts.bypassDailyPrecheck — internal retries after a successful parse (same user action). opts.skipQuotaRecord — do not increment daily AI count (pair with bypass for regen attempts). */
+/** opts.bypassDailyPrecheck — internal retries after a successful parse (same user action). opts.skipQuotaRecord — do not increment daily AI count (pair with bypass for regen attempts). opts.noJsonObjectMode — omit API json_object mode (only if your model rejects response_format). */
 async function ai(prompt, tokens=300, opts) {
   opts=opts||{};
   await loadAppConfig();
@@ -1151,7 +1176,7 @@ async function ai(prompt, tokens=300, opts) {
     pwTrackDailyLimitHit("blocked_precheck");
     throw new Error(PW_DAILY_LIMIT_MESSAGE);
   }
-  return new Promise((resolve, reject) => {
+  const runXhr = (useJsonObject) => new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const timer = setTimeout(() => { xhr.abort(); reject(new Error("Request timed out (60s)")); }, 60000);
     xhr.open("POST", "/api/openai");
@@ -1159,11 +1184,15 @@ async function ai(prompt, tokens=300, opts) {
     xhr.onload = () => {
       clearTimeout(timer);
       if (xhr.status !== 200) {
-        let detail = xhr.responseText.slice(0, 400);
+        let detail = xhr.responseText.slice(0, 500);
         try {
           const errJ = JSON.parse(xhr.responseText);
           if (errJ.error && errJ.error.message) detail = errJ.error.message;
         } catch (_e) {}
+        if (xhr.status === 400 && useJsonObject && !opts.noJsonObjectMode && /response_format|json_object/i.test(detail)) {
+          runXhr(false).then(resolve).catch(reject);
+          return;
+        }
         reject(new Error("HTTP " + xhr.status + (detail ? ": " + detail : "")));
         return;
       }
@@ -1191,15 +1220,15 @@ async function ai(prompt, tokens=300, opts) {
       reject(new Error("Cannot reach Pantry Wars server — check that the app is running (npm start) or your live site is up."));
     };
     xhr.onabort = () => { clearTimeout(timer); reject(new Error("aborted")); };
-    xhr.send(JSON.stringify({
-      api_key: apiKey,
-      payload: {
-        model: PW_OPENAI_MODEL,
-        max_tokens: tokens,
-        messages: [{ role: "user", content: prompt }]
-      }
-    }));
+    const payload = {
+      model: PW_OPENAI_MODEL,
+      max_tokens: tokens,
+      messages: [{ role: "user", content: prompt }]
+    };
+    if (useJsonObject && !opts.noJsonObjectMode) payload.response_format = { type: "json_object" };
+    xhr.send(JSON.stringify({ api_key: apiKey, payload }));
   });
+  return runXhr(true);
 }
 
 // ── PANTRY SCREEN ────────────────────────────────────────────────────────────
@@ -2369,7 +2398,8 @@ ${classicArchetypeHardBlock()}`
     const hardDiffBar=["hard","insane"].includes(String(ch.diff||"").toLowerCase())
       ?`DIFFICULTY (HARD): Deliver one clear technique or composed structure that feels competition-level — not the safest default (e.g. undifferentiated egg bake) unless the basket truly pins you there; you must still obey time, equipment, and restrictions.\n`
       :"";
-    const promptCore=`CHOPPED-style competition recipe. ONE valid JSON object only — no markdown, no code fences, no extra text. ASCII quotes. No trailing commas. Step "how" max ~90 chars.
+    const promptCore=`CHOPPED-style competition recipe. ONE valid JSON object only — no markdown, no code fences, no extra text. ASCII double quotes only. No trailing commas. Step "how" max ~90 chars.
+JSON SYNTAX (must be machine-parseable): Do not put unescaped " inside any string value. For sizes write 2-inch or 2 in, not inch marks with quotes. No raw line breaks inside strings — keep each string on one line or use \\n.
 
 CHALLENGE: ${ch.ctype.label} | DIFFICULTY: ${ch.diff} | TIME: ${ch.totalTime}min (Prep ${ch.prepTime}, Cook ${ch.cookTime})
 ${hardDiffBar}REQUIRED BASKET (each must CARRY the dish, not garnish-only): ${ch.required.join(", ")}
