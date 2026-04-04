@@ -281,11 +281,12 @@ const CTYPES = [
   {id:"recreate",label:"Recreate a Classic",emoji:"🔄"},
 ];
 const EQUIP=["Oven","Stovetop","Air Fryer","Grill","Microwave","Instant Pot","Blender","Food Processor","Cast Iron","Wok","Sous Vide","Torch","Sheet Pan"];
-const RESTRICT=["No Dairy","No Gluten","No Sugar","No Salt","No Pre-made Sauces","No Butter","No Alcohol","No Nuts","Raw Only","Vegetarian","Vegan"];
+const RESTRICT=["No Dairy","No Gluten","No Sugar","No Salt","No Pre-made Sauces","No Butter","No Alcohol","No Nuts","Vegetarian","Vegan"];
 /** Collapse "No No …" from duplicated prefixes (e.g. AI returns "No No Butter") and match built-in casing. */
 function normalizeRestrictionKey(s){
   let t=String(s==null?"":s).trim();
   if(!t) return t;
+  if(/^raw\s*only$/i.test(t)) return "";
   while(/^no\s+no(\s|$)/i.test(t)) t=t.replace(/^no\s+/i,"").trim();
   const low=t.toLowerCase();
   for(const r of RESTRICT) if(r.toLowerCase()===low) return r;
@@ -312,8 +313,8 @@ const SPIN_AI_TIMES=[20,25,30,35,40,45];
 const DIFF={
   easy:  {label:"Easy",  emoji:"🟢",req:2,res:0,forb:0,cut:false},
   medium:{label:"Medium",emoji:"🟡",req:3,res:1,forb:1,cut:false},
-  hard:  {label:"Hard",  emoji:"🔴",req:4,res:2,forb:2,cut:true},
-  insane:{label:"Insane",emoji:"💀",req:5,res:3,forb:3,cut:true},
+  hard:  {label:"Hard",  emoji:"🔴",req:4,res:2,forb:2,cut:false},
+  insane:{label:"Insane",emoji:"💀",req:5,res:3,forb:3,cut:false},
 };
 const FULL_PANTRY = [
   {id:1,  name:"All-Purpose Flour",   cat:"Baking & Bases",          flavor:["salty"],                texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Essential for dredging, roux, dough, batter."},
@@ -1642,7 +1643,7 @@ SCORING RUBRIC:
 - Creativity: originality without nonsense — but for "Recreate a Classic," creativity must serve a NAMED classic; pure original with no classic = lower creativity/challenge execution
 - Presentation: plating clarity from described dish
 - Difficulty: technical ambition that fits time
-${challengeIntentJudgeAddon(ch.ctype)}${restrictionsJudgeAddon(ch)}${dessertJudgeAddon(ch)}${snackJudgeAddon(ch)}${elevateCheapJudgeAddon(ch)}${recreateClassicJudgeAddon(ch)}
+${challengeIntentJudgeAddon(ch.ctype)}${restrictionsJudgeAddon(ch)}${noSaltRestrictionJudgeAddon(ch)}${dessertJudgeAddon(ch)}${snackJudgeAddon(ch)}${elevateCheapJudgeAddon(ch)}${recreateClassicJudgeAddon(ch)}${physicsRealismJudgeAddon(ch)}
 
 Challenge:
 - Type: ${ch.ctype.label}
@@ -1707,11 +1708,10 @@ function battleChallengeRowHtml(ch){
     :"";
   const tm=Number(ch.totalTime)||0;
   const timeChip=tm?`<span style="background:#1e293b;border:1px solid #475569;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#94a3b8">${tm} min</span>`:"";
-  const cutChip=ch.surpriseCut?`<span style="background:#3b0764;border:1px solid #7c3aed;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#e9d5ff">−10 min cut</span>`:"";
   return `<div style="margin-bottom:10px">
     <div style="font-size:11px;font-weight:800;color:#818cf8;margin-bottom:6px">Challenge</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-      <span style="background:#312e81;border:1px solid #6366f1;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#e0e7ff">${em} ${lab}</span>${diffChip}${timeChip}${cutChip}
+      <span style="background:#312e81;border:1px solid #6366f1;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#e0e7ff">${em} ${lab}</span>${diffChip}${timeChip}
     </div>
   </div>`;
 }
@@ -1765,7 +1765,7 @@ function renderRecipe() {
           <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:280px;padding:24px">
             <div class="spinner"><div class="spinner-ring"></div><div class="spinner-arc"></div><div class="spinner-icon">👨‍🍳</div></div>
             <div style="font-size:16px;font-weight:900;color:#f8fafc;margin-top:14px;margin-bottom:6px">Summoning rival chef…</div>
-            <div style="font-size:12px;color:#64748b;text-align:center">Pantry Wars · flavor · haul · timing</div>
+            <div style="font-size:13px;color:#94a3b8;text-align:center;max-width:24rem;line-height:1.55;margin-top:2px">This might take up to a minute — your rival chef is thinking through the haul. Hang tight.<br/><span style="display:inline-block;margin-top:8px;color:#64748b;font-size:12px">Don&apos;t worry: it&apos;ll probably be better than yours.</span></div>
           </div>
         </div>
         <div id="recipe-user-panel">${userCookPlanPanelHtml()}</div>
@@ -1845,7 +1845,8 @@ REQUIRED IN OUTPUT:
 - Plan = homage / smart basket substitution to THAT dish — not a polished original that abandons recognition.
 
 FAIL THE BRIEF IF:
-- A judge asks "what classic is this?" and the answer is not one standard dish name.\n`;
+- A judge asks "what classic is this?" and the answer is not one standard dish name.
+- The plan uses the exact classic name but the signature technique needs hours (true long braise, deep cassoulet bean cook, etc.) while the clock is short — unless you use a real-kitchen shortcut named in the steps (pressure / Instant Pot when equipment allows, honest "inspired by" title, or a faster cut/technique). Fantasy timing = missed brief.\n`;
   }
   if(challengeTypeIsElevateCheap(ctype)){
     return `CHALLENGE INTENT (mandatory): ELEVATE A CHEAP MEAL — NOT "fine dining with a humble garnish."
@@ -1864,10 +1865,12 @@ TRANSFORMATION, NOT REPLACEMENT (hard rule):
 REQUIRED IN OUTPUT:
 - title OR tagline MUST name the specific cheap/everyday starter in plain English (e.g. "Cup noodles → …", "Tuna salad → …", "Boxed mac …", "Jar-sauce spaghetti …") — not vague "pantry tofu" or invented "cheap block" unless that phrase names a real convenience trope (e.g. soft tofu cup from takeout).
 - One sentence (balance.basket or balance.complete) MUST answer: "How does this still read as [named baseline] to a judge?"
+- JAR-SAUCE / PASTA NOSTALGIA: If the baseline is spaghetti + jar sauce, boxed mac, packet noodles, or similar, include at least ONE clear emotional cue to the "before" — e.g. tomato paste, charred fresh tomato, oregano/basil that reads Wednesday-night red sauce, a named jar profile, or a smear that still says "cheap marinara energy" — not only better noodles with no sauce story. Judges ask "where is the jar sauce?" if you skip this.
 
 FAIL THE BRIEF IF:
 - The plate reads as a polished original comp dish with no judge-recognizable cheap baseline, OR pantry items smuggle a different fine-dining genre (arborio + mushrooms ⇒ "risotto") without naming the boxed/packet/diner dish that was being elevated into that shape.
-- The baseline dish name disappears: you named "tuna salad" but built quinoa pilaf + seared fillet + entree plating — that is replacement, not elevation; missed brief.\n`;
+- The baseline dish name disappears: you named "tuna salad" but built quinoa pilaf + seared fillet + entree plating — that is replacement, not elevation; missed brief.
+- Baseline is jar-sauce pasta / spaghetti night but the plan never gives judges a tomato or "cheap red sauce" nostalgia hook when the pantry could support it — missed brief.\n`;
   }
   if(challengeTypeIsSnack(ctype)){
     return `CHALLENGE INTENT (mandatory): SNACK — course means EATING FORMAT and portion scale, not only flavor logic.
@@ -1895,6 +1898,17 @@ RESTRICTIONS — JUDGING LENS (non-negotiable):
 - Penalize HARD if either competitor's plan breaks a stated restriction (e.g. dairy under No Dairy, meat under Vegetarian). "Classic needs cheese" or "just a finish of cream" is still disqualifying-level bad in real comps.
 - Rule compliance outweighs delicious flavor: say so in summary when one side is tastier but illegal.
 - Reward honest substitutes that stay inside the rules while still respecting the challenge type.`;
+}
+
+/** When No Salt is active: latent sodium vs letter of rule + compensation. */
+function noSaltRestrictionJudgeAddon(ch){
+  const r=sanitizeRestrictionList((ch&&ch.restrictions)||[]);
+  if(!r.some(x=>normalizeRestrictionKey(x)==="No Salt")) return "";
+  return `
+NO SALT — JUDGING LENS:
+- Letter of rule: penalize explicit table salt, "salt to taste," or obvious salt-forward finishes. Stock, butter, cheese, soy, miso carry latent sodium — borderline acceptable if other rules allow; note risk if judges are strict.
+- Reward plans that compensate with acid (citrus, vinegar), tomato or char for depth, bitter char on veg, and aggressive reduction — especially when maple/honey/sweet items are in play — so the dish does not read flat or dessert-sweet.
+- Call out when a plan leans on commercial stock/butter without acknowledging sodium tradeoffs under a strict read.`;
 }
 
 function challengeIntentJudgeAddon(ctype){
@@ -1957,6 +1971,8 @@ ELEVATE A CHEAP MEAL — JUDGING LENS:
 - Penalize "risotto / tasting-menu" style unless the text ties to a boxed side, packet rice bowl, or similar cheap anchor.
 - Penalize identity drift: named baseline vanishes from the eat (e.g. promised "tuna salad" but delivered pilaf + fillet + entree composition) — score challenge fit / concept clarity down even if flavors score high.
 - Penalize unrelated luxury bases (quinoa/farro pilaf, new grain centerpiece) that read as replacing the cheap meal rather than upgrading it — unless the baseline was already that kind of rice/grain bowl and the text proves it.
+- JAR-SAUCE / SPAGHETTI NIGHT: if the story is upgraded spaghetti or jar-sauce pasta, penalize when neither side gives a tomato or "cheap red sauce" nostalgia cue (paste, charred tomato, marinara herbs, explicit jar memory) — judges ask "where is the jar sauce?"
+- LONG PASTA: reward emulsified finishes (pasta water + toss, glossy cling); downscore "toss in thin sauce" with no starchy bind when saucing noodles.
 - Reward believable before→after on the SAME dish identity; creativity should serve that story so a judge can say "this is still that humble dish, elevated."`;
 }
 
@@ -1970,7 +1986,16 @@ RECREATE A CLASSIC — JUDGING LENS:
 - Creativity points when it serves recognition of the named classic — not when it becomes an unrelated original.
 - Penalize "swap-only" logic: require clear functional mapping (what replaces gravy/body/umami/acid roles) so the dish tastes like the classic, not a sweet or random variation.
 - Penalize archetype drift: e.g. piccata must read lemon/briny; carbonara is not cream-forward; fish and chips needs chips/fries — substitutions must preserve that identity.
-- If restrictions forbid dairy/meat/etc., penalize heavily for smuggling forbidden ingredients — authenticity of the classic never overrides posted rules.`;
+- If restrictions forbid dairy/meat/etc., penalize heavily for smuggling forbidden ingredients — authenticity of the classic never overrides posted rules.
+- Penalize impossible physics on the clock: long-braise classics executed as if collagen broke down in a fraction of the time, "full" bourguignon/cassoulet with no honest time or pressure story. Reward time-honest pivots (inspired-by title, steak-cut + sauce, pressure when credible).`;
+}
+
+function physicsRealismJudgeAddon(ch){
+  const t=Math.max(1, Number((ch&&ch.totalTime)||30));
+  return `
+PHYSICS & CLOCK REALISM (apply to BOTH competitors' plans):
+- Penalize taste/technique credibility when a plan implies outcomes that need hours (fork-tender braised tough cuts, full traditional long braise) in ~${t} min without a credible shortcut (pressure cooker named, honest "inspired by" reframing, faster cut).
+- Reward plans that match technique to time; downscore fantasy timing even if flavor ideas sound clever.`;
 }
 
 /** Prompt block: enforce challenge course identity (esp. dessert vs savory hybrid failures). */
@@ -2046,7 +2071,8 @@ function courseEnforcementBlock(ch, sig) {
 - The basket ingredients bend the challenge; they do not cancel it. Prefer "classic X with basket-forced swaps" over abandoning the classic for random fusion.
 - CLASSIC SHAPE (avoid "reinterpretation" drift): Stay close to what diners recognize — e.g. eggplant or chicken Parm = breaded cutlet + marinara + melted cheese layer stack as the hero; pasta is optional side only, not a separate pasta-first entrée with guest cutlet. Extra chef swirls (tahini cream, white chocolate, many finisher sauces) only when the basket forces them — otherwise keep moves legible and few.
 - RESTRICTIONS TRUMP TWISTS: If Vegetarian / No Dairy / Vegan applies, every ingredient and technique must be legal — no heavy cream, no parmesan sneak, no "classic needs it" excuses. Use honest subs (cashew béchamel, vegan mozzarella, nutritional yeast) and name them.
-- SIMPLICITY: one classic, one clear read — avoid stacking unrelated techniques (extra custard, extra gastrique, extra sear story) unless each serves that single classic narrative.\n`;
+- SIMPLICITY: one classic, one clear read — avoid stacking unrelated techniques (extra custard, extra gastrique, extra sear story) unless each serves that single classic narrative.
+- PHYSICS & TIME: Do not pretend a 2–3 hour braise or full collagen melt happened in the minutes available. Tough cuts (short rib, chuck, brisket, shank, oxtail) need real time or pressure — or you must pivot title/technique (e.g. "bourguignon-inspired" on grilled steak-cut rib; pressure steps only if Instant Pot/pressure is allowed and written). Grill/live fire is not a stable oven; say so if you lean on it for low simmer.\n`;
   }
   if (challengeTypeIsElevateCheap(ch.ctype)) {
     return `CHALLENGE INTENT — ELEVATE A MEAL THAT IS ACTUALLY CHEAP / EVERYDAY:
@@ -2055,7 +2081,9 @@ function courseEnforcementBlock(ch, sig) {
 - TRANSFORMATION LOCK: Elevation = upgrade the SAME dish, not a new recipe. If baseline is tuna salad, the plate stays salad/sandwich/bowl-of-salad logic — seared tuna may appear as chunks folded in, not as a center-plate fillet with unrelated pilaf. If baseline is grilled cheese, it stays a sandwich story — not "deconstructed" into a random entree. Judges must answer "where is the [baseline]?" without guessing.
 - UNRELATED BASE BAN: Do not introduce quinoa, farro, freekeh, new "grain bowl" foundations, or composed-entree starch bands that were never part of the cheap meal — those read as chef filler and erase identity unless you explicitly anchored baseline to that shape (e.g. cheap rice bowl from takeout) in sentence 1.
 - BEFORE → AFTER: Steps should still feel like that home/kitchen first (open packet, boil water, mix salad, fry slab sandwich) before upgrades — then show elevation (better acid, sear on protein bits IN the dish, better bind, crunchy upgrade to "cheese slice") without erasing the original identity.
-- TITLE/TAGLINE: First clause = the cheap starter in plain words; second half = what you did to dignify it — headline still belongs to that starter (e.g. "Elevated tuna salad: …"), not a different dish name.\n`;
+- TITLE/TAGLINE: First clause = the cheap starter in plain words; second half = what you did to dignify it — headline still belongs to that starter (e.g. "Elevated tuna salad: …"), not a different dish name.
+- PASTA + SAUCE: If the cheap baseline is long pasta with sauce, do not stop at "toss in thin glaze." When you reduce a sauce or gastrique for pasta, include an emulsified finish: reserved pasta water + vigorous toss (or tight technique that achieves the same glossy cling). Call it in steps.
+- SWEET BASKET (maple, honey, etc.) ON SAVORY ELEVATE: Pair sweetness with aggressive acid finish, bitter char on veg, or reduction discipline — so judges do not read dessert pasta.\n`;
   }
   return "";
 }
@@ -2078,6 +2106,7 @@ function basketFlavorLeadershipBlock(ch){
 `;
   if(isRecreate){
     out+=`RECREATE A CLASSIC — FLAVOR NORTH STAR Pick ONE dish a civilian could name (fish and chips, chicken parm, pad thai, etc.). Every choice must answer: "Does this still read as THAT classic to a judge?" Basket items are forced substitutions inside that frame — not an excuse to invent a new center of the plate.
+- If the classic's defining cook is longer than the round allows, respect physics: pivot to "inspired by," change the cut, or use pressure — do not claim the textbook dish on a fantasy timeline.
 
 `;
   }
@@ -2085,6 +2114,8 @@ function basketFlavorLeadershipBlock(ch){
     out+=`ELEVATE A CHEAP MEAL — FLAVOR NORTH STAR: Humble recognizable food first (what a $3–$10 meal looks like), then better technique and basket items on THAT SAME DISH — not a new cuisine’s fine-dining default. If your gut says "risotto," "quinoa pilaf," or "composed entree with protein anchor," STOP — unless the cheap anchor was literally that dish class (e.g. packet rice bowl) and you named it in sentence one.
 - Good pattern: "tuna salad" → seared tuna cubes folded in, edamame, maple vinaigrette, halloumi crisp instead of bland cheese slice — still reads as tuna salad.
 - Bad pattern: "tuna salad" on the label, then quinoa pilaf + seared steak-cut tuna + entree plating — baseline disappeared; that is replacement.
+- Jar-sauce / spaghetti night: give judges one "nostalgia" thread — tomato (paste or charred), dried herbs that read marinara, or explicit "our jar-sauce night but…" so it is not generic noodles.
+- Long pasta + built sauce: finish emulsified (starchy pasta water + toss) for restaurant cling, not a thin coating from a quick toss in loose liquid.
 
 `;
   }
@@ -2120,6 +2151,7 @@ function courseRoleHierarchyBlock(ch){
 - PRIMARY = ONE named classic dish (standard menu name: e.g. fish and chips, chicken parmesan, cassoulet). The whole plate is an execution of THAT identity — recognition beats novelty.
 - SUPPORTING / ACCENT = basket and pantry items mapped into the classic's usual architecture (cutlet + sauce + cheese for parm; battered fish + chips + acidic note for fish & chips; etc.). Do not dissolve the classic into a generic "composed" plate.
 - BANNED: treating the challenge as "original restaurant concept" while only nodding at a cuisine. Title head noun should signal the classic ("our fish and chips…", "chicken parm from the basket…").
+- TIME-HONEST NAMING: If you cannot deliver the classic's real technique on the clock, the title/tagline must signal the pivot ("bourguignon flavors on grilled short rib," "cassoulet-inspired bowl") — not "beef bourguignon" with a 25-minute pretend braise.
 - balance.basket: sentence 1 MUST name the classic + one-line how the basket twists it without erasing the dish. Then tag each REQUIRED with how it maps to that classic's usual components.\n`;
   }
   if(challengeTypeIsElevateCheap(ctype)){
@@ -2128,6 +2160,8 @@ function courseRoleHierarchyBlock(ch){
 - SUPPORTING = pantry and technique that directly serve that baseline (better fat, acid, allium, stock technique, better protein treatment INSIDE that format) — not a parallel fine-dining storyline or unrelated starch anchor.
 - Protein in a salad/sandwich baseline: stays IN that format (chunks folded into salad, better sear on pieces you fold in) — never steal the dish with center-plate fillet + sides unless baseline was already entree-class.
 - BANNED as brief-killing move: picking a refined template (classic risotto, quinoa pilaf, luxury plated entree) and using a required item only as cream/emulsifier while omitting a named cheap starter — or while erasing the baseline's visible form. If you truly need a rice technique, name the budget packet/side dish that justified it.
+- JAR-SAUCE / WEEKNIGHT PASTA: If baseline is spaghetti + jar sauce (or peer), the eat must still cue "cheap red sauce night" somewhere — tomato paste, charred tomato, classic dried herbs, or explicit callout — not anonymous glossy pasta.
+- LONG PASTA: If saucing spaghetti/linguine/etc., include emulsified finish (reduce + pasta water + toss) in steps when a sauce coats the noodles — not only a loose toss in unthickened liquid.
 - balance.basket: sentence 1 MUST be "Cheap baseline: [specific] → elevation: [one sentence — same dish]." Sentence 2 MUST state in plain words how the plate STILL reads as that baseline ("still a tuna salad in the bowl," "still a grilled cheese you can pick up," etc.). Then tag each REQUIRED with how it serves THAT baseline.\n`;
   }
   if(id==="appetizer"||/\bappetizer\b/.test(label)){
@@ -2177,7 +2211,8 @@ async function generateRecipe() {
     if(challengeTypeIsElevateCheap(ch.ctype)){
       executionMode+=`
 
-ELEVATE OVERRIDE — CHEAP MEAL, NOT FINE-DINING DEFAULT: This challenge is NOT a license to compose a polished original that ignores weeknight food. Lead with a judge-recognizable cheap baseline (examples: cup noodles, boxed mac, tuna salad, spaghetti + jar sauce, fried bologna sandwich, hot dog plate, frozen microwave dinner, flavored rice/pasta packet). Do NOT pivot to mushroom risotto, quinoa pilaf, luxe composed entree, or "protein-with-two-sides" plating unless you explicitly named that baseline class and the budget analogue. TRANSFORMATION NOT REPLACEMENT: the finished plan must still look/sound like the same humble dish — upgraded — not a new genre that dropped the baseline. Pantry supports the same cheap dish — does not replace it with a new restaurant genre.`;
+ELEVATE OVERRIDE — CHEAP MEAL, NOT FINE-DINING DEFAULT: This challenge is NOT a license to compose a polished original that ignores weeknight food. Lead with a judge-recognizable cheap baseline (examples: cup noodles, boxed mac, tuna salad, spaghetti + jar sauce, fried bologna sandwich, hot dog plate, frozen microwave dinner, flavored rice/pasta packet). Do NOT pivot to mushroom risotto, quinoa pilaf, luxe composed entree, or "protein-with-two-sides" plating unless you explicitly named that baseline class and the budget analogue. TRANSFORMATION NOT REPLACEMENT: the finished plan must still look/sound like the same humble dish — upgraded — not a new genre that dropped the baseline. Pantry supports the same cheap dish — does not replace it with a new restaurant genre.
+JAR-SAUCE / SPAGHETTI NIGHT: If that is the baseline, give judges a tomato or "cheap marinara memory" hook (paste, charred tomato, herbs) — not noodles with no sauce story. PASTA FINISH: emulsify sauce with starchy pasta water + toss for cling when saucing long pasta. SWEET BASKET (maple/honey): finish savory with extra acid/char so it does not read dessert-pasta.`;
     }
     if(challengeTypeIsSnack(ch.ctype)){
       executionMode+=`
@@ -2202,9 +2237,11 @@ ${classicArchetypeHardBlock()}`
       ?`ELEVATE A CHEAP MEAL — JSON / BRIEF LOCK:
 - balance.basket MUST start: "Cheap baseline: [specific humble dish or convenience product] — " then one sentence on elevation (technique/flavor), SAME dish identity — not a different dish name.
 - balance.basket MUST include a second sentence (can be short): "Still reads as: …" or equivalent — explicit trace so a judge sees the baseline on the plate (e.g. "Still reads as tuna salad in the bowl — seared chunks folded in, not a fillet plate").
+- If the baseline is jar-sauce spaghetti, boxed/packet pasta with red sauce, or similar, balance.basket MUST also name one "jar sauce nostalgia" or tomato-memory element you are hitting (tomato paste, charred tomato, oregano/marinara cue, etc.) — or one honest line on why the basket made tomato impossible. Silent generic pasta = failed brief.
 - title OR tagline MUST keep the baseline dish as the conceptual head (e.g. "Elevated tuna salad — …", "Boxed mac, fixed — …"). Titling like a generic entree while only mentioning baseline in passing = failed brief.
 - title OR tagline MUST repeat that baseline in plain words (e.g. "Instant ramen → …", "Tuna salad → …", "PB&J → …"). Marketing-only "from cheap tofu" without naming the real-world eating context = failed brief.
 - balance.complete MUST state how identity stayed visible — one phrase on transformation vs replacement (what you did NOT do: e.g. "No unrelated grain base; still salad format").
+- Long pasta + pan sauce or gastrique: steps MUST include an emulsified pasta finish (reserve water + reduce + toss to glossy) when noodles are sauced — not only "toss spaghetti in sauce" with no starchy bind.
 - BANNED without explicit baseline tie: new foundations like quinoa/farro pilaf, "grain bowl" reboot, or center-plate protein + separate starch when baseline was sandwich/salad/ramen bowl/etc.
 - If REQUIRED items do not obviously imply one cheap dish, you MUST still commit to one plausible recognizable baseline — NOT a silent jump to restaurant risotto or luxury templates without naming the budget analogue.\n`
       :"";
@@ -2268,10 +2305,11 @@ PLAIN LANGUAGE (kitchen dock, not press release):
 - tagline, step labels ("what"), plating, and step "how" lines: short, direct, competitor voice — like you're calling it to the judges' table, not writing a press kit.
 
 TIMELINE REALISM:
-- The work in your steps must honestly fit ~${ch.totalTime} min total challenge time (your ${ch.prepTime} prep + ${ch.cookTime} cook narrative). If tasks run in parallel, say so. Do not compress a full entrée into a obviously too-short window unless timing is explained.
+- The work in your steps must honestly fit ~${ch.totalTime} min total challenge time (your ${ch.prepTime} prep + ${ch.cookTime} cook narrative). If tasks run in parallel, say so. Do not compress a full entrée into an obviously too-short window unless timing is explained.
 - Do not oversell "easy" or relaxed pacing when the sequence is tight — tip or balance.complete may note that the clock is aggressive but doable with parallel work (if true).
 
 ${executionHonestyBlock(ch)}
+${physicsRealismBlock(ch)}
 REAL COOK / TIME-FIRST (judges hate fantasy timing, not ambition):
 ${techniquePolicy}
 - COMPONENT BUDGET: at most ${maxComponents} on-plate elements for this clock — PREFER FEWER when the story still works. Each element must earn its place (see CLEAN PLATE).
@@ -2428,6 +2466,7 @@ ${challengeIntentCoachBlock(ch.ctype)||""}
 ${basketFlavorLeadershipBlock(ch)}
 ${courseRoleHierarchyBlock(ch)}
 ${executionHonestyBlock(ch)}
+${physicsRealismBlock(ch)}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
 {"title":"","tagline":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":"","dur":"optional e.g. 5 min"}],"lastMinuteTip":"one sentence"}
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts. Self-check every ingredient and step before returning.`;
@@ -2548,7 +2587,6 @@ function renderActive() {
         <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
           <button id="timer-toggle" onclick="toggleTimer()" style="background:#22c55e;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Start</button>
           <button onclick="resetTimer()" style="background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Reset</button>
-          ${ch.surpriseCut?`<button onclick="cutTime()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">-10 min</button>`:""}
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
@@ -2601,7 +2639,6 @@ function toggleTimer(){
   }
 }
 function resetTimer(){clearInterval(state.timerInterval);state.timerRunning=false;state.timerRem=state.challenge.totalTime*60;const td=$("timer-display");const tb=$("timer-bar");if(td){td.textContent=formatTime(state.timerRem);td.style.color="#22c55e";}if(tb){tb.style.width="100%";tb.style.background="#22c55e";}$("timer-toggle").textContent="Start";$("timer-toggle").style.background="#22c55e";}
-function cutTime(){state.timerRem=Math.max(0,state.timerRem-600);const td=$("timer-display");if(td)td.textContent=formatTime(state.timerRem);}
 
 // ── SCORE SCREEN ──────────────────────────────────────────────────────────────
 function renderScore(){
@@ -2884,29 +2921,6 @@ function ingredientConflictsWithRestriction(ingName, restriction){
     if(ingredientConflictsWithRestriction(ingName,"Vegetarian")) return true;
     return false;
   }
-  if(restriction==="Raw Only"){
-    // True = needs thorough cooking / unsafe "raw on the plate" for typical comp judging
-    if(/\b(ground|sausage|hot dog|kielbasa|chorizo|bratwurst|mortadella|salami)\b/i.test(n)) return true;
-    if(/\bprosciutto\b/i.test(n) && !/\bcotto\b/i.test(n)) return false;
-    if(/\b(bacon|pancetta|guanciale|prosciutto cotto)\b/i.test(n)) return true;
-    if(/\b(chicken|turkey|duck|goose|quail|pheasant|cornish|wing|drumstick)\b/i.test(n)) return true;
-    if(/\b(whole chicken|turkey breast)\b/i.test(n)) return true;
-    if(/\bpork\b/i.test(n)) return true;
-    if(/\b(lamb|veal|rabbit|bison|buffalo)\b/i.test(n)) return true;
-    if(/\b(brisket|short rib|oxtail|beef liver|chicken liver|offal)\b/i.test(n)) return true;
-    if(/\bground beef\b/i.test(n)) return true;
-    if(/\b(swordfish|lobster tail|crab meat|squid|octopus|mussels?|clams?)\b/i.test(n)) return true;
-    if(/\bduck breast\b/i.test(n)) return true;
-    if(cat==="proteins" && /\b(tofu|tempeh|seitan)\b/i.test(n)) return false;
-    if(/\b(eggs?|egg)\b/i.test(n)) return false;
-    if(/\b(salmon|tuna|hamachi|yellowtail|cod|halibut|sea bass|mahi|snapper|arctic char|trout)\b/i.test(n)) return false;
-    if(/\bfillet\b/i.test(n) && !/\b(chicken|pork|turkey|duck)\b/i.test(n)) return false;
-    if(/\b(scallops?|shrimp|prawn)\b/i.test(n)) return false;
-    if(/\b(ribeye|flank|skirt|sirloin|tenderloin|filet|striploin|wagyu|ny strip|new york)\b/i.test(n)) return false;
-    if(/\bsteak\b/i.test(n) && !/\b(chicken|pork|fish|swordfish)\b/i.test(n)) return false;
-    if(cat==="proteins") return true;
-    return false;
-  }
   if(restriction==="No Salt") return false;
   return false;
 }
@@ -3151,6 +3165,22 @@ function executionHonestyBlock(ch){
 - Format words: if you say tartlet, sandwich, pot pie, taco, calzone — include the real structure (pastry shell, bread, tortilla, etc.) or rename the dish.\n`;
 }
 
+/** Real cooking constraints — rival + coach must not claim impossible outcomes to satisfy the basket. */
+function physicsRealismBlock(ch){
+  const t=Math.max(1, Number((ch&&ch.totalTime)||30));
+  const ctype=(ch&&ch.ctype)||{};
+  let s=`PHYSICS & REAL COOKING (non-negotiable — no comic-book shortcuts):
+- Real food obeys time and heat (${t} min round): collagen-rich cuts (short rib, chuck, brisket, shank, oxtail) do not become fork-tender from a ${t}-minute stovetop or grill "simmer" alone. If you braise them, either (1) use a pressure cooker / Instant Pot that is explicitly allowed in equipment and named in steps with believable timing, or (2) switch to a fast technique (hot sear, steak-cut slice against the grain, thin-cut) and **reframe** so you are not claiming a full long-braise classic.
+- Do not claim 2–3 hour outcomes (deep collagen breakdown, from-scratch demi in minutes, textbook osso buco / bourguignon braise) inside this clock unless the method honestly matches — pressure, quality stock concentrate from pantry with clear label, or an honest "inspired by" dish name.
+- Reductions and stocks: respect evaporation; no "instant demi" or full stock body without a credible source or time budget in the steps.
+- Grill / live fire: harder to hold low steady braise temps than an oven; do not assume oven-like stability — simplify or say how you manage heat.
+- Banned fantasy phrasing: outcomes that imply physics broke ("fork-tender short rib braise" in 20 min on ambient simmer, "full classic bourguignon" with no time for the braise) unless pressure or pivot is explicit.\n`;
+  if(challengeTypeIsRecreateClassic(ctype)){
+    s+=`RECREATE A CLASSIC — NAME VS. CLOCK: If the signature technique of the named classic needs longer than ${t} min in the real world, you MUST pivot honestly — "inspired by," "flavors of," faster protein treatment — or use only real shortcuts (pressure when allowed). **Do not title it as the textbook classic if the timeline makes that dish impossible.**\n`;
+  }
+  return s;
+}
+
 /** Equipment compliance gate: forbidden gear bans + must-use checks + practical stovetop exception logic. */
 function getRecipeEquipmentViolations(recipe, ch){
   const msgs=[];
@@ -3371,6 +3401,10 @@ ACTIVE RESTRICTIONS (fail closed):
       s+=` — BANNED: wine, beer, spirits in food; cooking wine counts.\n`;
     else if(norm==="No Nuts")
       s+=` — BANNED: tree nuts, peanuts, nut milks, pesto with pine nuts unless exception stated.\n`;
+    else if(norm==="No Salt")
+      s+=` — BANNED: table salt, kosher salt, finishing salt, seasoned salt, explicit "season with salt" / "salt to taste" in steps. MSG-as-salt is off unless you label an allowed exception (usually avoid).
+- Latent sodium is real: commercial stock, butter, cheese, soy sauce, miso, fish sauce, bacon, ham, brined pickles, many condiments — still allowed if your other rules permit them; name the source honestly. Prefer unsalted butter / low-sodium stock wording when the story allows so strict judges see intent.
+- Flavor architecture without added salt: push acid (citrus, vinegar), bitter (charred veg, greens), tomato paste or charred tomato for "red sauce" memory, aggressive reduction, herbs — especially when the basket has maple/honey/sweet; finish with extra acid so the plate stays savory, not dessert-leaning.\n`;
     else s+=` — treat as strict; do not violate in any field.\n`;
   }
   s+=`SELF-CHECK: Output JSON must be restriction-clean on first save. Judges eliminate on rule breaks.\n`;
@@ -3441,15 +3475,37 @@ function classifyRequiredBucket(name){
   // Stocks, broths, fonds — liquid savory bases, not a centerpiece protein (Chicken Stock ≠ chicken on the plate).
   if(/\b(stock|broth|bone\s*broth|bouillon|consomm[ée]|consomme|fumet|dashi)\b/i.test(n)) return "flavor";
 
+  // Bottled sauces, ferments, pastes — not center-of-plate protein (fish sauce ≠ fish fillet; soy ≠ protein anchor).
+  if(/\b(fish sauce|oyster sauce|soy sauce|tamari|worcestershire|hoisin|teriyaki|sriracha|ketchup|bbq sauce|barbecue sauce|fish paste|shrimp paste|anchovy paste|xo sauce|mayo|mayonnaise|mirin|gochujang|harissa)\b/i.test(n)) return "flavor";
+  if(/\bclams?\s+juice\b/i.test(n)) return "flavor";
+
+  // Catalog: oils, vinegars, shelf condiments — spinner "flavor" slot, never column 1 protein.
+  if(m && /oils\s*&\s*vinegars/i.test(String(m.cat||""))) return "flavor";
+
   // Primary protein: meat, seafood, eggs, tofu/tempeh/seitan — not legumes (handled above).
-  const primaryRx=/\b(chicken|beef|pork|lamb|turkey|duck|salmon|tuna|cod|halibut|trout|fish|shrimp|prawn|crab|lobster|scallops?|mussels?|clams?|tofu|tempeh|seitan|egg|eggs|anchov(?:y|ies)|sardines?|ground beef|steak|bacon|sausage|prosciutto|chorizo|kielbasa|andouille)\b/;
-  if(cat==="proteins" || /seafood|meat|poultry/.test(cat) || primaryRx.test(n)) return "protein";
+  // "fish" / "clam" alone: exclude fish sauce, clam juice (condiments — handled above).
+  const primaryRx=/\b(chicken|beef|pork|lamb|turkey|duck|salmon|tuna|cod|halibut|trout|shrimp|prawn|crab|lobster|scallops?|mussels?|tofu|tempeh|seitan|egg|eggs|anchov(?:y|ies)|sardines?|ground beef|steak|bacon|sausage|prosciutto|chorizo|kielbasa|andouille)\b/;
+  const fishProtein=/\bfish\b(?!\s+sauce\b)/i;
+  const clamShellfish=/\bclams?\b(?!\s+juice\b)/i;
+  const primaryHit=primaryRx.test(n)||fishProtein.test(n)||clamShellfish.test(n);
+  if(cat==="proteins" || /seafood|meat|poultry/.test(cat) || primaryHit) return "protein";
 
   // Produce: veg, fruit, aromatics (onion family, etc.)
   const produceRx=/\b(tomato|tomatoes|onion|shallot|garlic|ginger|pepper|jalape|spinach|kale|cauliflower|asparagus|corn|beet|brussels|carrot|scallion|lemon|lime|avocado|mango|apple|banana|orange|berry|grape|melon|mushroom|potato|zucchini|eggplant|herb|basil|thyme|rosemary|fiddlehead|rambutan)\b/;
   if(/vegetables|fruits|aromatics/.test(cat) || produceRx.test(n)) return "produce";
 
   return "flavor";
+}
+
+/** Spinner column titles: slot 1 = protein anchor, 2 = veg/produce, 3–4 = wildcards (pickRequiredPattern buckets). */
+function mustUseSlotColumnLabel(slotIndex, totalSlots){
+  const i=Number(slotIndex);
+  const t=Math.max(0, Number(totalSlots)||0);
+  if(t<=0||i<0||i>=t) return "Must use "+(i+1);
+  if(t===2) return ["Protein","Vegetable"][i]||"Must use "+(i+1);
+  if(t===3) return ["Protein","Vegetable","Random"][i]||"Must use "+(i+1);
+  if(t===4) return ["Protein","Vegetable","Random","Random"][i]||"Must use "+(i+1);
+  return ["Protein","Vegetable","Wild card","Flavor","Random"][i]||"Must use "+(i+1);
 }
 
 /** Chaos toggle or Insane difficulty → skip course-vs-basket viability fixes. */
@@ -3757,7 +3813,8 @@ function mysterySpinResultPanelHtml(){
   const parts=[];
   for(let i=0;i<need;i++){
     const name=state.req[i]||"—";
-    parts.push(`<div class="basket-spin-cell pw-pantry-ing-tip-wrap"><span class="basket-spin-lbl">Must use ${i+1}</span><div class="rnd-slot rnd-done-ing basket-ing-hover" tabindex="0" title="${escapeHtml(mysteryBasketIngTitleAttr(name))}">${escapeHtml(name)}</div>${mysteryBasketIngTooltipHtml(name)}</div>`);
+    const colLbl=mustUseSlotColumnLabel(i,need);
+    parts.push(`<div class="basket-spin-cell pw-pantry-ing-tip-wrap"><span class="basket-spin-lbl">${escapeHtml(colLbl)}</span><div class="rnd-slot rnd-done-ing basket-ing-hover" tabindex="0" title="${escapeHtml(mysteryBasketIngTitleAttr(name))}">${escapeHtml(name)}</div>${mysteryBasketIngTooltipHtml(name)}</div>`);
   }
   for(let j=0;j<nConstraints;j++){
     const txt=constraints[j]||"—";
@@ -3797,7 +3854,7 @@ function runMysteryRandomize(){
   const ctypePool=[...CTYPES,...state.customTypes];
   const totalSlots=need+nConstraints+2;
   const slotMeta=[];
-  for(let i=0;i<need;i++) slotMeta.push({kind:"ing",lbl:"Must use "+(i+1)});
+  for(let i=0;i<need;i++) slotMeta.push({kind:"ing",lbl:mustUseSlotColumnLabel(i,need)});
   for(let j=0;j<nConstraints;j++) slotMeta.push({kind:"con",lbl:"Rule "+(j+1)});
   slotMeta.push({kind:"time",lbl:"AI clock"});
   slotMeta.push({kind:"ct",lbl:"Challenge"});
