@@ -1814,7 +1814,7 @@ function challengeTypeIsSnack(ctype){
 
 /** Canonical dish pools for prompts — names users instantly recognize (not exhaustive). */
 const PW_RECOGNIZABLE_CLASSIC_EXAMPLES = `CANONICAL CLASSICS (this specificity — or another dish judges know equally well):
-• Protein: Chicken Parmesan, Chicken Piccata, Chicken Marsala, Coq au Vin, Beef Bourguignon, Steak Frites, Salisbury Steak, Meatloaf, Beef Stroganoff, Shepherd's Pie, Cottage Pie
+• Protein: Chicken Parmesan, Chicken Piccata (lemon + briny/caper lane — not a sweet fruit gastrique as the lead sauce), Chicken Marsala, Coq au Vin, Beef Bourguignon, Steak Frites, Salisbury Steak, Meatloaf, Beef Stroganoff, Shepherd's Pie, Cottage Pie
 • Seafood: Fish and Chips, Sole Meunière, Shrimp Scampi, Lobster Thermidor, Tuna Niçoise, Cioppino, Bouillabaisse
 • Pasta / Italian: Spaghetti and Meatballs, Spaghetti Carbonara, Cacio e Pepe, Lasagna, Bolognese (ragù), Alfredo, Pasta Primavera, Eggplant Parmesan, Risotto Milanese
 • Comfort / American: Mac and Cheese, Fried Chicken, Chicken Pot Pie, Biscuits and Gravy, BLT Sandwich, Cheeseburger, Club Sandwich, BBQ Ribs
@@ -1969,6 +1969,7 @@ RECREATE A CLASSIC — JUDGING LENS:
 - Reward basket-smart swaps that a judge still reads as "that's X with Y substituted," not a different dish.
 - Creativity points when it serves recognition of the named classic — not when it becomes an unrelated original.
 - Penalize "swap-only" logic: require clear functional mapping (what replaces gravy/body/umami/acid roles) so the dish tastes like the classic, not a sweet or random variation.
+- Penalize archetype drift: e.g. piccata must read lemon/briny; carbonara is not cream-forward; fish and chips needs chips/fries — substitutions must preserve that identity.
 - If restrictions forbid dairy/meat/etc., penalize heavily for smuggling forbidden ingredients — authenticity of the classic never overrides posted rules.`;
 }
 
@@ -2194,7 +2195,8 @@ SNACK OVERRIDE — BITE FORMAT: One pickup vehicle only (crostini, mini tart, pu
 - balance.basket MUST begin by naming the specific classic dish (standard name a judge could verify), e.g. first words: "Classic: fish and chips — …", "Homage to chicken parmesan — …", "Classic: lasagna — …". Synonyms OK if universal (chicken parm, parmigiana). Naming specificity must match CANONICAL CLASSICS in CHALLENGE INTENT (not a vague region).
 - title OR tagline MUST repeat that dish name — not only a cute original title. Region or mood labels ("coastal," "Tuscan-inspired") without naming the actual dish = failed brief.
 - If ANY dietary/equipment RESTRICTIONS are active, the full JSON must comply — substitutions must be rule-legal, not "classic authenticity" exceptions.
-- Prefer the classic's usual plate architecture; if you add pasta, secondary sauces, or shelf-sweet moves, state clearly they are basket-driven — do not bury the recognizable parm / cutlet / sauce / melt stack.\n`
+- Prefer the classic's usual plate architecture; if you add pasta, secondary sauces, or shelf-sweet moves, state clearly they are basket-driven — do not bury the recognizable parm / cutlet / sauce / melt stack.
+${classicArchetypeHardBlock()}`
       :"";
     const elevateJsonRule=challengeTypeIsElevateCheap(ch.ctype)
       ?`ELEVATE A CHEAP MEAL — JSON / BRIEF LOCK:
@@ -3085,6 +3087,106 @@ function getRecipeEquipmentViolations(recipe, ch){
   return msgs;
 }
 
+/**
+ * Named-classic archetypes: judge-style identity rules (beyond generic swap checks).
+ * Extend over time as evals surface new failure modes.
+ */
+const PW_CLASSIC_ARCHETYPES=[
+  {
+    id:"piccata",
+    label:"Piccata",
+    match:/\b((chicken|veal)\s+)?piccata\b/i,
+    checks:[
+      {
+        when:function(claim,low){
+          if(!/\b((chicken|veal)\s+)?piccata\b/i.test(claim)) return false;
+          const sweetLead=/\b(plum|cherry|apricot|fig|date|apple|berry)\b[\s\S]{0,48}\bgastrique|\bgastrique\b[\s\S]{0,48}\b(plum|cherry|apricot|fig|date)\b|sweet\s+spine|one\s+clear\s+sweet\s+spine|primary\s+foundation.*\b(plum|sweet\s+fruit|fruit\s+gastrique)\b/i.test(low);
+          const acidBriny=/\b(capers?\b|caper\s+brine|briny\s+(spike|hit|backbone)|lemon[-\s]forward|lemon\s+(zest|juice)|sharp\s+thin|yuzu|citrus\s+acid|cornichon|pickle\s+brine|olive\s+brine|salty\s+snap)\b/i.test(low);
+          return sweetLead && !acidBriny;
+        },
+        msg:"Sauce must read lemon/citrus-forward and briny (capers or an honest acid+briny substitute). A sweet fruit gastrique cannot replace that profile as the lead story."
+      },
+      {
+        when:function(claim,low){
+          if(!/\bpiccata\b/i.test(claim)) return false;
+          const g=/\bgastrique\b/i.test(low);
+          const heavySecond=/\b(demi|demi[\s-]glace|reduce\s+stock\s+to|stock\s+reduction\s+separate|second\s+sauce\s+system|parallel\s+reduction)\b/i.test(low);
+          return g && heavySecond && !/\b(one\s+sauce|single\s+sauce\s+architecture|not\s+two\s+full\s+sauces)\b/i.test(low);
+        },
+        msg:"Avoid stacking a full gastrique story with a separate heavy stock/demi reduction — pick one coherent piccata-style sauce."
+      }
+    ]
+  },
+  {
+    id:"carbonara",
+    label:"Carbonara",
+    match:/\bcarbonara\b/i,
+    checks:[
+      {
+        when:function(claim,low){
+          if(!/\bcarbonara\b/i.test(claim)) return false;
+          if(/\b(no\s+cream|cream[-\s]free|non[-\s]traditional|riff|vegan\s+carbonara)\b/i.test(low)) return false;
+          return /\b(heavy\s+cream|cream\s+sauce|cream\s+toss|finish\s+with\s+cream|creamy\s+carbonara\s+sauce)\b/i.test(low);
+        },
+        msg:"Classic carbonara lineage is egg + hard cheese + pasta water — not a cream sauce unless clearly framed as a deliberate non-classic riff."
+      }
+    ]
+  },
+  {
+    id:"fish_chips",
+    label:"Fish and chips",
+    match:/\bfish\s+and\s+chips\b/i,
+    checks:[
+      {
+        when:function(claim,low){
+          if(!/\bfish\s+and\s+chips\b/i.test(claim)) return false;
+          return !/\b(chips?|fries?|fried\s+potatoes|hand[-\s]?cut\s+fries|french\s+fries)\b/i.test(low);
+        },
+        msg:"Fish and chips requires fried chips/fries as part of the classic — not fish alone with an unrelated starch."
+      }
+    ]
+  },
+  {
+    id:"pad_thai",
+    label:"Pad Thai",
+    match:/\bpad\s+thai\b/i,
+    checks:[
+      {
+        when:function(claim,low){
+          if(!/\bpad\s+thai\b/i.test(claim)) return false;
+          const sweetDom=/\b(only\s+honey|only\s+maple|sweet\s+spine\s+only|dessert[-\s]sweet)\b/i.test(low);
+          const balance=/\b(tamarind|fish\s+sauce|palm\s+sugar|sour\s*[/&]\s*sweet|salty\s*[/&]\s*sour)\b/i.test(low);
+          return sweetDom && !balance;
+        },
+        msg:"Pad Thai needs sour/salty/sweet balance in the noodle story — not a single-track sweet sauce unless you explicitly map classic pad Thai functions."
+      }
+    ]
+  }
+];
+
+function getClassicArchetypeViolations(claimText, low){
+  const msgs=[];
+  const claim=String(claimText||"");
+  const t=String(low||"");
+  for(const arch of PW_CLASSIC_ARCHETYPES){
+    if(!arch.match.test(claim)) continue;
+    for(const chk of arch.checks){
+      try{
+        if(chk.when(claim,t)) msgs.push(`${arch.label} archetype: ${chk.msg}`);
+      }catch(_e){}
+    }
+  }
+  return msgs;
+}
+
+function classicArchetypeHardBlock(){
+  return `CLASSIC ARCHETYPE LOCK (examples — if the named dish matches, honor judge identity, not only ingredients):
+- Piccata: lemon/citrus-forward thin sharp sauce + briny caper lane (or stated substitutes for BOTH acid lift and briny snap). Do not make a sweet fruit gastrique the lead sauce profile.
+- Carbonara: pecorino/egg/pasta-water lineage — not cream unless explicitly a labeled non-classic riff.
+- Fish and chips: battered fried fish + fried chips/fries — both belong to the dish.
+- Pad Thai: tamarind/fish-sauce/sweet-salty-sour balance lane — not honey-forward dessert logic unless reframed with function mapping.\n`;
+}
+
 /** Recreate-a-Classic quality gate: reject "swap-only" outputs that miss classic function mapping. */
 function getRecreateClassicTransformationViolations(recipe, ch){
   const msgs=[];
@@ -3100,11 +3202,14 @@ function getRecreateClassicTransformationViolations(recipe, ch){
   const basketLow=basketLine.toLowerCase();
 
   // Broad but practical classic dish-name detector.
-  const classicNameRx=/\b(fish and chips|chicken parmesan|chicken parm(?:igiana)?|eggplant parmesan|eggplant parm(?:igiana)?|salisbury steak|meatloaf|beef stroganoff|shepherd'?s pie|cottage pie|coq au vin|beef bourguignon|steak frites|shrimp scampi|sole meuni[eè]re|lobster thermidor|cioppino|bouillabaisse|spaghetti (?:and )?meatballs|carbonara|cacio e pepe|lasagna|bolognese|alfredo|pasta primavera|risotto milanese|mac (?:and|&) cheese|fried chicken|chicken pot pie|biscuits and gravy|cheeseburger|club sandwich|pad thai|fried rice|ramen|pho|shawarma|falafel|gyro|eggs benedict|french toast|pancakes|omelette|huevos rancheros)\b/i;
+  const classicNameRx=/\b(fish and chips|chicken\s+piccata|veal\s+piccata|chicken parmesan|chicken parm(?:igiana)?|eggplant parmesan|eggplant parm(?:igiana)?|salisbury steak|meatloaf|beef stroganoff|shepherd'?s pie|cottage pie|coq au vin|beef bourguignon|steak frites|shrimp scampi|sole meuni[eè]re|lobster thermidor|cioppino|bouillabaisse|spaghetti (?:and )?meatballs|carbonara|cacio e pepe|lasagna|bolognese|alfredo|pasta primavera|risotto milanese|mac (?:and|&) cheese|fried chicken|chicken pot pie|biscuits and gravy|cheeseburger|club sandwich|pad thai|fried rice|ramen|pho|shawarma|falafel|gyro|eggs benedict|french toast|pancakes|omelette|huevos rancheros)\b/i;
   const hasNamedClassic=classicNameRx.test(head)||classicNameRx.test(basketLine);
   if(!hasNamedClassic){
     msgs.push(`Recreate brief: title/tagline/balance.basket must name one specific classic dish (menu-level name), not just style vibes.`);
   }
+
+  const claimForArch=`${title} ${tagline} ${basketLine}`;
+  msgs.push(...getClassicArchetypeViolations(claimForArch, low));
 
   // Require explicit function mapping language, not only ingredient swapping.
   const functionMapRx=/\b(function|role|acts as|serves as|mimic|mimics|mimicking|stand[-\s]?in|replaces?|still reads as|classic (?:structure|architecture)|umami depth|brown gravy|savory depth)\b/i;
