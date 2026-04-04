@@ -1,0 +1,44 @@
+{
+  "title": "Your plan loop",
+  "subtitle": "Think roles and constraints first — dish name last.",
+  "chain": "role → transformation → time filter → balance check → assemble",
+  "steps": [
+    {
+      "title": "Start with each ingredient",
+      "body": "Don’t open with a finished dish name. Ask what each item can become on this clock."
+    },
+    {
+      "title": "What roles does the plate need?",
+      "body": "Every competitive plate needs coverage: something with body, something with contrast, brightness/acid, and (when the course fits) a clear main. Sauce or glaze is optional but often earns points."
+    },
+    {
+      "title": "What roles can each ingredient play?",
+      "body": "The same ingredient can be main, accent, or texture depending on cut and technique — assign on purpose, not by habit."
+    },
+    {
+      "title": "Pick the transformation",
+      "body": "For each role, name what must happen: sear, roast, reduce, smash + crisp, emulsify, etc. Use pick a lane below when you need concrete options."
+    },
+    {
+      "title": "Apply the time filter",
+      "body": "Delete moves that don’t fit the round minutes and your equipment. Thick cuts, long braises, and unbounded reductions often fail here — shrink the cut, run parallel work, or change method."
+    },
+    {
+      "title": "Combine what’s left",
+      "body": "The remaining moves are your valid set — stack them into one coherent plate story."
+    },
+    {
+      "title": "Balance check",
+      "body": "Contrast (e.g. soft + crisp), sweet + acid where needed, depth from browning or a real reduction — then plate."
+    }
+  ],
+  "rolesTitle": "Roles to cover",
+  "roles": [
+    "Base / body",
+    "Protein or main (when the course fits)",
+    "Texture / contrast",
+    "Balance — acid or brightness",
+    "Optional — sauce or glaze"
+  ],
+  "takeaway": "Winners think in roles and constraints first, then name the dish — not the other way around."
+}
