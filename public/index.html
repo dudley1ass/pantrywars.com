@@ -2271,6 +2271,7 @@ TIMELINE REALISM:
 - The work in your steps must honestly fit ~${ch.totalTime} min total challenge time (your ${ch.prepTime} prep + ${ch.cookTime} cook narrative). If tasks run in parallel, say so. Do not compress a full entrée into a obviously too-short window unless timing is explained.
 - Do not oversell "easy" or relaxed pacing when the sequence is tight — tip or balance.complete may note that the clock is aggressive but doable with parallel work (if true).
 
+${executionHonestyBlock(ch)}
 REAL COOK / TIME-FIRST (judges hate fantasy timing, not ambition):
 ${techniquePolicy}
 - COMPONENT BUDGET: at most ${maxComponents} on-plate elements for this clock — PREFER FEWER when the story still works. Each element must earn its place (see CLEAN PLATE).
@@ -2303,10 +2304,12 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
       data=await ai(prompt,8192,{ bypassDailyPrecheck:attempt>0, skipQuotaRecord:attempt>0 });
       const restrictionViol=getRecipeRestrictionViolations(data,ch.restrictions);
       const equipmentViol=getRecipeEquipmentViolations(data,ch);
+      const timelineViol=getRecipeTimelineViolations(data,ch);
+      const formatViol=getRecipeFormatHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(equipmentViol, classicViol);
+      const viol=restrictionViol.concat(equipmentViol, timelineViol, formatViol, classicViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (including equipment rules). For Recreate a Classic, transformation and classic-function mapping are mandatory; do not just substitute ingredients. Verify every ingredient line and every step "how".`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (equipment centrality, timeline, format honesty, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
       if(attempt===maxAttempts-1) state.recipeRestrictionWarnings=viol;
     }
     state.recipe=data;
@@ -2424,8 +2427,9 @@ ${courseEnforcementBlock(ch, analyzeBasketForRecipe(ch.required||[]))}
 ${challengeIntentCoachBlock(ch.ctype)||""}
 ${basketFlavorLeadershipBlock(ch)}
 ${courseRoleHierarchyBlock(ch)}
+${executionHonestyBlock(ch)}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
-{"title":"","tagline":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":""}],"lastMinuteTip":"one sentence"}
+{"title":"","tagline":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":"","dur":"optional e.g. 5 min"}],"lastMinuteTip":"one sentence"}
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts. Self-check every ingredient and step before returning.`;
     const rCoach=sanitizeRestrictionList(ch.restrictions||[]);
     const maxAttempts=(ch.restrictions&&ch.restrictions.length)?(rCoach.some(x=>normalizeRestrictionKey(x)==="Vegan")?4:3):1;
@@ -2435,10 +2439,12 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
       data=await ai(prompt,4096,{ bypassDailyPrecheck:att>0, skipQuotaRecord:att>0 });
       const restrictionViol=getRecipeRestrictionViolations(data,ch.restrictions);
       const equipmentViol=getRecipeEquipmentViolations(data,ch);
+      const timelineViol=getRecipeTimelineViolations(data,ch);
+      const formatViol=getRecipeFormatHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(equipmentViol, classicViol);
+      const viol=restrictionViol.concat(equipmentViol, timelineViol, formatViol, classicViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (including equipment rules). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (equipment centrality, timeline, format honesty). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
       if(att===maxAttempts-1) state.contestRecipeRestrictionWarnings=viol;
     }
     state.contestRecipe=data;
@@ -3042,6 +3048,109 @@ function mentionsEquipment(low, equipName){
   return rx.test(String(low||""));
 }
 
+/** Minutes from a step's dur field (e.g. "20 min", "4–5 min"). */
+function minutesFromStepDur(dur){
+  const d=String(dur||"").trim();
+  if(!d) return 0;
+  const range=d.match(/(\d+)\s*[-–]\s*(\d+)\s*min/i);
+  if(range) return Math.max(+range[1], +range[2]);
+  const one=d.match(/(\d+)\s*min/i);
+  if(one) return +one[1];
+  const plain=d.match(/^(\d+)\s*$/);
+  if(plain) return +plain[1];
+  return 0;
+}
+
+/**
+ * Rough timeline check: summed step durations vs challenge clock.
+ * Catches "20 min braise + rest in 25 min" style fantasy.
+ */
+function getRecipeTimelineViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const total=Math.max(1, Number(ch.totalTime)||30);
+  const steps=recipe.steps||[];
+  let sum=0, maxM=0;
+  for(const s of steps){
+    const m=minutesFromStepDur(s.dur);
+    sum+=m;
+    if(m>maxM) maxM=m;
+  }
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const parallel=/\b(parallel|simultaneous|same\s+time|while\s+.*\s+boil|at\s+the\s+same\s+time)\b/i.test(low);
+  if(sum>0){
+    const budget=parallel?total*1.35:total+6;
+    if(sum>budget) msgs.push(`Timeline: step durations (~${sum} min) exceed the ${total} min challenge window${parallel?" (even allowing overlap)":""} — shorten, overlap tasks honestly, or fix dur fields.`);
+    if(maxM>total*0.68) msgs.push(`Timeline: one step (~${maxM} min) dominates the ${total} min clock — compress, parallelize, or simplify so the run is believable.`);
+  }
+  return msgs;
+}
+
+/**
+ * Dish words that imply a physical format — require matching structure in method text.
+ */
+const PW_FORMAT_HONESTY_RULES=[
+  { re:/\btartlet\b/i, need:/\b(pastry|puff|shortcrust|dough|shell|crust|phyllo|filo|tart\s+shell|lined\s+ring|mold)\b/i, msg:'Format honesty: "tartlet" needs a real pastry/shell (dough, puff, crust) or rename (e.g. composed bite).' },
+  { re:/\bpot\s+pie\b/i, need:/\b(pastry|crust|top\s*crust|lid|puff|dough|biscuit\s+topping)\b/i, msg:"Format honesty: pot pie needs a crust/lid story — not a bowl stew only." },
+  { re:/\bsandwich\b/i, need:/\b(bread|bun|roll|brioche|toast|baguette|wrap|tortilla|bun\s+top)\b/i, msg:"Format honesty: sandwich needs bread/wrap layers — or call it an open plate." },
+  { re:/\bcalzone\b/i, need:/\b(dough|pizza\s+dough|folded|stuffed\s+dough)\b/i, msg:"Format honesty: calzone implies sealed dough — say so or rename." },
+  { re:/\btaco\b/i, need:/\b(tortilla|shell|corn\s+tortilla|flour\s+tortilla)\b/i, msg:"Format honesty: taco needs a tortilla/shell — or rename the format." },
+];
+
+function getRecipeFormatHonestyViolations(recipe){
+  const msgs=[];
+  if(!recipe) return msgs;
+  const head=String(recipe.title||"")+" "+String(recipe.tagline||"");
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  for(const rule of PW_FORMAT_HONESTY_RULES){
+    if(!rule.re.test(head)) continue;
+    if(rule.need.test(low)) continue;
+    msgs.push(rule.msg);
+  }
+  return msgs;
+}
+
+/** Must-use gear must appear in a primary heat/technique step, not only garnish. */
+function getRecipeEquipmentCentralityViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const req=(ch.reqEquip||[]).map(s=>String(s).trim()).filter(Boolean);
+  if(!req.length) return msgs;
+  const steps=recipe.steps||[];
+  for(const eq of req){
+    const en=eq.toLowerCase();
+    if(/torch|blender|food\s*processor|sous\s*vide|microwave|air\s*fryer|instant\s*pot|oven|sheet\s*pan|cast\s*iron|wok/i.test(en)===false) continue;
+    let ok=false;
+    for(const s of steps){
+      const ph=(s.phase||"").toUpperCase();
+      const blob=String(s.what||"")+" "+String(s.how||"");
+      const b=blob.toLowerCase();
+      if(!mentionsEquipment(b, eq)) continue;
+      if(/torch/i.test(en)) ok=/\b(brul|torch|melt|char\s+with)\b/i.test(blob)||/^PLATE$|^ASSEMBLE$/i.test(String(ph||"").trim());
+      else if(/blender|food\s*processor/i.test(en)) ok=/\b(blend|puree|pulse|process|grate|blitz)\b/i.test(blob);
+      else if(/sous\s*vide/i.test(en)) ok=/\b(sous\s*vide|water\s*bath|\d+\s*°?f|\d+\s*°?c)\b/i.test(blob);
+      else if(/microwave/i.test(en)) ok=/\b(microwave|nuke)\b/i.test(blob);
+      else if(/air\s*fryer/i.test(en)) ok=/\bair\s*fryer\b/i.test(blob);
+      else if(/instant\s*pot|pressure/i.test(en)) ok=/\b(instant\s*pot|pressure\s*cook)\b/i.test(blob);
+      else if(/^oven$/i.test(en)) ok=/\b(oven|bake|roast)\b/i.test(blob);
+      else if(/sheet\s*pan/i.test(en)) ok=/COOK|SAUCE|PREP/.test(ph)&&/\b(sheet\s*pan|sheetpan|tray)\b/i.test(blob)&&/\b(roast|bake|sheet)\b/i.test(blob);
+      else if(/cast\s*iron|wok/i.test(en)) ok=/COOK|SAUCE/.test(ph)&&/\b(sear|saut[eé]|braise|brown|simmer|reduce|deglaze|fond|toast|char|caramel|pan\s+sauce)\b/i.test(blob);
+      else ok=true;
+      if(ok) break;
+    }
+    if(!ok) msgs.push(`Must-use ${eq}: use it in a primary technique step (sear/braise/blend/bake as fits the tool) — not only a passing mention or side garnish.`);
+  }
+  return msgs;
+}
+
+function executionHonestyBlock(ch){
+  const t=Math.max(1, Number((ch&&ch.totalTime)||30));
+  return `EXECUTION HONESTY (judging table):
+- Must-use equipment: integrate in the main cook story (COOK/SAUCE or the step that matches the tool) — not only for a minor component while the heaviest step uses a different vessel.
+- Timeline: step "dur" values should sum realistically vs ${t} min; long braises must fit; say "parallel" when two things run at once.
+- Format words: if you say tartlet, sandwich, pot pie, taco, calzone — include the real structure (pastry shell, bread, tortilla, etc.) or rename the dish.\n`;
+}
+
 /** Equipment compliance gate: forbidden gear bans + must-use checks + practical stovetop exception logic. */
 function getRecipeEquipmentViolations(recipe, ch){
   const msgs=[];
@@ -3084,6 +3193,7 @@ function getRecipeEquipmentViolations(recipe, ch){
     }
   }
 
+  msgs.push(...getRecipeEquipmentCentralityViolations(recipe,ch));
   return msgs;
 }
 
@@ -3282,6 +3392,7 @@ function equipmentHardPriorityBlock(ch){
   if(forb.some(x=>String(x).toLowerCase()==="stovetop")){
     s+=`- Outside-the-box allowance: if Stovetop is forbidden, pan/skillet work is allowed ONLY when explicitly tied to an allowed non-stovetop heat source (e.g. cast-iron skillet on grill/plancha), never on a burner/range.\n`;
   }
+  if(req.length) s+=`- Centrality: must-use gear must drive a primary step for that tool (sear/braise in the cast iron, blend in the processor) — not only a side garnish while the main cook happens elsewhere.\n`;
   s+=`- Self-check before returning: ingredients, steps, and prose must all be equipment-compliant.\n`;
   return s;
 }
