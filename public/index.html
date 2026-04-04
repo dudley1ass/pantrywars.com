@@ -2488,6 +2488,7 @@ SCORING RUBRIC:
 - Presentation: plating clarity from described dish
 - Difficulty: technical ambition that fits time
 ${challengeIntentJudgeAddon(ch.ctype)}${restrictionsJudgeAddon(ch)}${noSaltRestrictionJudgeAddon(ch)}${dessertJudgeAddon(ch)}${snackJudgeAddon(ch)}${elevateCheapJudgeAddon(ch)}${recreateClassicJudgeAddon(ch)}${physicsRealismJudgeAddon(ch)}
+- ${timeTransformationLoopJudgeBlock()}
 
 Challenge:
 - Type: ${ch.ctype.label}
@@ -3212,6 +3213,7 @@ ${["hard","insane"].includes(String(ch.diff||"").toLowerCase())&&Number(ch.total
 
 ${executionHonestyBlock(ch)}
 ${physicsRealismBlock(ch)}
+${timeTransformationLoopPromptBlock(ch)}
 REAL COOK / TIME-FIRST (judges hate fantasy timing, not ambition):
 ${techniquePolicy}
 - COMPONENT BUDGET: at most ${maxComponents} on-plate elements for this clock — PREFER FEWER when the story still works. Each element must earn its place (see CLEAN PLATE).
@@ -3256,9 +3258,10 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
       const kitchenViol=getKitchenScienceHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
       const plantViol=getPlantProteinTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, formatViol, kitchenViol, classicViol, plantViol);
+      const pressureFinishViol=getPressureMoistCookFinishViolations(data,ch);
+      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, formatViol, kitchenViol, classicViol, plantViol, pressureFinishViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy with real acid, brisket/collagen realism, must-use equipment centrality especially Wok vs oven story, blender on filling when assigned, timeline, basket coverage for every REQUIRED name, seitan/tempeh transformation not garnish-only, appetizer vs dessert read, format honesty, kitchen science, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy with real acid, brisket/collagen realism, must-use equipment centrality especially Wok vs oven story, blender on filling when assigned, timeline, basket coverage for every REQUIRED name, seitan/tempeh transformation not garnish-only, pressure cook then a named finish or wet-bowl intent, appetizer vs dessert read, format honesty, kitchen science, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
       if(attempt===maxAttempts-1) state.recipeRestrictionWarnings=viol;
     }
     state.recipe=data;
@@ -3378,6 +3381,7 @@ ${basketFlavorLeadershipBlock(ch)}
 ${courseRoleHierarchyBlock(ch)}
 ${executionHonestyBlock(ch)}
 ${physicsRealismBlock(ch)}
+${timeTransformationLoopPromptBlock(ch)}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
 {"title":"","tagline":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":"","dur":"optional e.g. 5 min"}],"lastMinuteTip":"one sentence"}
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts. Self-check every ingredient and step before returning.`;
@@ -3401,9 +3405,10 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
       const kitchenViol=getKitchenScienceHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
       const plantViol=getPlantProteinTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, formatViol, kitchenViol, classicViol, plantViol);
+      const pressureFinishViol=getPressureMoistCookFinishViolations(data,ch);
+      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, formatViol, kitchenViol, classicViol, plantViol, pressureFinishViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (must-use equipment centrality, blender on filling when assigned, timeline, basket coverage for every MUST USE name, seitan/tempeh transformation not garnish-only, appetizer course fit, format honesty, kitchen science — real emulsion names, bread not flour slices). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (must-use equipment centrality, blender on filling when assigned, timeline, basket coverage for every MUST USE name, seitan/tempeh transformation not garnish-only, pressure cook then a named finish or wet-bowl intent, appetizer course fit, format honesty, kitchen science — real emulsion names, bread not flour slices). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
       if(att===maxAttempts-1) state.contestRecipeRestrictionWarnings=viol;
     }
     state.contestRecipe=data;
@@ -4357,6 +4362,25 @@ function getPlantProteinTransformationViolations(recipe, ch){
   return msgs;
 }
 
+/**
+ * Pressure / Instant Pot delivers moist tender — composed plates usually need a named second step (sear, broil, glaze, crisp).
+ * Exempt clear wet-bowl dishes (soup, stew, etc.).
+ */
+function getPressureMoistCookFinishViolations(recipe, _ch){
+  const msgs=[];
+  if(!recipe) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe);
+  if(!low) return msgs;
+  const usesPressure=/\b(instant\s*pot|pressure\s*cook(?:er|ed|ing)?|electric\s*pressure|multicooker|high[\s-]?pressure|come\s+to\s+pressure|at\s+pressure|natural\s+release|quick\s+release|qr\s+release|release\s+the\s+pressure|pressure\s+valve)\b/i.test(low);
+  if(!usesPressure) return msgs;
+  const wetBowlOk=/\b(soup|stew|bisque|chowder|congee|ramen|pho|gumbo|bone\s+broth|noodle\s+soup|lentil\s+soup|minestrone|beef\s+chili|turkey\s+chili|chili\s+con|dal\b|dahl|curry\s+to\s+(?:ladle|serve)|one[\s-]pot\s+(?:soup|stew)|braised\s+only\s+as\s+(?:soup|stew))\b/i.test(low);
+  if(wetBowlOk) return msgs;
+  const hasFinish=/\b(sear(?:ed|ing)?|broil(?:ed|ing|er)?|torch(?:ed)?|char(?:red|ring)?|carameliz|crisp(?:y|ed|ing)?|pan[\s-]?(?:fry|sear|brown|crisp)|brown(?:ed|ing)?\s+in\s+(?:a\s+)?(?:hot\s+)?(?:pan|skillet)|finish(?:ed|ing)?\s+(?:under\s+)?(?:the\s+)?(?:broiler|salamander)|hot\s+(?:oven|skillet)\s+(?:finish|blast)|reduce(?:d|s|tion)?\s+(?:to|until|down|with|maple|sauce)|\bglaz(?:e|ing)\b|smash(?:ed)?\s+.{0,40}?\s*(?:crisp|fry|brown)|bake\s+until\s+(?:crisp|golden)|roast\s+until\s+(?:crisp|golden|bark)|grill(?:ed|ing)?|under\s+the\s+broiler|deep[\s-]?fry|skin[\s-]side\s+down|maillard|golden\s+edges)\b/i.test(low);
+  if(hasFinish) return msgs;
+  msgs.push(`Time → transformation: pressure / Instant Pot appears in the method — name a finishing transformation (sear, broil, reduce-to-glaze, pan-crisp, char, crisp bake) or clearly frame a wet-bowl dish (soup/stew/chili) — not pressure → plate alone on a composed entrée.`);
+  return msgs;
+}
+
 function executionHonestyBlock(ch){
   const t=Math.max(1, Number((ch&&ch.totalTime)||30));
   return `EXECUTION HONESTY (judging table):
@@ -4388,6 +4412,21 @@ function physicsRealismBlock(ch){
     s+=`RECREATE A CLASSIC — NAME VS. CLOCK: If the signature technique of the named classic needs longer than ${t} min in the real world, you MUST pivot honestly — "inspired by," "flavors of," faster protein treatment — or use only real shortcuts (pressure when allowed). **Do not title it as the textbook classic if the timeline makes that dish impossible.**\n`;
   }
   return s;
+}
+
+/** Same mental model as the in-app Time vs transformation cheat sheet + flowchart: real clock, wet-then-finish, roles, contrast. */
+function timeTransformationLoopPromptBlock(ch){
+  const t=Math.max(1, Number((ch&&ch.totalTime)||30));
+  return `TIME → TRANSFORMATION LOOP (mandatory — same system as Pantry Wars on-screen guides):
+- REAL CLOCK (${t} min round): Prep + labeled cook minutes are not the whole story. Pressure / Instant Pot / multicooker: budget coming to pressure (~5–8 min), release time (natural vs quick — often ~5–12 min when it matters), rest or cool-down when you say so. If the written steps skip these, the timeline fails — fix the steps or pick a faster method.
+- TENDER ≠ FINISHED: Moist heat and pressure make things tender (often wet). For most composed plates, judges expect a deliberate second transformation after that: sear, broil, reduce to glaze, pan-crisp, smash + crisp, char — not "pressure → serve" unless the dish is honestly one-texture (soup, stew, saucy bowl).
+- ROLES: The plan must read as allocating time to transformations — body/base, contrast (crunch/char/cool), structure when needed, balance (acid/brightness). Weak verbs alone ("glaze," "drizzle," "sprinkle") are not transformations unless you name the real move (reduce maple until sticky; toast and crush sesame; smash potatoes then crisp in fat).
+- CONTRAST: Aim for soft + crunchy (or equivalent), sweet + acid, rich + light on the plate when the course is not explicitly a single-bowl wet dish. Say so in balance.texture and balance.complete — not only "varied textures."\n`;
+}
+
+/** Compact rubric lines for auto-judge — aligned with timeTransformationLoopPromptBlock. */
+function timeTransformationLoopJudgeBlock(){
+  return `TIME → TRANSFORMATION: Penalize timelines that ignore pressure come-up / release when a pressure cook is central. Penalize wet-only protein/veg with no finishing sear, glaze, char, or crisp when a composed plate was expected. Penalize all-soft, low-contrast plans with no acid story. Reward explicit second transformations after moist cooks and named texture targets (not vague "roast in pan").`;
 }
 
 /** Equipment compliance gate: forbidden gear bans + must-use checks + practical stovetop exception logic. */
