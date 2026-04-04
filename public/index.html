@@ -3097,6 +3097,7 @@ function getRecipeRestrictionViolations(recipe, restrictions){
 function equipmentAliasRegex(name){
   const n=String(name||"").toLowerCase();
   if(n==="stovetop") return /\b(stovetop|range|burner|hob|cooktop|on\s+the\s+stove|over\s+medium\s+heat|over\s+high\s+heat|saut[eé]|skillet\s+over)\b/i;
+  if(n==="blender") return /\b(blender|immersion\s+blender|stick\s+blender|vitamix|nutribullet|high[\s-]*speed[\s-]*blender)\b/i;
   if(n==="food processor") return /\b(food\s*processor|processor\s+bowl)\b/i;
   if(n==="air fryer") return /\bair\s*fryer\b/i;
   if(n==="instant pot") return /\binstant\s*pot|pressure\s*cooker\b/i;
@@ -3107,6 +3108,19 @@ function equipmentAliasRegex(name){
 function mentionsEquipment(low, equipName){
   const rx=equipmentAliasRegex(equipName);
   return rx.test(String(low||""));
+}
+
+/** Must-use blender / food processor: tool name OR unmistakable blend/pulse technique in prose (models often say "purée" without repeating "blender"). */
+function mustUseEquipmentSatisfied(low, eq){
+  const L=String(low||"").toLowerCase();
+  if(mentionsEquipment(L, eq)) return true;
+  const en=String(eq||"").toLowerCase();
+  if(/\bblender\b/.test(en))
+    return /\b(blend|blended|blending|puree|purée|pureed|pulse|pulsed|blitz|vitamix|liquif|smoothie)\b|immersion\s+blender/i.test(L);
+  if(/food\s*processor/.test(en))
+    return /\b(food\s*processor|processor\s+bowl)\b/i.test(L)
+      ||(/\b(pulse|pulsed|shred|grate)\b/i.test(L)&&/\bprocessor\b/i.test(L));
+  return false;
 }
 
 /** Minutes from a step's dur field (e.g. "20 min", "4–5 min"). */
@@ -3217,12 +3231,21 @@ function getRecipeEquipmentCentralityViolations(recipe, ch){
     if(/torch|blender|food\s*processor|sous\s*vide|microwave|air\s*fryer|instant\s*pot|oven|sheet\s*pan|cast\s*iron|wok/i.test(en)===false) continue;
     let ok=false;
     for(const s of steps){
-      const ph=(s.phase||"").toUpperCase();
+      const ph=(String(s.phase||"").toUpperCase()).trim();
       const blob=String(s.what||"")+" "+String(s.how||"");
       const b=blob.toLowerCase();
-      if(!mentionsEquipment(b, eq)) continue;
+      const hasTool=mentionsEquipment(b, eq);
+      if(/blender|food\s*processor/i.test(en)){
+        const verbOk=/\b(blend|blended|blending|puree|purée|pureed|pulse|pulsed|blitz|liquif|emulsif|smooth)\b/i.test(b);
+        const primary=/^(COOK|SAUCE|PREP|ASSEMBLE|PLATE)$/.test(ph);
+        if((hasTool&&verbOk)||(verbOk&&primary)){
+          ok=true;
+          break;
+        }
+        continue;
+      }
+      if(!hasTool) continue;
       if(/torch/i.test(en)) ok=/\b(brul|torch|melt|char\s+with)\b/i.test(blob)||/^PLATE$|^ASSEMBLE$/i.test(String(ph||"").trim());
-      else if(/blender|food\s*processor/i.test(en)) ok=/\b(blend|puree|pulse|process|grate|blitz)\b/i.test(blob);
       else if(/sous\s*vide/i.test(en)) ok=/\b(sous\s*vide|water\s*bath|\d+\s*°?f|\d+\s*°?c)\b/i.test(blob);
       else if(/microwave/i.test(en)) ok=/\b(microwave|nuke)\b/i.test(blob);
       else if(/air\s*fryer/i.test(en)) ok=/\bair\s*fryer\b/i.test(blob);
@@ -3291,11 +3314,11 @@ function getRecipeEquipmentViolations(recipe, ch){
     if(rx.test(low)) msgs.push(`Forbidden equipment: ${eq} appears in method text.`);
   }
 
-  // Must-use equipment checks: require explicit mention in steps/prose.
+  // Must-use equipment checks: require explicit mention in steps/prose (blender/FP allow technique verbs — see mustUseEquipmentSatisfied).
   for(const raw of (ch.reqEquip||[])){
     const eq=String(raw||"").trim();
     if(!eq) continue;
-    if(!mentionsEquipment(low, eq)){
+    if(!mustUseEquipmentSatisfied(low, eq)){
       msgs.push(`Must-use equipment missing: ${eq} is required but not clearly used in the written method.`);
     }
   }
@@ -3533,6 +3556,8 @@ function equipmentHardPriorityBlock(ch){
     s+=`- Outside-the-box allowance: if Stovetop is forbidden, pan/skillet work is allowed ONLY when explicitly tied to an allowed non-stovetop heat source (e.g. cast-iron skillet on grill/plancha), never on a burner/range.\n`;
   }
   if(req.length) s+=`- Centrality: must-use gear must drive a primary step for that tool (sear/braise in the cast iron, blend in the processor) — not only a side garnish while the main cook happens elsewhere.\n`;
+  if(req.some(x=>/\bblender\b/i.test(String(x)))||req.some(x=>/food\s*processor/i.test(String(x))))
+    s+=`- BLENDER / FOOD PROCESSOR: Put the tool name ("blender", "Vitamix", "immersion blender", or "food processor") in at least one step "how" line where you purée, blend, pulse, or process — not only in the ingredient list. If you describe puréeing without repeating the word "blender", still make the blend/pulse action unmistakable in that step.\n`;
   const st=req.some(x=>String(x).toLowerCase().includes("stovetop"));
   const noSv=forb.some(x=>/\bsous/i.test(String(x)));
   const ovenReq=req.some(x=>/\boven\b/i.test(String(x)));
