@@ -372,7 +372,7 @@ const FULL_PANTRY = [
   {id:67, name:"Tomato Paste",        cat:"Canned & Jarred",         flavor:["umami","sour","sweet"], texture:[],                   richness:"lean",   acidity:"mild", intensity:"strong", notes:"Cook dry in pan until brick red before adding liquid."},
   {id:68, name:"Chicken Stock",       cat:"Canned & Jarred",         flavor:["umami","salty"],        texture:[],                   richness:"medium", acidity:"none", intensity:"medium", notes:"Reduce by half to intensify. Secret to restaurant-quality sauces."},
   {id:69, name:"Coconut Milk",        cat:"Canned & Jarred",         flavor:["sweet"],                texture:["creamy"],           richness:"rich",   acidity:"none", intensity:"medium", notes:"Full-fat only for cooking. Cream on top for finishing."},
-  {id:70, name:"Capers",              cat:"Canned & Jarred",         flavor:["sour","salty","bitter"],texture:["crunchy"],          richness:"lean",   acidity:"high", intensity:"strong", notes:"Fry in oil until crispy — stunning garnish with brine and texture."},
+  {id:70, name:"Capers",              cat:"Canned & Jarred",         flavor:["sour","salty","bitter"],texture:["crunchy"],          richness:"lean",   acidity:"high", intensity:"strong", notes:"Fry in oil until crispy — stunning garnish with brine and texture.",cookSheet:"Rinse or use brine as acid/salt; rough chop for salad; pan-fry dry until crisp 2–4 min; whole capers as garnish. Not a fat replacer for real mayo."},
   {id:71, name:"Olives",              cat:"Canned & Jarred",         flavor:["salty","bitter","umami"],texture:["chewy"],           richness:"medium", acidity:"none", intensity:"strong", notes:"Kalamata for boldness; Castelvetrano for buttery sweetness."},
   {id:72, name:"Anchovies",           cat:"Canned & Jarred",         flavor:["salty","umami"],        texture:["soft"],             richness:"medium", acidity:"none", intensity:"strong", notes:"Melt 2-3 in olive oil with garlic. Invisible umami bomb."},
   {id:73, name:"Almonds",             cat:"Nuts & Seeds",            flavor:["sweet","bitter"],       texture:["crunchy"],          richness:"rich",   acidity:"none", intensity:"medium", notes:"Toast everything. Blanched, sliced, slivered — each use unique."},
@@ -403,7 +403,7 @@ const FULL_PANTRY = [
   {id:98, name:"Snap Peas",           cat:"Vegetables",              flavor:["sweet"],               texture:["crunchy","juicy"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"String if needed; blister in pan."},
   {id:99, name:"Sugar Snap Peas",     cat:"Vegetables",              flavor:["sweet"],               texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"mild",   notes:"Eat pod and all; quick sauté."},
   {id:100,name:"English Peas",        cat:"Vegetables",              flavor:["sweet","umami"],       texture:["soft"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Shell fresh; mint and butter classic."},
-  {id:101,name:"Edamame",             cat:"Vegetables",              flavor:["sweet","umami"],       texture:["firm"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Blanch pods; salt; or shelled in salad."},
+  {id:101,name:"Edamame",             cat:"Vegetables",              flavor:["sweet","umami"],       texture:["firm"],              richness:"lean",   acidity:"none", intensity:"mild",   notes:"Blanch pods; salt; or shelled in salad.",cookSheet:"Shelled: blanch 2–3 min; char in dry hot pan 3–5 min; smash roughly for chunky texture; fry 4–6 min for crunch. Raw chop alone = weak contrast — add heat or smash."},
   {id:102,name:"Green Beans",         cat:"Vegetables",              flavor:["sweet","grassy"],       texture:["snappy"],            richness:"lean",   acidity:"none", intensity:"mild",   notes:"Haricots verts — blister or almond brown butter."},
   {id:103,name:"Okra",                cat:"Vegetables",              flavor:["grassy","mild"],        texture:["slimy","crispy"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"High heat or pickle to control slime."},
   {id:104,name:"Eggplant",            cat:"Vegetables",              flavor:["bitter","umami"],       texture:["creamy"],            richness:"lean",   acidity:"none", intensity:"medium", notes:"Salt drain optional; roast whole for baba."},
@@ -2043,9 +2043,14 @@ ELEVATE A CHEAP MEAL — JUDGING LENS:
 - Penalize if neither side names a concrete humble starter from the cheap-meal canon (instant ramen, cup noodles, boxed mac, tuna/egg salad, grilled cheese, PB&J, jar-sauce spaghetti, dollar-menu burger, chicken nuggets, basic fried rice, etc.) or if the plate is generic fine dining with no budget DNA.
 - Penalize "risotto / tasting-menu" style unless the text ties to a boxed side, packet rice bowl, or similar cheap anchor.
 - Penalize identity drift: named baseline vanishes from the eat (e.g. promised "tuna salad" but delivered pilaf + fillet + entree composition) — score challenge fit / concept clarity down even if flavors score high.
+- Penalize thin elevation: same dish with only a slightly nicer mix/dressing and no legible upgrade (sear/char/toast, real emulsion, texture contrast, pickle/brine move, bread treatment) — judges will say "that's still just X."
+- Penalize fake emulsion language: calling cream + lemon "mayonnaise" or "aioli" without egg yolk, jarred mayo, or another honest emulsion base — downscore product truth.
+- Penalize protein cop-outs: "cooked and shredded" with no salt story, sear, spice, or poach technique when the clock allows a named move.
+- Penalize under-using required veg/texture items (e.g. edamame only raw-chopped) when char, smash, or blister would read stronger — unless the brief truly pins you to raw.
 - Penalize unrelated luxury bases (quinoa/farro pilaf, new grain centerpiece) that read as replacing the cheap meal rather than upgrading it — unless the baseline was already that kind of rice/grain bowl and the text proves it.
 - JAR-SAUCE / SPAGHETTI NIGHT: if the story is upgraded spaghetti or jar-sauce pasta, penalize when neither side gives a tomato or "cheap red sauce" nostalgia cue (paste, charred tomato, marinara herbs, explicit jar memory) — judges ask "where is the jar sauce?"
 - LONG PASTA: reward emulsified finishes (pasta water + toss, glossy cling); downscore "toss in thin sauce" with no starchy bind when saucing noodles.
+- Penalize timelines that look padded: long stretches of "rest" or vague steps to fill minutes while the real cook finished in the first half — reward honest parallel work and dense active steps.
 - Reward believable before→after on the SAME dish identity; creativity should serve that story so a judge can say "this is still that humble dish, elevated."`;
 }
 
@@ -2156,7 +2161,13 @@ function courseEnforcementBlock(ch, sig) {
 - BEFORE → AFTER: Steps should still feel like that home/kitchen first (open packet, boil water, mix salad, fry slab sandwich) before upgrades — then show elevation (better acid, sear on protein bits IN the dish, better bind, crunchy upgrade to "cheese slice") without erasing the original identity.
 - TITLE/TAGLINE: First clause = the cheap starter in plain words; second half = what you did to dignify it — headline still belongs to that starter (e.g. "Elevated tuna salad: …"), not a different dish name.
 - PASTA + SAUCE: If the cheap baseline is long pasta with sauce, do not stop at "toss in thin glaze." When you reduce a sauce or gastrique for pasta, include an emulsified finish: reserved pasta water + vigorous toss (or tight technique that achieves the same glossy cling). Call it in steps.
-- SWEET BASKET (maple, honey, etc.) ON SAVORY ELEVATE: Pair sweetness with aggressive acid finish, bitter char on veg, or reduction discipline — so judges do not read dessert pasta.\n`;
+- SWEET BASKET (maple, honey, etc.) ON SAVORY ELEVATE: Pair sweetness with aggressive acid finish, bitter char on veg, or reduction discipline — so judges do not read dessert pasta.
+- ELEVATION BAR (mandatory): At least ONE concrete upgrade judges can taste — sear/char on protein pieces, toast or griddle bread, pickle/brine move, real emulsion (egg yolk or jarred mayo named), smash/char/blister on a veg, or a deliberate texture contrast. "Same salad, slightly creamier" without a named technique = failed elevate brief.
+- PROTEIN IN SALAD/SANDWICH BASELINES: Do not write only "cook and shred" — name salt, dry rub, sear on pieces folded in, gentle poach, or spice. Depth matters on the clock.
+- EMULSION NAMING: Never call heavy cream + lemon "mayonnaise" or "aioli." Mayo/aioli = egg yolk emulsion, aquafaba emulsion, or jarred mayo — or honestly label a lemon cream / crème acidulée.
+- REQUIRED VEG WITH TEXTURE (e.g. edamame): Prefer char, smash, blister, or quick fry for contrast — not only raw dice unless the brief forces it.
+- SANDWICH BREAD: List real bread (slice, roll, bun) — never loose AP flour as "slices."
+- TIMELINE: Step minutes must reflect real active work or stated parallel tasks — not filler rests to pad the clock.\n`;
   }
   return "";
 }
@@ -2189,6 +2200,9 @@ function basketFlavorLeadershipBlock(ch){
 - Bad pattern: "tuna salad" on the label, then quinoa pilaf + seared steak-cut tuna + entree plating — baseline disappeared; that is replacement.
 - Jar-sauce / spaghetti night: give judges one "nostalgia" thread — tomato (paste or charred), dried herbs that read marinara, or explicit "our jar-sauce night but…" so it is not generic noodles.
 - Long pasta + built sauce: finish emulsified (starchy pasta water + toss) for restaurant cling, not a thin coating from a quick toss in loose liquid.
+- Elevation bar: one named technique upgrade (sear, toast, pickle, emulsion with real base, char on veg) — "nicer dressing" alone is not enough.
+- Sandwiches/salads with chicken or other protein: name the cook (sear pieces, poach, spice rub) — not only "cook and shred."
+- Firm veg in the basket (edamame, etc.): give a texture plan — char, smash, blister — when raw chop is the lazy default.
 
 `;
   }
@@ -2235,6 +2249,8 @@ function courseRoleHierarchyBlock(ch){
 - BANNED as brief-killing move: picking a refined template (classic risotto, quinoa pilaf, luxury plated entree) and using a required item only as cream/emulsifier while omitting a named cheap starter — or while erasing the baseline's visible form. If you truly need a rice technique, name the budget packet/side dish that justified it.
 - JAR-SAUCE / WEEKNIGHT PASTA: If baseline is spaghetti + jar sauce (or peer), the eat must still cue "cheap red sauce night" somewhere — tomato paste, charred tomato, classic dried herbs, or explicit callout — not anonymous glossy pasta.
 - LONG PASTA: If saucing spaghetti/linguine/etc., include emulsified finish (reduce + pasta water + toss) in steps when a sauce coats the noodles — not only a loose toss in unthickened liquid.
+- ELEVATION BAR: Name at least one concrete upgrade (sear/char, toast, pickle, real emulsion, texture contrast on a required veg) in balance.basket or steps — "slightly better mix" alone fails the brief.
+- EMULSION / BREAD: Mayonnaise or aioli = egg yolk, jarred mayo, or honest emulsion — not cream + lemon alone. Sandwiches list real bread — never flour by the slice.
 - balance.basket: sentence 1 MUST be "Cheap baseline: [specific] → elevation: [one sentence — same dish]." Sentence 2 MUST state in plain words how the plate STILL reads as that baseline ("still a tuna salad in the bowl," "still a grilled cheese you can pick up," etc.). Then tag each REQUIRED with how it serves THAT baseline.\n`;
   }
   if(id==="appetizer"||/\bappetizer\b/.test(label)){
@@ -2310,11 +2326,14 @@ ${classicArchetypeHardBlock()}`
       ?`ELEVATE A CHEAP MEAL — JSON / BRIEF LOCK:
 - balance.basket MUST start: "Cheap baseline: [specific humble dish or convenience product] — " then one sentence on elevation (technique/flavor), SAME dish identity — not a different dish name.
 - balance.basket MUST include a second sentence (can be short): "Still reads as: …" or equivalent — explicit trace so a judge sees the baseline on the plate (e.g. "Still reads as tuna salad in the bowl — seared chunks folded in, not a fillet plate").
+- balance.basket MUST name at least ONE concrete elevation move (sear/char, toast bread, pickle/brine, real emulsion, smash/char veg) — not only "better mix."
 - If the baseline is jar-sauce spaghetti, boxed/packet pasta with red sauce, or similar, balance.basket MUST also name one "jar sauce nostalgia" or tomato-memory element you are hitting (tomato paste, charred tomato, oregano/marinara cue, etc.) — or one honest line on why the basket made tomato impossible. Silent generic pasta = failed brief.
 - title OR tagline MUST keep the baseline dish as the conceptual head (e.g. "Elevated tuna salad — …", "Boxed mac, fixed — …"). Titling like a generic entree while only mentioning baseline in passing = failed brief.
 - title OR tagline MUST repeat that baseline in plain words (e.g. "Instant ramen → …", "Tuna salad → …", "PB&J → …"). Marketing-only "from cheap tofu" without naming the real-world eating context = failed brief.
 - balance.complete MUST state how identity stayed visible — one phrase on transformation vs replacement (what you did NOT do: e.g. "No unrelated grain base; still salad format").
 - Long pasta + pan sauce or gastrique: steps MUST include an emulsified pasta finish (reserve water + reduce + toss to glossy) when noodles are sauced — not only "toss spaghetti in sauce" with no starchy bind.
+- EMULSIONS: ingredients/steps must not label cream + acid alone as "mayonnaise" or "aioli" — use egg yolk, jarred mayo, or honest sauce name.
+- SANDWICH / TOAST FORMATS: ingredients must list baked bread or wrap — never flour by the slice.
 - BANNED without explicit baseline tie: new foundations like quinoa/farro pilaf, "grain bowl" reboot, or center-plate protein + separate starch when baseline was sandwich/salad/ramen bowl/etc.
 - If REQUIRED items do not obviously imply one cheap dish, you MUST still commit to one plausible recognizable baseline — NOT a silent jump to restaurant risotto or luxury templates without naming the budget analogue.\n`
       :"";
@@ -2354,6 +2373,8 @@ FOOD PRODUCT TRUTH (material honesty — not vocabulary checks):
 - Naming a required ingredient is NOT enough. For EACH required item: (1) ingredients[] must list it in the honest starting form from the store (or a clear portion of that package); (2) at least one step must show physical handling of that real product (squeeze bottle, scoop from tub, tear crust, chop whole fruit, grate from block).
 - balance.basket must include one concrete sensory/material note per required item (too sweet, thin vs thick, fake vanilla, waxy chocolate, salty pickle brine, etc.) so a judge recognizes the actual SKU — not a re-branded "chef version" with only the label in common.
 - The dish fails if a competitor could swap in a finer product without changing your steps — steps must be specific to what was in the basket.
+- EMULSION NAMING: Say "mayonnaise" or "aioli" only when the method uses egg yolk, jarred mayo, aquafaba emulsion, or another real emulsion base. Cream + lemon alone is a sauce — name it honestly, not "mayo."
+- BREAD: Sandwiches and toast lists need baked bread, buns, or tortillas — not loose flour counted as slices.
 ${whiteChocolateHonestyBlock(ch.required)}
 
 BASKET INTEGRITY (mandatory):
@@ -2411,6 +2432,7 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     const rSan=sanitizeRestrictionList(ch.restrictions||[]);
     let maxAttempts=(ch.restrictions&&ch.restrictions.length)?(rSan.some(x=>normalizeRestrictionKey(x)==="Vegan")?4:3):1;
     if(challengeTypeIsRecreateClassic(ch.ctype)) maxAttempts=Math.max(maxAttempts,4);
+    if(challengeTypeIsElevateCheap(ch.ctype)) maxAttempts=Math.max(maxAttempts,3);
     let data=null;
     let regenNote="";
     state.recipeRestrictionWarnings=null;
@@ -2421,10 +2443,11 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
       const equipmentViol=getRecipeEquipmentViolations(data,ch);
       const timelineViol=getRecipeTimelineViolations(data,ch);
       const formatViol=getRecipeFormatHonestyViolations(data);
+      const kitchenViol=getKitchenScienceHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(equipmentViol, timelineViol, formatViol, classicViol);
+      const viol=restrictionViol.concat(equipmentViol, timelineViol, formatViol, kitchenViol, classicViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (equipment centrality, timeline, format honesty, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (equipment centrality, timeline, format honesty, kitchen science — real emulsion names, bread not flour slices, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
       if(attempt===maxAttempts-1) state.recipeRestrictionWarnings=viol;
     }
     state.recipe=data;
@@ -2550,6 +2573,7 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
     const rCoach=sanitizeRestrictionList(ch.restrictions||[]);
     let maxAttempts=(ch.restrictions&&ch.restrictions.length)?(rCoach.some(x=>normalizeRestrictionKey(x)==="Vegan")?4:3):1;
     if(challengeTypeIsRecreateClassic(ch.ctype)) maxAttempts=Math.max(maxAttempts,4);
+    if(challengeTypeIsElevateCheap(ch.ctype)) maxAttempts=Math.max(maxAttempts,3);
     let data=null, regenNote="";
     for(let att=0; att<maxAttempts; att++){
       const prompt=promptCore+(regenNote?`\n\nREGENERATION REQUIRED: ${regenNote}`:"");
@@ -2558,10 +2582,11 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
       const equipmentViol=getRecipeEquipmentViolations(data,ch);
       const timelineViol=getRecipeTimelineViolations(data,ch);
       const formatViol=getRecipeFormatHonestyViolations(data);
+      const kitchenViol=getKitchenScienceHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(equipmentViol, timelineViol, formatViol, classicViol);
+      const viol=restrictionViol.concat(equipmentViol, timelineViol, formatViol, kitchenViol, classicViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (equipment centrality, timeline, format honesty). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (equipment centrality, timeline, format honesty, kitchen science — real emulsion names, bread not flour slices). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
       if(att===maxAttempts-1) state.contestRecipeRestrictionWarnings=viol;
     }
     state.contestRecipe=data;
@@ -3028,6 +3053,15 @@ function recipeFlattenTextForCompliance(r){
   return parts.join("\n").toLowerCase();
 }
 
+/** Ingredient lines only — for bread/flour sanity checks. */
+function recipeIngredientLinesForCompliance(r){
+  if(!r||!Array.isArray(r.ingredients)) return "";
+  return r.ingredients.map(i=>{
+    if(!i) return "";
+    return [i.amount,i.item,i.prep].filter(Boolean).join(" ").trim();
+  }).filter(Boolean).join(" | ").toLowerCase();
+}
+
 function scrubComplianceFalsePositives(low){
   return String(low||"")
     .replace(/\bbutter\s+lettuce\b/gi," ")
@@ -3221,6 +3255,7 @@ function getRecipeTimelineViolations(recipe, ch){
     const budget=parallel?total*1.35:total+6;
     if(sum>budget) msgs.push(`Timeline: step durations (~${sum} min) exceed the ${total} min challenge window${parallel?" (even allowing overlap)":""} — shorten, overlap tasks honestly, or fix dur fields.`);
     if(maxM>total*0.68) msgs.push(`Timeline: one step (~${maxM} min) dominates the ${total} min clock — compress, parallelize, or simplify so the run is believable.`);
+    if(!parallel&&steps.length>=5&&sum<total*0.42&&total>=28) msgs.push(`Timeline: step durations sum to ~${sum} min vs ${total} min — avoid idle padding; assign real minutes to active prep/cook or state honest parallel work so the clock is believable.`);
   }
   msgs.push(...getProseTimelineViolations(low, total));
   return [...new Set(msgs)];
@@ -3247,6 +3282,24 @@ function getRecipeFormatHonestyViolations(recipe){
     if(rule.need.test(low)) continue;
     msgs.push(rule.msg);
   }
+  return msgs;
+}
+
+/** Mayo/aioli naming + absurd flour-as-bread lines — regen gate. */
+function getKitchenScienceHonestyViolations(recipe){
+  const msgs=[];
+  if(!recipe) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe);
+  const lowL=low.toLowerCase();
+  const claimsMayo=/\b(mayonnaise|aioli|mayo)\b/i.test(low);
+  if(claimsMayo){
+    const hasEmulsifierBasis=/\b(egg\s*yolks?|whole\s+eggs?|\byolks?\b|aquafaba|kewpie|hellmann|duke'?s?|commercial\s+mayo|jarred?\s+mayo|prepared\s+mayonnaise|store[\s-]?bought\s+mayo|vegan\s+mayo|mayo\s+from\s+(?:a\s+)?(?:jar|bottle)|mayonnaise\s+from\s+(?:the\s+)?(?:jar|bottle))\b/i.test(lowL);
+    const creamAndAcid=/\b(heavy\s+cream|whipping\s+cream|double\s+cream)\b/i.test(lowL)&&/\b(lemon|lemon\s+juice|lime|vinegar|verjuice)\b/i.test(lowL);
+    if(creamAndAcid&&!hasEmulsifierBasis) msgs.push(`Kitchen honesty: do not call cream + acid "mayonnaise" or "aioli" — real mayo/aioli needs egg yolk, aquafaba emulsion, or jarred mayo; otherwise name it (e.g. lemon cream, crème acidulée).`);
+  }
+  const ingBlob=recipeIngredientLinesForCompliance(recipe);
+  if(/\b\d+\s+slices?\s+(?:of\s+)?(?:all[\s-]?purpose\s+)?flour\b/i.test(ingBlob)||/\bslices?\s+of\s+(?:all[\s-]?purpose\s+)?flour\b/i.test(ingBlob)||/\bflour\s+slices?\b/i.test(ingBlob))
+    msgs.push(`Format honesty: bread for a sandwich must be bread, roll, or tortilla — not loose flour listed as "slices".`);
   return msgs;
 }
 
@@ -3296,8 +3349,9 @@ function executionHonestyBlock(ch){
   const t=Math.max(1, Number((ch&&ch.totalTime)||30));
   return `EXECUTION HONESTY (judging table):
 - Must-use equipment: integrate in the main cook story (COOK/SAUCE or the step that matches the tool) — not only for a minor component while the heaviest step uses a different vessel.
-- Timeline: step "dur" values should sum realistically vs ${t} min; long braises must fit; say "parallel" when two things run at once.
-- Format words: if you say tartlet, sandwich, pot pie, taco, calzone — include the real structure (pastry shell, bread, tortilla, etc.) or rename the dish.\n`;
+- Timeline: step "dur" values should sum realistically vs ${t} min; long braises must fit; say "parallel" when two things run at once; avoid vague filler steps whose only job is to pad minutes.
+- Format words: if you say tartlet, sandwich, pot pie, taco, calzone — include the real structure (pastry shell, bread, tortilla, etc.) or rename the dish.
+- Kitchen naming: mayonnaise/aioli implies a real emulsion (egg yolk, jarred mayo, etc.) — not cream whisked with lemon unless you rename the sauce.\n`;
 }
 
 /** Real cooking constraints — rival + coach must not claim impossible outcomes to satisfy the basket. */
