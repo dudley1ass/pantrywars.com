@@ -455,7 +455,7 @@ const FULL_PANTRY = [
   {id:150,name:"Flank Steak",         cat:"Proteins",                flavor:["beefy","minerally"],    texture:["firm","fibrous"],    richness:"medium", acidity:"none", intensity:"strong", notes:"Slice across grain; marinade helps."},
   {id:151,name:"Skirt Steak",         cat:"Proteins",                flavor:["beefy","minerally"],    texture:["loose","juicy"],     richness:"medium", acidity:"none", intensity:"strong", notes:"High heat; rare; tacos."},
   {id:152,name:"Brisket",             cat:"Proteins",                flavor:["beefy","smoky"],        texture:["tender","shreddy"],  richness:"rich",   acidity:"none", intensity:"strong", notes:"Smoke or braise; rest sliced."},
-  {id:153,name:"Oxtail",              cat:"Proteins",                flavor:["rich","beefy"],        texture:["gelatinous","tender"], richness:"rich",   acidity:"none", intensity:"strong", notes:"Long braise; collagen richness."},
+  {id:153,name:"Oxtail",              cat:"Proteins",                flavor:["rich","beefy"],        texture:["gelatinous","tender"], richness:"rich",   acidity:"none", intensity:"strong", notes:"Collagen-rich — classic stew needs long braise OR pressure cooker for a fast tender result; otherwise use as flavor accent / inspired-by plates on a short clock."},
   {id:154,name:"Halibut Fillet",      cat:"Proteins",                flavor:["mild","sweet"],         texture:["firm","flaky"],      richness:"lean",   acidity:"none", intensity:"mild",   notes:"Don’t overcook; brown butter capers."},
   {id:155,name:"Cod Fillet",          cat:"Proteins",                flavor:["mild","sweet"],         texture:["flaky","delicate"],  richness:"lean",   acidity:"none", intensity:"mild",   notes:"Fish and chips; gentle poach."},
   {id:156,name:"Sea Bass",            cat:"Proteins",                flavor:["mild","sweet"],         texture:["buttery","flaky"],   richness:"medium", acidity:"none", intensity:"mild",   notes:"Crispy skin; Asian steam."},
@@ -2036,7 +2036,7 @@ function physicsRealismJudgeAddon(ch){
   const t=Math.max(1, Number((ch&&ch.totalTime)||30));
   return `
 PHYSICS & CLOCK REALISM (apply to BOTH competitors' plans):
-- Penalize taste/technique credibility when a plan implies outcomes that need hours (fork-tender braised tough cuts, full traditional long braise) in ~${t} min without a credible shortcut (pressure cooker named, honest "inspired by" reframing, faster cut).
+- Penalize taste/technique credibility when a plan implies outcomes that need hours (fork-tender braised tough cuts, full traditional long braise) in ~${t} min without a credible shortcut (pressure cooker / Instant Pot named when used, honest "inspired by" reframing, oxtail as accent after pressure, stock concentrate, smaller pieces + realistic timing).
 - Reward plans that match technique to time; downscore fantasy timing even if flavor ideas sound clever.`;
 }
 
@@ -3275,7 +3275,14 @@ function physicsRealismBlock(ch){
   const ctype=(ch&&ch.ctype)||{};
   let s=`PHYSICS & REAL COOKING (non-negotiable — no comic-book shortcuts):
 - CLOCK (${t} min total): Every named minute in steps and prose must fit inside ${t} min (including parallel work). If sous vide, water bath, or "slow roast" would need longer than ${t} min, you cannot use that method — pick faster techniques (sear, steam, shallow poach, high-heat roast only if oven allowed and time fits).
-- Real food obeys time and heat (${t} min round): collagen-rich cuts (short rib, chuck, brisket, shank, oxtail) do not become fork-tender from a ${t}-minute stovetop or grill "simmer" alone. If you braise them, either (1) use a pressure cooker / Instant Pot that is explicitly allowed in equipment and named in steps with believable timing, or (2) switch to a fast technique (hot sear, steak-cut slice against the grain, thin-cut) and **reframe** so you are not claiming a full long-braise classic.
+- Real food obeys time and heat (${t} min round): collagen-rich cuts (short rib, chuck, brisket, shank, oxtail, cheek, pork shoulder) do not become fork-tender from a ${t}-minute open-pot simmer alone — pick real options from this list (mix as needed):
+  • **Pressure / Instant Pot** — If allowed in equipment: name it; high-pressure ~35–55 min can stand in for multi-hour braising; finish sauce on stovetop in the same clock.
+  • **Honest rename** — "Oxtail-inspired," "stew flavors," "bourguignon-style" — not the full textbook dish name if you are not doing the full braise time.
+  • **Faster protein + oxtail as depth** — Pressure or small-batch braise the tough cut, shred as garnish/rich fold-in; bulk the plate with a quicker cut (or veg) so the clock works.
+  • **Smaller pieces / cross-cut** — More surface area helps, but does not replace pressure or time; do not claim full gelatinous stew body from a 15 min uncovered simmer.
+  • **Sear + concentrated liquid** — Build flavor with reduced stock, char, fond, tomato paste — without pretending 3 hours of collagen extraction happened.
+  • **Pantry depth** — Quality beef stock / demi concentrate (named honestly) for body when the clock cannot build stock from scratch.
+  • **Fast techniques on a different cut** — Thin-slice across the grain after pressure pre-cook; crispy shredded bits from pressure-then-broil; not "fork-tender osso buco" from a flash simmer.
 - Do not claim 2–3 hour outcomes (deep collagen breakdown, from-scratch demi in minutes, textbook osso buco / bourguignon braise) inside this clock unless the method honestly matches — pressure, quality stock concentrate from pantry with clear label, or an honest "inspired by" dish name.
 - Reductions and stocks: respect evaporation; no "instant demi" or full stock body without a credible source or time budget in the steps.
 - Grill / live fire: harder to hold low steady braise temps than an oven; do not assume oven-like stability — simplify or say how you manage heat.
