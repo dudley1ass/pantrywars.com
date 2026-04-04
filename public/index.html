@@ -590,32 +590,35 @@ const FLAVOR_C={
 
 const PHASE_C={PREP:"#3b82f6",COOK:"#ef4444",SAUCE:"#f97316",ASSEMBLE:"#a855f7",PLATE:"#22c55e"};
 
-/** Paste a key here to skip the prompt, or leave blank — on PantryWars.com the host may inject ANTHROPIC_API_KEY instead */
+/** Paste a key here to skip the prompt, or leave blank — on PantryWars.com the host sets OPENAI_API_KEY */
 const BASKET_API_KEY = "";
 
-let _serverAnthropicConfigured = false;
+let _serverOpenaiConfigured = false;
 let _configPromise = null;
 function loadAppConfig() {
   if (_configPromise) return _configPromise;
   _configPromise = fetch("/api/config")
     .then(r => r.json())
     .then(j => {
-      _serverAnthropicConfigured = !!j.anthropicConfigured;
+      _serverOpenaiConfigured = !!j.openaiConfigured;
     })
     .catch(() => {
-      _serverAnthropicConfigured = false;
+      _serverOpenaiConfigured = false;
     });
   return _configPromise;
 }
 
-function getAnthropicKey() {
+/** Default model for JSON recipe / judge calls (override via OpenAI dashboard billing). */
+const PW_OPENAI_MODEL = "gpt-4o-mini";
+
+function getOpenAIKey() {
   const fromConst = (typeof BASKET_API_KEY === "string" && BASKET_API_KEY.trim()) ? BASKET_API_KEY.trim() : "";
   if (fromConst) return fromConst;
-  const stored = (localStorage.getItem("basket_anthropic_key_v1") || "").trim();
+  const stored = (localStorage.getItem("basket_openai_key_v1") || "").trim();
   if (stored) return stored;
-  if (_serverAnthropicConfigured) return "";
-  let k = prompt("Anthropic API key is required for rival chef & Look Up.\n\nCreate one at https://console.anthropic.com\n\nStored only in this browser unless your host already configured the server key.") || "";
-  if (k.trim()) localStorage.setItem("basket_anthropic_key_v1", k.trim());
+  if (_serverOpenaiConfigured) return "";
+  let k = prompt("OpenAI API key is required for rival chef & Look Up.\n\nCreate one at https://platform.openai.com/api-keys\n\nStored only in this browser unless your host already configured the server key.") || "";
+  if (k.trim()) localStorage.setItem("basket_openai_key_v1", k.trim());
   return (k || "").trim();
 }
 
@@ -1068,8 +1071,8 @@ function onPlayAgain() {
 async function ai(prompt, tokens=300, opts) {
   opts=opts||{};
   await loadAppConfig();
-  const apiKey = getAnthropicKey();
-  if (!apiKey && !_serverAnthropicConfigured) throw new Error("No API key — cancelled or empty");
+  const apiKey = getOpenAIKey();
+  if (!apiKey && !_serverOpenaiConfigured) throw new Error("No API key — cancelled or empty");
   if (!opts.bypassDailyPrecheck && !pwCanUseAiRound()) {
     pwTrackDailyLimitHit("blocked_precheck");
     throw new Error(PW_DAILY_LIMIT_MESSAGE);
@@ -1077,7 +1080,7 @@ async function ai(prompt, tokens=300, opts) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const timer = setTimeout(() => { xhr.abort(); reject(new Error("Request timed out (60s)")); }, 60000);
-    xhr.open("POST", "/api/anthropic");
+    xhr.open("POST", "/api/openai");
     xhr.setRequestHeader("Content-Type", "application/json");
     xhr.onload = () => {
       clearTimeout(timer);
@@ -1092,8 +1095,13 @@ async function ai(prompt, tokens=300, opts) {
       }
       try {
         const d = JSON.parse(xhr.responseText);
-        const txt = (d.content || []).find(b => b.type === "text")?.text || "";
-        if (d.stop_reason === "max_tokens" && txt && !extractBalancedJsonObject(txt)) {
+        if (d.error && d.error.message) {
+          reject(new Error(d.error.message));
+          return;
+        }
+        const choice = d.choices && d.choices[0];
+        const txt = (choice && choice.message && choice.message.content) ? String(choice.message.content) : "";
+        if (choice && choice.finish_reason === "length" && txt && !extractBalancedJsonObject(txt)) {
           reject(new Error("Response ran out of space — click Try Again, or use fewer required ingredients."));
           return;
         }
@@ -1112,7 +1120,7 @@ async function ai(prompt, tokens=300, opts) {
     xhr.send(JSON.stringify({
       api_key: apiKey,
       payload: {
-        model: "claude-haiku-4-5",
+        model: PW_OPENAI_MODEL,
         max_tokens: tokens,
         messages: [{ role: "user", content: prompt }]
       }
@@ -1165,7 +1173,7 @@ function renderPantry() {
   keyBtn.title = "Pantry Wars: clear saved API key";
   keyBtn.style.cssText = "background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer;font-size:12px;";
   keyBtn.onclick = () => {
-    localStorage.removeItem("basket_anthropic_key_v1");
+    localStorage.removeItem("basket_openai_key_v1");
     alert("Pantry Wars: saved API key cleared. Next AI lookup or rival chef will ask again.");
   };
   hbtns.append(selAllBtn, introBtn, keyBtn, goBtn);
@@ -2825,7 +2833,7 @@ async function doModalLookup(){
     lb.disabled=false;lb.style.background="#6366f1";
     mb.innerHTML=`<div style="background:#fef2f2;border:2px solid #fecaca;border-radius:8px;padding:10px;font-size:12px;font-weight:700;color:#b91c1c">
       Error: ${escapeHtml(e.message)}<br><br>
-      <small style="font-weight:500;color:#6b7280">The app must be served over HTTP(S) so <code>/api/anthropic</code> works. Locally: <code>npm start</code> then open the URL shown. HTTP 401 = bad key. Clear saved key: <code style="font-size:11px">localStorage.removeItem(&quot;basket_anthropic_key_v1&quot;)</code></small><br><br>
+      <small style="font-weight:500;color:#6b7280">The app must be served over HTTP(S) so <code>/api/openai</code> works. Locally: <code>npm start</code> then open the URL shown. HTTP 401 = bad key. Clear saved key: <code style="font-size:11px">localStorage.removeItem(&quot;basket_openai_key_v1&quot;)</code></small><br><br>
       <button type="button" onclick="doModalLookup()" style="background:#fff;border:2px solid #fecaca;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:11px">Try Again</button>
     </div>`;
     console.error("AI lookup failed:", e);

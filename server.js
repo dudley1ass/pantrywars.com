@@ -1,28 +1,28 @@
 /**
  * Pantry Wars — Express server for Render / local dev
- * Serves public/ and proxies POST /api/anthropic (CORS-safe Anthropic access).
+ * Serves public/ and proxies POST /api/openai (CORS-safe OpenAI access).
  */
 const express = require("express");
 const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 
 app.disable("x-powered-by");
 app.use(express.json({ limit: "2mb" }));
 
 app.get("/api/config", (_req, res) => {
-  const key = process.env.ANTHROPIC_API_KEY;
+  const key = process.env.OPENAI_API_KEY;
   res.json({
     app: "Pantry Wars",
-    anthropicConfigured: !!(key && String(key).trim()),
+    openaiConfigured: !!(key && String(key).trim()),
   });
 });
 
-app.post("/api/anthropic", async (req, res) => {
+app.post("/api/openai", async (req, res) => {
   const bodyKey = (req.body.api_key || "").trim();
-  const envKey = (process.env.ANTHROPIC_API_KEY || "").trim();
+  const envKey = (process.env.OPENAI_API_KEY || "").trim();
   const apiKey = bodyKey || envKey;
   const payload = req.body.payload;
 
@@ -30,7 +30,7 @@ app.post("/api/anthropic", async (req, res) => {
     return res.status(400).json({
       error: {
         message:
-          "Missing API key. On Render set ANTHROPIC_API_KEY, or enter your key in the app (API key button clears local storage).",
+          "Missing API key. On Render set OPENAI_API_KEY, or enter your key in the app (API key button clears local storage).",
       },
     });
   }
@@ -39,19 +39,18 @@ app.post("/api/anthropic", async (req, res) => {
   }
 
   try {
-    const r = await fetch(ANTHROPIC_URL, {
+    const r = await fetch(OPENAI_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify(payload),
     });
     const text = await r.text();
     res.status(r.status).set("Content-Type", "application/json").send(text);
   } catch (e) {
-    console.error("[pantry-wars] anthropic proxy", e);
+    console.error("[pantry-wars] openai proxy", e);
     res.status(502).json({ error: { message: String(e.message || e) } });
   }
 });

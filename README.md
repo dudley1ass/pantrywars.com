@@ -13,7 +13,7 @@ npm start
 
 Open **http://localhost:3000/** (or the port printed in the terminal).
 
-Optional: copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY` so guests are not prompted for a key. Otherwise the app asks once per browser and stores the key in `localStorage`.
+Set **`OPENAI_API_KEY`** in the environment before `npm start` so you are not prompted (e.g. PowerShell: `$env:OPENAI_API_KEY='sk-…'; npm start`). Otherwise the app asks once per browser and stores the key in `localStorage`. See `.env.example` for the variable name (Render injects it server-side).
 
 ## Deploy on Render
 
@@ -21,7 +21,7 @@ Optional: copy `.env.example` to `.env` and set `ANTHROPIC_API_KEY` so guests ar
 2. In [Render](https://render.com): **New → Web Service**, connect the repo.
 3. **Build command:** `npm install`  
    **Start command:** `npm start`
-4. Add environment variable **`ANTHROPIC_API_KEY`** (your Anthropic secret). The proxy uses it when the browser does not send a key.
+4. Add environment variable **`OPENAI_API_KEY`** (your OpenAI API secret from [platform.openai.com](https://platform.openai.com/api-keys)). The proxy uses it when the browser does not send a key.
 5. Optional: add a **`render.yaml`** Blueprint — this repo includes a starter file.
 
 ### Custom domain (e.g. pantrywars.com)
@@ -32,7 +32,7 @@ In Render: **Settings → Custom Domains** → add `pantrywars.com` and `www.pan
 
 | Path | Purpose |
 |------|---------|
-| `server.js` | Express: static `public/` + `POST /api/anthropic` + `GET /api/config` |
+| `server.js` | Express: static `public/` + `POST /api/openai` + `GET /api/config` |
 | `public/index.html` | Single-page Pantry Wars UI |
 | `package.json` | Node 18+, `express` |
 
