@@ -39,20 +39,6 @@
       gtag("event", eventName, params);
     }
   }
-
-  /** Share URL with default UTMs for the viral loop (copy / native share). */
-  function pwTrackedShareUrl(content) {
-    var base =
-      location.hostname === "localhost" || location.hostname === "127.0.0.1"
-        ? new URL(location.origin + location.pathname)
-        : new URL("https://pantrywars.com/");
-    base.hash = "";
-    base.searchParams.set("utm_source", "share");
-    base.searchParams.set("utm_medium", "social");
-    base.searchParams.set("utm_campaign", "pantrywars_launch");
-    base.searchParams.set("utm_content", content || "landing");
-    return base.toString();
-  }
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
@@ -929,64 +915,11 @@ function renderLanding() {
           </ul>
         </div>
         <p class="landing-judges">👉 Can you beat the judges?</p>
-        <div class="landing-share" style="margin:18px 0 0;padding:14px 16px;background:#0f172a;border:1px solid #334155;border-radius:12px;max-width:26rem;text-align:left">
-          <div style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Share the game</div>
-          <p style="font-size:13px;color:#e2e8f0;margin-bottom:10px;line-height:1.45">Copy a link with campaign tags so you can tell which posts send players. When posting yourself, add your own <code style="font-size:11px;color:#a5b4fc">utm_*</code> params (TikTok, Reddit, etc.).</p>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-            <button type="button" id="landing-copy-link" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:800;font-size:13px;cursor:pointer">Copy link</button>
-            <button type="button" id="landing-share-btn" style="background:#1e293b;color:#e2e8f0;border:1px solid #475569;border-radius:8px;padding:10px 16px;font-weight:700;font-size:13px;cursor:pointer;display:none">Share…</button>
-          </div>
-        </div>
         <button type="button" id="landing-start-btn" class="landing-start-btn">Take the challenge — Step 1: Pantry</button>
         <p class="landing-api" style="margin-top:8px;max-width:26rem">Free play includes up to ${PW_DAILY_AI_LIMIT} AI-powered rounds per day (rival chef, battle judge, competition coach, lookups). More battles &amp; buy packs coming soon.</p>
       </div>
     </div>`;
   sc.querySelector("#landing-start-btn").onclick = () => { showScreen("screen-pantry"); renderPantry(); };
-  const copyL = sc.querySelector("#landing-copy-link");
-  const shareB = sc.querySelector("#landing-share-btn");
-  if (copyL) {
-    copyL.onclick = function () {
-      var url = pwTrackedShareUrl("landing_copy");
-      function fire(ok) {
-        trackPWEvent("copy_link", { share_location: "landing", link_url: url, ok: ok });
-      }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(url).then(function () { fire(true); }).catch(function () { fire(false); });
-      } else {
-        try {
-          var ta = document.createElement("textarea");
-          ta.value = url;
-          ta.style.position = "fixed";
-          ta.style.left = "-9999px";
-          document.body.appendChild(ta);
-          ta.select();
-          document.execCommand("copy");
-          document.body.removeChild(ta);
-          fire(true);
-        } catch (_e) {
-          fire(false);
-        }
-      }
-    };
-  }
-  if (shareB && typeof navigator.share === "function") {
-    shareB.style.display = "inline-block";
-    shareB.onclick = function () {
-      var url = pwTrackedShareUrl("landing_share");
-      navigator
-        .share({
-          title: "Pantry Wars",
-          text: "Same mystery basket — you vs AI. Can you beat the judges?",
-          url: url,
-        })
-        .then(function () {
-          trackPWEvent("share_clicked", { share_location: "landing", link_url: url });
-        })
-        .catch(function (e) {
-          if (e && e.name !== "AbortError") trackPWEvent("share_clicked", { share_location: "landing", link_url: url, cancelled_or_error: true });
-        });
-    };
-  }
   showScreen("screen-landing");
 }
 
