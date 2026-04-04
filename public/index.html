@@ -118,24 +118,6 @@
   #spin-host .pw-lane-head{color:#6d28d9}
   #spin-host .pw-lane-lede{color:#6b21a8}
   #spin-host .pw-lane-ing{background:#fff}
-  #screen-build .pw-plan-loop-panel{margin-top:10px;background:#ecfdf5;border:2px solid #6ee7b7;border-radius:10px;padding:10px 12px}
-  #screen-build .pw-plan-loop-sum{cursor:pointer;font-size:12px;font-weight:800;color:#047857;list-style:none}
-  #screen-build .pw-plan-loop-sum::-webkit-details-marker{display:none}
-  #screen-build .pw-plan-loop-inner{font-size:11px;color:#064e3b;line-height:1.55}
-  #screen-build .pw-plan-loop-chain code{font-size:10px;background:#d1fae5;padding:4px 8px;border-radius:6px;display:inline-block;margin:6px 0}
-  #screen-build .pw-plan-loop-ol{margin:8px 0 0;padding:0 0 0 18px}
-  #screen-build .pw-plan-loop-ol li{margin:8px 0}
-  #screen-build .pw-plan-loop-roles{margin:6px 0 0;padding:0 0 0 18px}
-  #screen-build .pw-plan-loop-take{margin:12px 0 0;padding-top:10px;border-top:1px solid #a7f3d0;font-weight:600}
-  #battle-constraints .pw-plan-loop-panel{margin-top:12px;background:#0f172a;border:2px solid #334155;border-radius:10px;padding:12px 14px}
-  #battle-constraints .pw-plan-loop-sum{color:#6ee7b7}
-  #battle-constraints .pw-plan-loop-inner{color:#cbd5e1}
-  #battle-constraints .pw-plan-loop-chain code{background:#1e293b;color:#a7f3d0;border:1px solid #475569}
-  #battle-constraints .pw-plan-loop-take{border-color:#475569}
-  #spin-host .pw-plan-loop-panel{margin-top:10px;background:#ecfdf5;border:2px solid #6ee7b7;border-radius:10px;padding:10px 12px}
-  #spin-host .pw-plan-loop-sum{color:#047857}
-  #spin-host .pw-plan-loop-inner{color:#064e3b}
-  #spin-host .pw-plan-loop-chain code{background:#d1fae5}
   .contest-coach-hero{position:relative;}
   .contest-coach-hero-inner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;position:relative;z-index:1}
   .contest-coach-watermark{position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;display:flex;align-items:center;justify-content:center;overflow:hidden}
@@ -1244,24 +1226,6 @@ function ingredientLanesBattleSectionHtml(ch){
   return ingredientLanesSectionHtml(ch.required||[], ch.totalTime);
 }
 
-let PLAN_LOOP_SYSTEM=null;
-function planLoopSystemHtml(){
-  const P=PLAN_LOOP_SYSTEM;
-  if(!P||!P.steps||!P.steps.length) return "";
-  const steps=(P.steps||[]).map((s,i)=>`<li><strong>${escapeHtml(s.title||"")}</strong> — ${escapeHtml(s.body||"")}</li>`).join("");
-  const roles=(P.roles||[]).map(r=>`<li>${escapeHtml(r)}</li>`).join("");
-  const chain=P.chain?`<p class="pw-plan-loop-chain"><code>${escapeHtml(P.chain)}</code></p>`:"";
-  return `<details class="pw-plan-loop-panel"><summary class="pw-plan-loop-sum">${escapeHtml(P.title||"Plan loop")}</summary>
-    <div class="pw-plan-loop-inner">
-      ${P.subtitle?`<p style="margin:0 0 8px;font-weight:600">${escapeHtml(P.subtitle)}</p>`:""}
-      ${chain}
-      <ol class="pw-plan-loop-ol">${steps}</ol>
-      ${P.rolesTitle?`<p style="margin:12px 0 4px;font-weight:800;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:inherit">${escapeHtml(P.rolesTitle)}</p>`:""}
-      ${roles?`<ul class="pw-plan-loop-roles">${roles}</ul>`:""}
-      ${P.takeaway?`<p class="pw-plan-loop-take">${escapeHtml(P.takeaway)}</p>`:""}
-    </div></details>`;
-}
-
 function truncateStr(s,max){
   const t=String(s||"").trim();
   if(!t) return "";
@@ -1409,16 +1373,6 @@ const $ = id => document.getElementById(id);
   fetch("data/ingredient-lanes.json",{cache:"no-cache"}).then(r=>r.ok?r.json():null).then(j=>{
     if(j&&typeof j==="object"&&Object.keys(j).length) INGREDIENT_LANES_BY_NAME=j;
   }).catch(()=>{});
-})();
-(function initPlanLoopSystem(){
-  let t=null;
-  const bump=()=>{
-    clearTimeout(t);
-    t=setTimeout(()=>{ if(typeof refreshPlanLoopUi==="function") refreshPlanLoopUi(); }, 40);
-  };
-  fetch("data/plan-loop-system.json",{cache:"no-cache"}).then(r=>r.ok?r.json():null).then(j=>{
-    if(j&&typeof j==="object"&&j.steps&&j.steps.length) PLAN_LOOP_SYSTEM=j;
-  }).catch(()=>{}).finally(bump);
 })();
 const el = (tag,attrs={},children=[]) => {
   const e=document.createElement(tag);
@@ -2172,12 +2126,6 @@ function renderBuild() {
     laneWrap.innerHTML=laneHtml;
     rCard.appendChild(laneWrap);
   }
-  const planLoop=planLoopSystemHtml();
-  if(planLoop){
-    const plw=div({style:{marginTop:"10px"}});
-    plw.innerHTML=planLoop;
-    rCard.appendChild(plw);
-  }
   const pantryScroll=div({style:{maxHeight:"90px",overflowY:"auto",display:"flex",flexWrap:"wrap",gap:"3px"}});
   (window.USER_PANTRY||PANTRY).filter(p=>!state.req.includes(p)).forEach(p=>{
     const b=el("button",{style:{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"2px 6px",fontSize:"10px",cursor:"pointer",color:"#475569"}});
@@ -2432,22 +2380,9 @@ function battleConstraintsHtml(ch){
         <div style="display:flex;flex-wrap:wrap;gap:6px">${req||"<span style=\"color:#64748b;font-size:12px\">—</span>"}</div>
       </div>
       ${ingredientLanesBattleSectionHtml(ch)}
-      ${planLoopSystemHtml()}
       ${blocks.join("")}
     </div>
   </div>`;
-}
-
-function refreshPlanLoopUi(){
-  try{
-    const b=$("screen-build");
-    if(b&&!b.classList.contains("hidden")&&typeof renderBuild==="function") renderBuild();
-    const rec=$("screen-recipe");
-    if(rec&&!rec.classList.contains("hidden")&&state.challenge){
-      const bc=$("battle-constraints");
-      if(bc) bc.outerHTML=battleConstraintsHtml(state.challenge);
-    }
-  }catch(e){ console.warn("refreshPlanLoopUi", e); }
 }
 
 // ── RECIPE SCREEN ─────────────────────────────────────────────────────────────
@@ -4929,7 +4864,6 @@ function mysterySpinResultPanelHtml(){
     <div class="basket-spin-h"><span>🎰 Mystery basket</span><span style="font-size:11px;font-weight:700;color:#64748b">${escapeHtml(cfg.label)} · locked in</span></div>
     <div class="basket-spin-slots">${parts.join("")}</div>
     ${ingredientLanesSectionHtml(state.req, state.total)}
-    ${planLoopSystemHtml()}
     <div style="font-size:11px;color:#64748b;margin-top:10px;text-align:center;line-height:1.45"><strong>AI clock</strong> is how long the rival-chef recipe assumes (20–45 min). <strong>Hover</strong> (or keyboard-focus) a <strong>must-use</strong> ingredient for <strong>what it is</strong>, <strong>time &amp; prep</strong> (when listed), flavor notes, and a chef tip. <strong>Expand “pick a lane”</strong> below (when listed) for different ways to use each ingredient. On <strong>Equipment</strong>, hover a <strong>must-use</strong> tool for <strong>ways to use it</strong> (often overlaps with how you’d cook the basket). <strong>Must-use equipment</strong> sometimes rolls on spin — check <strong>Equipment</strong> below. Change <strong>restrictions</strong>, required ingredients, or equipment there, or <strong>spin again</strong> for a new haul.</div>
   </div>`;
 }
