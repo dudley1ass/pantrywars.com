@@ -244,6 +244,35 @@ const CTYPES = [
   {id:"recreate",label:"Recreate a Classic",emoji:"🔄"},
 ];
 const EQUIP=["Oven","Stovetop","Air Fryer","Grill","Microwave","Instant Pot","Blender","Food Processor","Cast Iron","Wok","Sous Vide","Torch","Sheet Pan"];
+
+/** Ways to use each must-use tool — often overlaps ingredient techniques (sear, roast, emulsify). Injected into rival + coach prompts. */
+const EQUIPMENT_TECHNIQUE_SHEET={
+  Oven:"Roast, bake, broil, gratin/crust finish, toast nuts or spices; pairs with sheet meals, proteins, and anything needing even dry heat.",
+  Stovetop:"Sauté, boil, simmer, reduce sauces, steam; control for pasta water, pan sauces, eggs — core for most savory timelines.",
+  "Air Fryer":"Crisp with less oil — veg, tofu, wings, reheats; fast browning when oven time is tight.",
+  Grill:"Char, smoke-kissed protein/veg, grill marks; same Maillard story as a ripping-hot skillet.",
+  Microwave:"Steam or par-cook veg, soften squash, melt, gentle reheat — honest shortcut when clock is tight.",
+  "Instant Pot":"Pressure tenderize collagen (beans, stew, tough cuts) when rules allow; then reduce or sear to finish.",
+  Blender:"Soups, sauces, emulsions, spice pastes, smooth purées — ties to wet ingredients and silky body.",
+  "Food Processor":"Shred, slice, rough paste, pesto, crumb; matches heavy prep for veg, nuts, cheese.",
+  "Cast Iron":"Sear, shallow fry, bake in pan, fond + deglaze, cornbread; overlaps with beef/pork/aromatic sears.",
+  Wok:"Stir-fry, high-heat toss, dry-toast spices, quick steam-fry; matches fast veg + protein + aromatics.",
+  "Sous Vide":"Even edge-to-edge temp; finish with sear/torch — steps must match real time on the clock.",
+  Torch:"Brûlée, meringue, char skin, melt cheese tops — finishing heat, not a long cook.",
+  "Sheet Pan":"Tray roast, one-pan dinners, even browning for veg + protein together; aligns with oven timing.",
+};
+
+function equipTechniqueSheetLine(name){
+  const n=String(name||"").trim();
+  if(!n) return "";
+  if(EQUIPMENT_TECHNIQUE_SHEET[n]) return EQUIPMENT_TECHNIQUE_SHEET[n];
+  const low=n.toLowerCase();
+  for(const k of Object.keys(EQUIPMENT_TECHNIQUE_SHEET)){
+    if(k.toLowerCase()===low) return EQUIPMENT_TECHNIQUE_SHEET[k];
+  }
+  return "";
+}
+
 const RESTRICT=["No Dairy","No Gluten","No Sugar","No Salt","No Pre-made Sauces","No Butter","No Alcohol","No Nuts","Vegetarian","Vegan"];
 /** Collapse "No No …" from duplicated prefixes (e.g. AI returns "No No Butter") and match built-in casing. */
 function normalizeRestrictionKey(s){
@@ -637,6 +666,24 @@ function basketCookFundamentalsBlock(ch){
   }
   if(!lines.length) return "";
   return `BASKET COOK FUNDAMENTALS (typical times & prep — your round is ${t} min total; pick methods that fit; dice/grind/shave change surface area and time):
+${lines.join("\n")}
+
+`;
+}
+
+/** Multiple valid uses for must-use equipment — can align with techniques already suggested by basket ingredients. */
+function basketEquipmentTechniquesBlock(ch){
+  const req=(ch&&ch.reqEquip)||[];
+  if(!req.length) return "";
+  const t=Math.max(1, Number((ch&&ch.totalTime)||30));
+  const lines=[];
+  const fallback="Include in a primary COOK/SAUCE (or tool-appropriate) step with the gear named and a concrete verb — often the same story as your ingredient technique (sear, roast, blend, pressure).";
+  for(const name of req){
+    const tip=equipTechniqueSheetLine(name)||fallback;
+    lines.push(`• ${name}: ${tip}`);
+  }
+  if(!lines.length) return "";
+  return `MUST-USE EQUIPMENT — TECHNIQUES (choose a primary story that fits the clock; methods often overlap ingredient steps — e.g. cast iron sear + brisket, wok + fast veg):
 ${lines.join("\n")}
 
 `;
@@ -1534,7 +1581,8 @@ function renderBuild() {
   const mustChips=div({style:{display:"flex",flexWrap:"wrap",gap:"3px",marginBottom:"10px"}});
   [...EQUIP,...state.reqEq.filter(e=>!EQUIP.includes(e))].forEach(e=>{
     const on=state.reqEq.includes(e);
-    const b=el("button",{style:{background:on?"#f0fdf4":"#f8fafc",border:"2px solid "+(on?"#86efac":"#e2e8f0"),borderRadius:"6px",padding:"2px 6px",fontSize:"10px",cursor:"pointer",color:on?"#15803d":"#475569"}});
+    const tip=equipTechniqueSheetLine(e)||"Primary step + named verb (sear, roast, blend, pressure…); often matches your ingredient cook story.";
+    const b=el("button",{style:{background:on?"#f0fdf4":"#f8fafc",border:"2px solid "+(on?"#86efac":"#e2e8f0"),borderRadius:"6px",padding:"2px 6px",fontSize:"10px",cursor:"pointer",color:on?"#15803d":"#475569"},title:`Ways to use: ${tip}`});
     b.textContent=(on?"✓ ":"")+e;b.addEventListener("click",()=>{state.reqEq=on?state.reqEq.filter(x=>x!==e):[...state.reqEq,e];renderBuild();});
     mustChips.appendChild(b);
   });
@@ -2383,7 +2431,7 @@ JSON SYNTAX (must be machine-parseable): Do not put unescaped " inside any strin
 CHALLENGE: ${ch.ctype.label} | DIFFICULTY: ${ch.diff} | TIME: ${ch.totalTime}min (Prep ${ch.prepTime}, Cook ${ch.cookTime})
 ${hardDiffBar}REQUIRED BASKET (each must CARRY the dish, not garnish-only): ${ch.required.join(", ")}
 PANTRY you may use (only these + basics like salt/oil/water): ${pantryLines}
-${basketCookFundamentalsBlock(ch)}${res}
+${basketCookFundamentalsBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${res}
 ${fe} ${re} ${bl}
 
 ${restrictionHardPriorityBlock(ch)}
@@ -2587,7 +2635,7 @@ EQUIPMENT: must ${(ch.reqEquip||[]).join(", ")||"—"} · forbidden ${(ch.forbEq
 COURSE: ${courseLabel} | ${totT} min (prep ${prepT}, cook ${cookT})
 PANTRY ADD-ONS: ${pantryLines}
 
-${basketCookFundamentalsBlock(ch)}${restrictionHardPriorityBlock(ch)}
+${basketCookFundamentalsBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${restrictionHardPriorityBlock(ch)}
 ${equipmentHardPriorityBlock(ch)}
 ${whiteChocolateHonestyBlock(ch.required)}
 ${courseEnforcementBlock(ch, analyzeBasketForRecipe(ch.required||[]))}
@@ -4127,7 +4175,7 @@ function mysterySpinResultPanelHtml(){
   return `<div class="basket-spin-wrap">
     <div class="basket-spin-h"><span>🎰 Mystery basket</span><span style="font-size:11px;font-weight:700;color:#64748b">${escapeHtml(cfg.label)} · locked in</span></div>
     <div class="basket-spin-slots">${parts.join("")}</div>
-    <div style="font-size:11px;color:#64748b;margin-top:10px;text-align:center;line-height:1.45"><strong>AI clock</strong> is how long the rival-chef recipe assumes (20–45 min). <strong>Hover</strong> (or keyboard-focus) a <strong>must-use</strong> ingredient for <strong>what it is</strong>, <strong>time &amp; prep</strong> (when listed), flavor notes, and a chef tip. <strong>Must-use equipment</strong> sometimes rolls on spin — check <strong>Equipment</strong> below. Change <strong>restrictions</strong>, required ingredients, or equipment there, or <strong>spin again</strong> for a new haul.</div>
+    <div style="font-size:11px;color:#64748b;margin-top:10px;text-align:center;line-height:1.45"><strong>AI clock</strong> is how long the rival-chef recipe assumes (20–45 min). <strong>Hover</strong> (or keyboard-focus) a <strong>must-use</strong> ingredient for <strong>what it is</strong>, <strong>time &amp; prep</strong> (when listed), flavor notes, and a chef tip. On <strong>Equipment</strong>, hover a <strong>must-use</strong> tool for <strong>ways to use it</strong> (often overlaps with how you’d cook the basket). <strong>Must-use equipment</strong> sometimes rolls on spin — check <strong>Equipment</strong> below. Change <strong>restrictions</strong>, required ingredients, or equipment there, or <strong>spin again</strong> for a new haul.</div>
   </div>`;
 }
 
