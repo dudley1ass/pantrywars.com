@@ -2341,7 +2341,8 @@ balance.richness: if any REQUIRED item is sugary/processed, concrete sweetness l
 balance.texture: each texture choice tied to a reason; no orphan crunch layers.
 Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     const rSan=sanitizeRestrictionList(ch.restrictions||[]);
-    const maxAttempts=(ch.restrictions&&ch.restrictions.length)?(rSan.some(x=>normalizeRestrictionKey(x)==="Vegan")?4:3):1;
+    let maxAttempts=(ch.restrictions&&ch.restrictions.length)?(rSan.some(x=>normalizeRestrictionKey(x)==="Vegan")?4:3):1;
+    if(challengeTypeIsRecreateClassic(ch.ctype)) maxAttempts=Math.max(maxAttempts,4);
     let data=null;
     let regenNote="";
     state.recipeRestrictionWarnings=null;
@@ -2393,7 +2394,7 @@ function renderContestRecipeBox(){
   const box=$("contest-recipe-inline");
   if(!box) return;
   const warn=(state.contestRecipeRestrictionWarnings&&state.contestRecipeRestrictionWarnings.length)
-    ?`<div style="background:#fff7ed;border:2px solid #f97316;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#9a3412"><strong>Restriction check:</strong><ul style="margin:6px 0 0 18px">${state.contestRecipeRestrictionWarnings.map(w=>`<li>${escapeHtml(w)}</li>`).join("")}</ul></div>`
+    ?`<div style="background:#fff7ed;border:2px solid #f97316;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#9a3412"><strong>Plan check (app rules, not API):</strong><ul style="margin:6px 0 0 18px">${state.contestRecipeRestrictionWarnings.map(w=>`<li>${escapeHtml(w)}</li>`).join("")}</ul></div>`
     :"";
   box.innerHTML=state.contestRecipe?(warn+contestRecipeHtml(state.contestRecipe)):"";
 }
@@ -2412,7 +2413,7 @@ function openContestPlanModal(cr){
         </div>
         <button type="button" onclick="closeModal()" style="flex-shrink:0;background:#f1f5f9;border:none;border-radius:8px;padding:6px 12px;font-size:18px;cursor:pointer;font-weight:700;line-height:1;color:#475569" aria-label="Close">×</button>
       </div>
-      ${(state.contestRecipeRestrictionWarnings&&state.contestRecipeRestrictionWarnings.length)?`<div style="background:#fff7ed;border:2px solid #f97316;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#9a3412"><strong>Restriction check:</strong><ul style="margin:6px 0 0 18px">${state.contestRecipeRestrictionWarnings.map(w=>`<li>${escapeHtml(w)}</li>`).join("")}</ul></div>`:""}
+      ${(state.contestRecipeRestrictionWarnings&&state.contestRecipeRestrictionWarnings.length)?`<div style="background:#fff7ed;border:2px solid #f97316;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#9a3412"><strong>Plan check (app rules, not API):</strong><ul style="margin:6px 0 0 18px">${state.contestRecipeRestrictionWarnings.map(w=>`<li>${escapeHtml(w)}</li>`).join("")}</ul></div>`:""}
       ${contestRecipeHtml(cr,{wrapId:false})}
       <p style="margin:14px 0 0;font-size:11px;color:#64748b;line-height:1.45">You can close this — the same plan stays on the builder under <strong>Competition coach</strong>.</p>
     </div>`;
@@ -2479,7 +2480,8 @@ Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short stri
 {"title":"","tagline":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":"","dur":"optional e.g. 5 min"}],"lastMinuteTip":"one sentence"}
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts. Self-check every ingredient and step before returning.`;
     const rCoach=sanitizeRestrictionList(ch.restrictions||[]);
-    const maxAttempts=(ch.restrictions&&ch.restrictions.length)?(rCoach.some(x=>normalizeRestrictionKey(x)==="Vegan")?4:3):1;
+    let maxAttempts=(ch.restrictions&&ch.restrictions.length)?(rCoach.some(x=>normalizeRestrictionKey(x)==="Vegan")?4:3):1;
+    if(challengeTypeIsRecreateClassic(ch.ctype)) maxAttempts=Math.max(maxAttempts,4);
     let data=null, regenNote="";
     for(let att=0; att<maxAttempts; att++){
       const prompt=promptCore+(regenNote?`\n\nREGENERATION REQUIRED: ${regenNote}`:"");
@@ -2520,10 +2522,10 @@ function showRecipeData(r) {
   if(cb) cb.style.display="none";
   const ch=state.challenge;
   const rw=state.recipeRestrictionWarnings;
-  const ruleWarnBanner=(rw&&rw.length)?`<div style="background:#450a0a;border:2px solid #dc2626;border-radius:12px;padding:12px 14px;margin-bottom:14px;color:#fecaca;font-size:12px;line-height:1.45">
-    <strong style="color:#fff">Restriction check:</strong> After auto-retries, the rival plan may still break your rules:
+    const ruleWarnBanner=(rw&&rw.length)?`<div style="background:#450a0a;border:2px solid #dc2626;border-radius:12px;padding:12px 14px;margin-bottom:14px;color:#fecaca;font-size:12px;line-height:1.45">
+    <strong style="color:#fff">Rival plan check (app rules, not an API error):</strong> After auto-retries, the model output can still miss our Recreate / restriction gates:
     <ul style="margin:8px 0 0 18px">${rw.map(w=>`<li>${escapeHtml(w)}</li>`).join("")}</ul>
-    <span style="font-size:11px;color:#fca5a5">Verify every line before you cook or duel — treat as suspect.</span>
+    <span style="font-size:11px;color:#fca5a5">Verify every line before you cook or duel — treat as suspect. Regenerate or edit the plan if something looks off.</span>
   </div>`:"";
   const dishHead=`<div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #334155">
     <div style="font-size:11px;font-weight:800;color:#a5b4fc;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">AI built</div>
@@ -3342,27 +3344,32 @@ function getRecreateClassicTransformationViolations(recipe, ch){
 
   const title=String(recipe.title||"");
   const tagline=String(recipe.tagline||"");
+  const atThePass=String(recipe.atThePass||"");
+  const flavorBalanceCoach=String(recipe.flavorBalance||"");
   const basketLine=String((recipe.balance&&recipe.balance.basket)||"");
   const flavorLine=String((recipe.balance&&recipe.balance.flavor)||"");
+  const basketEffective=basketLine||atThePass;
+  const flavorEffective=flavorLine||flavorBalanceCoach;
   const lowBlob=recipeFlattenTextForCompliance(recipe);
   const low=(lowBlob||"").toLowerCase();
-  const head=(title+" "+tagline).toLowerCase();
-  const basketLow=basketLine.toLowerCase();
+  const head=(title+" "+tagline+" "+atThePass).toLowerCase();
+  const basketLow=basketEffective.toLowerCase();
 
   // Broad but practical classic dish-name detector.
   const classicNameRx=/\b(fish and chips|chicken\s+piccata|veal\s+piccata|chicken parmesan|chicken parm(?:igiana)?|eggplant parmesan|eggplant parm(?:igiana)?|salisbury steak|meatloaf|beef stroganoff|shepherd'?s pie|cottage pie|coq au vin|beef bourguignon|steak frites|shrimp scampi|sole meuni[eè]re|lobster thermidor|cioppino|bouillabaisse|spaghetti (?:and )?meatballs|carbonara|cacio e pepe|lasagna|bolognese|alfredo|pasta primavera|risotto milanese|mac (?:and|&) cheese|fried chicken|chicken pot pie|biscuits and gravy|cheeseburger|club sandwich|pad thai|fried rice|ramen|pho|shawarma|falafel|gyro|eggs benedict|french toast|pancakes|omelette|huevos rancheros)\b/i;
-  const hasNamedClassic=classicNameRx.test(head)||classicNameRx.test(basketLine);
+  const hasNamedClassic=classicNameRx.test(head)||classicNameRx.test(basketEffective);
   if(!hasNamedClassic){
     msgs.push(`Recreate brief: title/tagline/balance.basket must name one specific classic dish (menu-level name), not just style vibes.`);
   }
 
-  const claimForArch=`${title} ${tagline} ${basketLine}`;
+  const claimForArch=`${title} ${tagline} ${basketEffective}`;
   msgs.push(...getClassicArchetypeViolations(claimForArch, low));
 
-  // Require explicit function mapping language, not only ingredient swapping.
-  const functionMapRx=/\b(function|role|acts as|serves as|mimic|mimics|mimicking|stand[-\s]?in|replaces?|still reads as|classic (?:structure|architecture)|umami depth|brown gravy|savory depth)\b/i;
-  const lineageRx=/\b(gravy|pan sauce|roux|reduction|braise|batter|breading|cutlet|rag[uù]|marinara|bechamel|bechamel|au jus|demi|fond)\b/i;
-  if(!(functionMapRx.test(basketLine)||functionMapRx.test(flavorLine))||!lineageRx.test(low)){
+  // Require explicit function mapping language, not only ingredient swapping (title/tagline count — models often put the pitch there). Competition coach JSON uses atThePass/flavorBalance instead of balance.*.
+  const functionProse=`${basketEffective} ${flavorEffective} ${title} ${tagline}`;
+  const functionMapRx=/\b(function|role|acts as|serves as|mimic|mimics|mimicking|stand[-\s]?in|replaces?|still reads as|reads as|classic (?:structure|architecture)|umami depth|brown gravy|savory depth|mapping|honors the|acid lift|briny snap|delivers the|anchors the)\b/i;
+  const lineageRx=/\b(gravy|pan sauce|deglaz(e|ed|ing)|roux|reduction|braise|batter|breading|cutlet|rag[uù]|marinara|bechamel|au jus|demi|fond|emulsion|piccata|capers?|meuni|schnitzel|dredge|sear|saut[eé]|wok|stir[-\s]?fry)\b/i;
+  if(!functionMapRx.test(functionProse)||!lineageRx.test(low)){
     msgs.push(`Recreate brief: explain how basket ingredients preserve classic FUNCTION (not just substitutions), and cite one concrete classic technique lineage.`);
   }
 
