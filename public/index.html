@@ -3967,7 +3967,7 @@ function getWokMustUseCentralityViolations(recipe, ch){
   const ovenForward=/\b(oven|bake|baking|blind\s*bake|bake\s+until|baked\s+custard)\b/.test(low);
   const bakeMainStory=ovenForward&&/\b(tart|quiche|custard|egg\s+tart|pastry\s+shell|shortcrust|puff|pie\s+shell)\b/.test(head+low);
   if(!bakeMainStory) return msgs;
-  const strongWok=/\b(stir[\s-]?fry|wok[\s-]?(?:fry|char|toast|hey|hei|sear|smoke)|wok\s+(?:sauce|noodles?|rice|main|eggs?)|dry\s+fry|fried\s+rice|(?:lo\s+mein|chow\s+mein)|wok[\s-]?(?:scramble|eggs?)|eggs?\s+(?:in|into)\s+(?:the\s+)?wok|\bwok\b[\s\S]{0,80}?\b(?:sear|char|stir[\s-]?fry|caramel)\b|\b(?:sear|char|stir[\s-]?fry)\b[\s\S]{0,80}?\bwok\b|\bwok\b[\s\S]{0,100}?\b(?:shrimp|beef|chicken|pork|fish|scallop|egg|noodle|rice)\b/i.test(low);
+  const strongWok=/\b(stir[\s-]?fry|wok[\s-]?(?:fry|char|toast|hey|hei|sear|smoke)|wok\s+(?:sauce|noodles?|rice|main|eggs?)|dry\s+fry|fried\s+rice|(?:lo\s+mein|chow\s+mein)|wok[\s-]?(?:scramble|eggs?)|eggs?\s+(?:in|into)\s+(?:the\s+)?wok|\bwok\b[\s\S]{0,80}?\b(?:sear|char|stir[\s-]?fry|caramel)\b|\b(?:sear|char|stir[\s-]?fry)\b[\s\S]{0,80}?\bwok\b|\bwok\b[\s\S]{0,100}?\b(?:shrimp|beef|chicken|pork|fish|scallop|egg|noodle|rice)\b)/i.test(low);
   if(!strongWok)
     msgs.push(`Must-use Wok: the plate reads oven/bake-forward (tart/custard/pastry) — the wok must drive a starring technique (stir-fry, wok-fry protein/eggs/noodles, wok sauce, wok-char on the main idea), not only wilting greens or a side veg while the centerpiece bakes.`);
   return msgs;
