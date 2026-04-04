@@ -1178,7 +1178,7 @@ function escapeHtml(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-/** Time-based transformation lanes (UI + optional JSON catalog). Keys match pantry display names. */
+/** Optional per-ingredient lane catalog (UI). Keys match pantry display names. */
 let INGREDIENT_LANES_BY_NAME = {};
 function ingredientLanesBundleForName(name){
   const k=String(name||"").trim();
@@ -1205,7 +1205,7 @@ function ingredientLanesSectionHtml(names, totalMinutes){
       return `<div class="pw-lane-block">
         <div class="pw-lane-title">${escapeHtml(l.label||"")}</div>
         <dl class="pw-lane-dl">
-          <dt>Transformation</dt><dd>${escapeHtml(l.transformation||"")}</dd>
+          <dt>Technique</dt><dd>${escapeHtml(l.transformation||"")}</dd>
           <dt>Payoff</dt><dd>${escapeHtml(l.payoff||"")}</dd>
           <dt>Time cost</dt><dd>${escapeHtml(l.timeCost||"")}</dd>
           <dt>Best use</dt><dd>${escapeHtml(l.bestUse||"")}</dd>
@@ -1216,8 +1216,8 @@ function ingredientLanesSectionHtml(names, totalMinutes){
   });
   if(!parts.length) return "";
   return `<div class="pw-lane-panel">
-    <div class="pw-lane-head">Transformation lanes <span class="pw-lane-clock">${clockLabel} min clock</span></div>
-    <p class="pw-lane-lede">Choose by time, role on the plate, and what the dish is missing (crunch, acid, depth).</p>
+    <div class="pw-lane-head">Pick a lane <span class="pw-lane-clock">${clockLabel} min</span></div>
+    <p class="pw-lane-lede">Choose by clock and what the dish needs (crunch, acid, depth).</p>
     ${parts.join("")}
   </div>`;
 }
