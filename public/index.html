@@ -10,31 +10,8 @@
   gtag('config', 'G-YZ5BN8Y95L');
 </script>
 <script>
-  /** Persist first-touch campaign params from the URL for GA4 (session). */
-  function pwCaptureUtmsFromUrl() {
-    try {
-      const u = new URL(window.location.href);
-      const keys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"];
-      const o = {};
-      keys.forEach(function (k) {
-        var v = u.searchParams.get(k);
-        if (v) o[k] = v;
-      });
-      if (Object.keys(o).length) sessionStorage.setItem("pw_utm", JSON.stringify(o));
-    } catch (_e) {}
-  }
-  function pwGetCampaignParams() {
-    try {
-      var raw = sessionStorage.getItem("pw_utm");
-      return raw ? JSON.parse(raw) : {};
-    } catch (_e) {
-      return {};
-    }
-  }
-  pwCaptureUtmsFromUrl();
-
   function trackPWEvent(eventName, params) {
-    params = Object.assign({}, pwGetCampaignParams(), params || {});
+    params = params || {};
     if (typeof gtag === "function") {
       gtag("event", eventName, params);
     }
