@@ -1041,6 +1041,23 @@ function pwTrackDailyLimitHit(context) {
   } catch (_e) {}
 }
 
+/** Clears this browser’s daily AI round counter (simulations / testing). Also: open site with <code>?reset_ai=1</code> once. */
+function pwResetDailyAiQuota() {
+  try {
+    localStorage.removeItem(PW_DAILY_AI_STORAGE_KEY);
+  } catch (_e) {}
+  try {
+    const vis = ["screen-build", "screen-pantry", "screen-landing", "screen-recipe", "screen-active", "screen-score"].find(id => {
+      const el = document.getElementById(id);
+      return el && !el.classList.contains("hidden");
+    });
+    if (vis === "screen-build" && typeof renderBuild === "function") renderBuild();
+    else if (vis === "screen-pantry" && typeof renderPantry === "function") renderPantry();
+    else if (vis === "screen-landing" && typeof renderLanding === "function") renderLanding();
+  } catch (_e) {}
+}
+window.pwResetDailyAiQuota = pwResetDailyAiQuota;
+
 /** GA4 funnel params from live builder (basket not launched yet). */
 function pwParamsBuilder() {
   return {
@@ -1319,7 +1336,14 @@ function renderBuild() {
   hQuota.textContent=remAi<=0
     ? "Today's free AI rounds: 0 left — come back tomorrow. More battles & unlimited packs coming soon."
     : `Today's free AI rounds: ${remAi} left (max ${PW_DAILY_AI_LIMIT}/day) · Resets at midnight your time · Buy-more battles coming later`;
-  const hleft=div({},[htitle,hsub,hQuota]);
+  const resetAiBtn=document.createElement("button");
+  resetAiBtn.type="button";
+  resetAiBtn.textContent="Reset today’s AI count (this browser)";
+  resetAiBtn.title="Clears the free-tier counter so you can run more simulations. Same as deleting localStorage key pw_daily_ai_rounds_v1.";
+  resetAiBtn.style.cssText="align-self:flex-start;margin-top:6px;background:transparent;border:none;color:#64748b;font-size:10px;font-weight:700;cursor:pointer;text-decoration:underline;padding:0";
+  resetAiBtn.onclick=()=>pwResetDailyAiQuota();
+  const hQuotaCol=div({style:{display:"flex",flexDirection:"column",alignItems:"flex-start",maxWidth:"420px"}},[hQuota,resetAiBtn]);
+  const hleft=div({},[htitle,hsub,hQuotaCol]);
   const hbtns=div({style:{display:"flex",gap:"8px",flexWrap:"wrap"}});
   const backPan=btn("← Pantry","#334155","#94a3b8",{border:"none",padding:"8px 10px",fontSize:"12px"},()=>{showScreen("screen-pantry");renderPantry();});
   const randBtn=btn("🎰 Spin my mystery basket","#f59e0b","#fff",{animation:"rndPulse 2s ease-in-out infinite"},()=>runMysteryRandomize());
@@ -4080,7 +4104,18 @@ function doRandomize(){
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
-loadAppConfig().then(() => renderLanding());
+loadAppConfig().then(() => {
+  try {
+    const u = new URL(location.href);
+    if (u.searchParams.get("reset_ai") === "1") {
+      pwResetDailyAiQuota();
+      u.searchParams.delete("reset_ai");
+      const q = u.searchParams.toString();
+      history.replaceState({}, "", u.pathname + (q ? "?" + q : "") + u.hash);
+    }
+  } catch (_e) {}
+  renderLanding();
+});
 </script>
 </body>
 </html>
