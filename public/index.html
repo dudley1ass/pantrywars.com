@@ -113,7 +113,7 @@
   #spin-host .rnd-slot.basket-ing-hover{cursor:help}
   /* Tooltip below tile (avoids clipping above flow-hint); pointer-events:auto so hover isn't lost (none = events pass through and parent :hover drops). */
   #screen-build .pw-pantry-ing-tooltip{
-    position:absolute;left:50%;top:calc(100% + 6px);bottom:auto;transform:translateX(-50%);width:min(292px,calc(100vw - 28px));
+    position:absolute;left:50%;top:calc(100% + 6px);bottom:auto;transform:translateX(-50%);width:min(340px,calc(100vw - 24px));max-height:min(70vh,420px);overflow-y:auto;
     padding:10px 12px;background:#0f172a;color:#e2e8f0;border-radius:10px;border:1px solid #334155;
     box-shadow:0 14px 36px rgba(0,0,0,.38);font-size:11px;line-height:1.45;font-weight:600;z-index:2000;
     opacity:0;visibility:hidden;pointer-events:auto;transition:opacity .12s ease,visibility .12s ease;text-align:left
@@ -571,6 +571,83 @@ const FULL_PANTRY = [
 
 const PANTRY = FULL_PANTRY.map(i => i.name);
 const PANTRY_BY_NAME = Object.fromEntries(FULL_PANTRY.map(i => [i.name, i]));
+
+/** One-sentence identity for hover tooltips (what the thing is, not how to cook it). Overrides optional for obscure items. */
+const PANTRY_IDENTITY_OVERRIDES={
+  "Sumac":"Ground dried sumac berries — tart, lemony spice common in Middle Eastern and Mediterranean cooking (often in za’atar).",
+  "Za’atar":"Herb–sesame–sumac blend (exact mix varies); classic with oil on bread or vegetables.",
+  "Furikake":"Japanese rice seasoning — usually seaweed, sesame, salt, and often bonito; sprinkled on rice or snacks.",
+  "Nutritional Yeast":"Inactive yeast flakes with a cheesy, savory taste; popular in vegan cooking as a flavor booster.",
+  "Gochujang":"Thick Korean fermented chili–rice paste — sweet heat and depth for glazes, stews, and bibimbap.",
+  "Miso Paste":"Fermented soybean paste (white to red); adds salty umami to soups, marinades, and sauces.",
+  "Seitan":"Wheat gluten “meat” — chewy, protein-rich; sold cooked or as flour to make at home.",
+  "Tempeh":"Fermented soybean cake (often with grains); firm, nutty; slice and sear or braise.",
+  "Tofu (Silken)":"Soft, custard-like soy curd — soups, mapo tofu, or gentle heating (not pressed like firm).",
+  "Tofu (Firm)":"Pressed soy curd — cubes, slices, or crumbles; sears, fries, or bakes.",
+  "Romanesco":"Lime-green cauliflower cousin with fractal florets; mild, nutty; roast or steam.",
+  "Kohlrabi":"Bulb stem vegetable — crisp and mild; peel and eat raw, roast, or mash.",
+  "Sunchoke":"Also called Jerusalem artichoke — knobby tuber; nutty, starchy; roast, purée, or chips (inulin can upset some stomachs).",
+  "Jerusalem Artichoke":"Same plant as sunchoke — edible tuber; not related to artichoke despite the name.",
+  "Lotus Root":"Sliced stem of the lotus plant — holes when cut; crunchy; common in Asian stir-fries and soups.",
+  "Jicama":"Mexican root vegetable — crisp, apple-like; peel; great raw in slaw or with lime and chili.",
+  "Daikon Radish":"Large mild Asian radish — crunchy and juicy; pickle, braise, or grate.",
+  "Watermelon Radish":"Mild radish with green skin and pink ring inside — pretty sliced; good raw.",
+  "Hearts of Palm":"Canned or jarred inner core of certain palms — mild, stringy-crisp; salads or vegan “crab” salads.",
+  "Broccoli Rabe":"Leafy broccoli relative — bitter; classic Italian side blanched then sautéed with garlic.",
+  "Halloumi":"Brined sheep/goat cheese that holds shape when grilled — squeaky, salty.",
+  "Paneer":"Fresh Indian cheese that doesn’t melt — cubes hold in curry; sear for texture.",
+  "Gruyère":"Swiss alpine cow’s milk cheese — great melting; French onion soup, gratins.",
+  "Pecorino Romano":"Hard salty sheep’s milk cheese — sharp; grates like parmesan; classic in cacio e pepe.",
+  "Mascarpone":"Rich Italian cream cheese — tiramisu, whipped fillings, or savory finishes.",
+  "Crème Fraîche":"Cultured cream — tangier than sour cream; dollop on soups or whip sweet.",
+  "Chipotle in Adobo":"Smoked jalapeños in tangy red sauce — intense; a little goes far in stews and marinades.",
+  "Sourdough Starter":"Wild yeast + bacteria culture for bread — tangy; “discard” can flavor pancakes.",
+  "Phyllo Dough":"Paper-thin pastry sheets — layered with butter for baklava, spanakopita, etc.",
+  "Panko Breadcrumbs":"Japanese-style flaky crumbs — extra-crispy breading.",
+  "Cornstarch":"Pure starch for thickening sauces, slurries, or light crispy coatings.",
+  "Arborio Rice":"Short-grain Italian rice — high starch for creamy risotto.",
+  "Couscous":"Tiny steamed pasta granules (wheat); North African tagines and quick sides.",
+  "Farro":"Chewy ancient wheat grain — salads and “farrotto.”",
+  "Barley (Pearl)":"Hulled barley with bran partly removed — chewy; soups and sides.",
+  "Rice Noodles":"Flat or thin rice-flour noodles — pad thai, pho, stir-fries after soaking.",
+  "Soba Noodles":"Buckwheat noodles — earthy; often served cold with dipping sauce.",
+  "Udon Noodles":"Thick wheat noodles — hearty Japanese broths and stir-fries.",
+  "Andouille":"Smoky Cajun/Creole pork sausage — gumbo, jambalaya.",
+  "Kielbasa":"Garlic-forward Polish-style sausage — often smoked; sear slices.",
+  "Shishito Peppers":"Mild East Asian peppers — blister whole; famously “one in ten” is hot.",
+  "Poblano Pepper":"Mild Mexican green chile — roast for rajas or chiles rellenos.",
+  "Fresno Chile":"Cone-shaped red chile — jalapeño heat with fruitier flavor.",
+  "Delicata Squash":"Small striped winter squash — thin edible skin; roasts in rings.",
+  "Yuzu":"Japanese citrus — intensely aromatic zest and tart juice; hard to find fresh outside Asia.",
+  "Persimmon":"Sweet fruit (Fuyu firm / Hachiya soft-jam); don’t eat Hachiya until fully soft.",
+  "Blood Orange":"Orange with red flesh — berry-like; salads and desserts.",
+  "Tahini":"Sesame seed paste — base for hummus and dressings; stir before use.",
+};
+function categoryFallbackIdentity(meta){
+  const n=String(meta.name||"Item");
+  const c=String(meta.cat||"");
+  const T={
+    "Baking & Bases":`${n} — a core baking or pantry staple (flour, sugar, eggs, fats, etc.).`,
+    "Grains & Legumes":`${n} — a grain, pasta, noodle, or legume; usually cooked in water or broth until tender.`,
+    "Aromatics":`${n} — an aromatic vegetable or chile used to build savory flavor.`,
+    "Vegetables":`${n} — a fresh vegetable from produce; wash, trim, and cook or serve raw as needed.`,
+    "Fruits":`${n} — fresh fruit; eat raw, juice, zest, or cook.`,
+    "Proteins":`${n} — a meat, seafood, egg, or plant protein for mains or substantial bites.`,
+    "Dairy & Cheese":`${n} — a dairy or cheese product from the refrigerated case.`,
+    "Oils & Vinegars":`${n} — a cooking oil, vinegar, or bottled condiment for heat or finishing.`,
+    "Spices & Herbs":`${n} — a dried spice or herb (or blend); use in small amounts for aroma and flavor.`,
+    "Canned & Jarred":`${n} — a shelf-stable canned or jarred pantry item for quick depth.`,
+    "Nuts & Seeds":`${n} — edible nuts or seeds; toast for flavor or use for crunch.`,
+    "Sweet Items":`${n} — a sweet ingredient for desserts or finishing.`,
+  };
+  return T[c]||`${n} — ${c?c.toLowerCase()+" ingredient":"pantry ingredient"}.`;
+}
+function pantryIdentityLine(meta){
+  if(!meta) return "";
+  const o=PANTRY_IDENTITY_OVERRIDES[meta.name];
+  if(o) return o;
+  return categoryFallbackIdentity(meta);
+}
 
 const CUSTOM_PANTRY_CAT = "My pantry";
 
@@ -2265,10 +2342,13 @@ ${classicArchetypeHardBlock()}`
       :m<=45
         ?`TECHNIQUE vs TIME (${m} min, moderate): Advanced techniques are fine when step durations add up honestly and the dish still respects the component budget. If a foam or refined emulsion is marginal on time, prefer a stable sauce that delivers the same flavor intent.`
         :`TECHNIQUE vs TIME (${m} min, generous): Full cheffy range is allowed — foams, refined emulsions, more layers — as long as the timeline proves feasibility (no fantasy minutes). Technique must earn its place; avoid empty showboating.`;
+    const hardDiffBar=["hard","insane"].includes(String(ch.diff||"").toLowerCase())
+      ?`DIFFICULTY (HARD): Deliver one clear technique or composed structure that feels competition-level — not the safest default (e.g. undifferentiated egg bake) unless the basket truly pins you there; you must still obey time, equipment, and restrictions.\n`
+      :"";
     const promptCore=`CHOPPED-style competition recipe. ONE valid JSON object only — no markdown, no code fences, no extra text. ASCII quotes. No trailing commas. Step "how" max ~90 chars.
 
 CHALLENGE: ${ch.ctype.label} | DIFFICULTY: ${ch.diff} | TIME: ${ch.totalTime}min (Prep ${ch.prepTime}, Cook ${ch.cookTime})
-REQUIRED BASKET (each must CARRY the dish, not garnish-only): ${ch.required.join(", ")}
+${hardDiffBar}REQUIRED BASKET (each must CARRY the dish, not garnish-only): ${ch.required.join(", ")}
 PANTRY you may use (only these + basics like salt/oil/water): ${pantryLines}
 ${res}
 ${fe} ${re} ${bl}
@@ -3086,6 +3166,39 @@ function minutesFromStepDur(dur){
 }
 
 /**
+ * Scans full recipe prose for cook times that cannot fit the round (catches bad JSON when step dur is empty but "how" says 30 min sous vide).
+ */
+function getProseTimelineViolations(low, total){
+  const msgs=[];
+  const t=Math.max(1, total);
+  const L=String(low||"").toLowerCase();
+  if(t<=120){
+    const hr=L.match(/\b(\d+)\s*(?:h|hr|hrs|hours?)\b/);
+    if(hr&&+hr[1]>=1) msgs.push(`Timeline: recipe mentions ${hr[1]} hour(s) of cook or hold — impossible inside a ${t} min round.`);
+  }
+  const svChunks=[
+    /\b(?:sous\s*-?\s*vide|immersion\s+circulator)\b[\s\S]{0,180}?\b(\d+)\s*(?:min|minutes?)\b/gi,
+    /\b(\d+)\s*(?:min|minutes?)\b[\s\S]{0,120}?\b(?:sous\s*-?\s*vide|immersion\s+circulator)\b/gi,
+    /\bwater\s*bath\b[\s\S]{0,120}?\b(?:at|for|@)\s*[\d.]+\s*[°]?[fc]?[\s\S]{0,40}?\b(\d+)\s*(?:min|minutes?)\b/gi,
+  ];
+  for(const re of svChunks){
+    re.lastIndex=0;
+    let m;
+    while((m=re.exec(L))!==null){
+      const n=+m[1];
+      if(n>t+2) msgs.push(`Timeline: long low-temp step (~${n} min, sous vide / water bath / circulator) exceeds the ${t} min round — use only techniques and times that fit the clock.`);
+    }
+  }
+  const slowOven=/\b(?:slow\s*roast|low\s+(?:and\s+)?slow)\b[\s\S]{0,100}?\b(\d+)\s*(?:min|minutes?)\b/gi;
+  let om;
+  while((om=slowOven.exec(L))!==null){
+    const n=+om[1];
+    if(n>t+5) msgs.push(`Timeline: slow-roast timing (~${n} min) does not fit a ${t} min competition clock — shorten or change technique.`);
+  }
+  return msgs;
+}
+
+/**
  * Rough timeline check: summed step durations vs challenge clock.
  * Catches "20 min braise + rest in 25 min" style fantasy.
  */
@@ -3107,7 +3220,8 @@ function getRecipeTimelineViolations(recipe, ch){
     if(sum>budget) msgs.push(`Timeline: step durations (~${sum} min) exceed the ${total} min challenge window${parallel?" (even allowing overlap)":""} — shorten, overlap tasks honestly, or fix dur fields.`);
     if(maxM>total*0.68) msgs.push(`Timeline: one step (~${maxM} min) dominates the ${total} min clock — compress, parallelize, or simplify so the run is believable.`);
   }
-  return msgs;
+  msgs.push(...getProseTimelineViolations(low, total));
+  return [...new Set(msgs)];
 }
 
 /**
@@ -3180,6 +3294,7 @@ function physicsRealismBlock(ch){
   const t=Math.max(1, Number((ch&&ch.totalTime)||30));
   const ctype=(ch&&ch.ctype)||{};
   let s=`PHYSICS & REAL COOKING (non-negotiable — no comic-book shortcuts):
+- CLOCK (${t} min total): Every named minute in steps and prose must fit inside ${t} min (including parallel work). If sous vide, water bath, or "slow roast" would need longer than ${t} min, you cannot use that method — pick faster techniques (sear, steam, shallow poach, high-heat roast only if oven allowed and time fits).
 - Real food obeys time and heat (${t} min round): collagen-rich cuts (short rib, chuck, brisket, shank, oxtail) do not become fork-tender from a ${t}-minute stovetop or grill "simmer" alone. If you braise them, either (1) use a pressure cooker / Instant Pot that is explicitly allowed in equipment and named in steps with believable timing, or (2) switch to a fast technique (hot sear, steak-cut slice against the grain, thin-cut) and **reframe** so you are not claiming a full long-braise classic.
 - Do not claim 2–3 hour outcomes (deep collagen breakdown, from-scratch demi in minutes, textbook osso buco / bourguignon braise) inside this clock unless the method honestly matches — pressure, quality stock concentrate from pantry with clear label, or an honest "inspired by" dish name.
 - Reductions and stocks: respect evaporation; no "instant demi" or full stock body without a credible source or time budget in the steps.
@@ -3202,7 +3317,9 @@ function getRecipeEquipmentViolations(recipe, ch){
   for(const raw of (ch.forbEquip||[])){
     const eq=String(raw||"").trim();
     if(!eq) continue;
-    const rx=equipmentAliasRegex(eq);
+    let rx=equipmentAliasRegex(eq);
+    if(/^sous\s*vide$/i.test(eq))
+      rx=/\b(sous\s*-?\s*vide|immersion\s+circulator|vacuum\s+bag[\s\S]{0,50}?(?:water\s*bath|bath))\b/i;
     if(eq.toLowerCase()==="stovetop"){
       const bad=clauses.find(c=>{
         if(!rx.test(c)) return false;
@@ -3234,6 +3351,23 @@ function getRecipeEquipmentViolations(recipe, ch){
   }
 
   msgs.push(...getRecipeEquipmentCentralityViolations(recipe,ch));
+  msgs.push(...getStovetopPrimaryHeatViolations(low,ch));
+  return msgs;
+}
+
+/** When Stovetop is must-use and Sous Vide is forbidden (no Oven must-use), broiler/oven-finish reads as off-brief heat. */
+function getStovetopPrimaryHeatViolations(low, ch){
+  const msgs=[];
+  if(!ch) return msgs;
+  const req=(ch.reqEquip||[]).map(s=>String(s).trim().toLowerCase());
+  const forb=(ch.forbEquip||[]).map(s=>String(s).trim().toLowerCase());
+  const L=String(low||"").toLowerCase();
+  const mustStovetop=req.some(r=>r==="stovetop"||r.includes("stovetop"));
+  const svForbidden=forb.some(r=>/\bsous/.test(r));
+  const ovenMust=req.some(r=>/\boven\b/.test(r));
+  if(!mustStovetop||!svForbidden||ovenMust) return msgs;
+  if(/\b(broiler|under\s+(?:the\s+)?broiler|salamander|oven\s*[-\s]?finish|finish\s+under\s+(?:the\s+)?broiler|broil\s+until|top\s+brown\s+under)\b/i.test(L))
+    msgs.push(`Equipment: broiler / oven-finish is not stovetop heat — for this brief use burners, skillet, or saucepan only (no salamander/broiler finish).`);
   return msgs;
 }
 
@@ -3442,6 +3576,11 @@ function equipmentHardPriorityBlock(ch){
     s+=`- Outside-the-box allowance: if Stovetop is forbidden, pan/skillet work is allowed ONLY when explicitly tied to an allowed non-stovetop heat source (e.g. cast-iron skillet on grill/plancha), never on a burner/range.\n`;
   }
   if(req.length) s+=`- Centrality: must-use gear must drive a primary step for that tool (sear/braise in the cast iron, blend in the processor) — not only a side garnish while the main cook happens elsewhere.\n`;
+  const st=req.some(x=>String(x).toLowerCase().includes("stovetop"));
+  const noSv=forb.some(x=>/\bsous/i.test(String(x)));
+  const ovenReq=req.some(x=>/\boven\b/i.test(String(x)));
+  if(st&&noSv&&!ovenReq)
+    s+=`- STOVTOP-ONLY HEAT (this brief): All primary cook and brown/finish must happen on the range (burner / skillet / saucepan / wok on stovetop). Do NOT use sous vide, immersion circulator, water-bath low-temp cooks, broiler, salamander, or "oven finish" unless Oven is explicitly listed as must-use. Torch is forbidden if listed forbidden — never substitute broiler for torch.\n`;
   s+=`- Self-check before returning: ingredients, steps, and prose must all be equipment-compliant.\n`;
   return s;
 }
@@ -3787,29 +3926,27 @@ function pickRequiredPattern(pool,count,resList){
 function mysteryBasketIngTitleAttr(name){
   if(!name||String(name).trim()===""||name==="—")return "";
   const meta=PANTRY_BY_NAME[name];
-  if(!meta) return "No pantry flavor card for custom ingredient.";
-  const line=[
-    (meta.flavor||[]).join(", "),
-    (meta.texture||[]).length?(meta.texture||[]).join(", "):"",
-    meta.notes||""
-  ].filter(Boolean).join(" · ");
-  return line.slice(0,420)+(line.length>420?"…":"");
+  if(!meta) return `Custom ingredient “${name}” — no catalog card; add details in My pantry if you use it often.`;
+  const id=pantryIdentityLine(meta);
+  const line=[id,(meta.flavor||[]).join(", "),meta.notes||""].filter(Boolean).join(" · ");
+  return line.slice(0,480)+(line.length>480?"…":"");
 }
 
 function mysteryBasketIngTooltipHtml(name){
   if(!name||String(name).trim()===""||name==="—")return "";
   const meta=PANTRY_BY_NAME[name];
   if(!meta){
-    const msg=`No flavor card for “${name}” — custom or non-catalog ingredients don’t include detailed hints yet.`;
-    return `<div class="pw-pantry-ing-tooltip" role="tooltip"><div class="pw-pantry-ing-tooltip-h">Pantry note</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(msg)}</div></div>`;
+    const msg=`“${name}” isn’t in the built-in pantry — add it under My pantry with your own notes if you use it often.`;
+    return `<div class="pw-pantry-ing-tooltip" role="tooltip"><div class="pw-pantry-ing-tooltip-h">What it is</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(msg)}</div></div>`;
   }
+  const what=pantryIdentityLine(meta);
   const flavorProfile=[
     (meta.flavor||[]).join(", ")||"—",
     (meta.texture||[]).length?`Texture: ${(meta.texture||[]).join(", ")}`:"",
     `Richness ${meta.richness||"—"} · acidity ${meta.acidity||"—"} · intensity ${meta.intensity||"—"}`
   ].filter(Boolean).join(" · ");
   const technique=meta.notes||"—";
-  return `<div class="pw-pantry-ing-tooltip" role="tooltip"><div class="pw-pantry-ing-tooltip-h">Flavor profile</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(flavorProfile)}</div><div class="pw-pantry-ing-tooltip-h" style="margin-top:8px">Cooking technique</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(technique)}</div></div>`;
+  return `<div class="pw-pantry-ing-tooltip" role="tooltip"><div class="pw-pantry-ing-tooltip-h">What it is</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(what)}</div><div class="pw-pantry-ing-tooltip-h" style="margin-top:8px">Flavor profile</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(flavorProfile)}</div><div class="pw-pantry-ing-tooltip-h" style="margin-top:8px">Chef tip</div><div class="pw-pantry-ing-tooltip-p">${escapeHtml(technique)}</div></div>`;
 }
 
 /** Constraints shown in spinner/result: dietary + forbidden equip + must-use equip + burner lock. */
@@ -3844,7 +3981,7 @@ function mysterySpinResultPanelHtml(){
   return `<div class="basket-spin-wrap">
     <div class="basket-spin-h"><span>🎰 Mystery basket</span><span style="font-size:11px;font-weight:700;color:#64748b">${escapeHtml(cfg.label)} · locked in</span></div>
     <div class="basket-spin-slots">${parts.join("")}</div>
-    <div style="font-size:11px;color:#64748b;margin-top:10px;text-align:center;line-height:1.45"><strong>AI clock</strong> is how long the rival-chef recipe assumes (20–45 min). <strong>Hover</strong> (or keyboard-focus) a <strong>must-use</strong> ingredient for flavor hints. <strong>Must-use equipment</strong> sometimes rolls on spin — check <strong>Equipment</strong> below. Change <strong>restrictions</strong>, required ingredients, or equipment there, or <strong>spin again</strong> for a new haul.</div>
+    <div style="font-size:11px;color:#64748b;margin-top:10px;text-align:center;line-height:1.45"><strong>AI clock</strong> is how long the rival-chef recipe assumes (20–45 min). <strong>Hover</strong> (or keyboard-focus) a <strong>must-use</strong> ingredient for <strong>what it is</strong>, flavor notes, and a chef tip. <strong>Must-use equipment</strong> sometimes rolls on spin — check <strong>Equipment</strong> below. Change <strong>restrictions</strong>, required ingredients, or equipment there, or <strong>spin again</strong> for a new haul.</div>
   </div>`;
 }
 
