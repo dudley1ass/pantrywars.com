@@ -2184,6 +2184,7 @@ SCORING RUBRIC:
 - Taste: flavor logic, balance, plausibility
 - Basket compliance: heavily penalize the AI entry if any required basket ingredient is missing from the described dish (ingredients + steps). A missing required item is a major failure; note it in the summary if it occurs.
 - Must-use equipment: if the challenge lists required gear (e.g. Wok), penalize the AI heavily when that tool is only a minor side step while the main cook uses a different vessel (e.g. baked tart + wok only for greens). Centralize the required tool in the primary technique or downscore hard.
+- No Salt: penalize sweet maple/cream plans without clear acid (citrus, vinegar, pickle). Penalize seitan/tempeh used only as soft slices on top with no crisp/caramelize/shred integration.
 - Creativity: originality without nonsense — but for "Recreate a Classic," creativity must serve a NAMED classic; pure original with no classic = lower creativity/challenge execution
 - Presentation: plating clarity from described dish
 - Difficulty: technical ambition that fits time
@@ -2853,6 +2854,7 @@ ${productSweetNote}
 
 FOOD PRODUCT TRUTH (material honesty — not vocabulary checks):
 - Naming a required ingredient is NOT enough. For EACH required item: (1) ingredients[] must list it in the honest starting form from the store (or a clear portion of that package); (2) at least one step must show physical handling of that real product (squeeze bottle, scoop from tub, tear crust, chop whole fruit, grate from block).
+- Seitan / tempeh: integrate with technique — crisp, crumble, caramelize, shred, wok-fry — not soft slices parked on top for checklist credit.
 - balance.basket must include one concrete sensory/material note per required item (too sweet, thin vs thick, fake vanilla, waxy chocolate, salty pickle brine, etc.) so a judge recognizes the actual SKU — not a re-branded "chef version" with only the label in common.
 - The dish fails if a competitor could swap in a finer product without changing your steps — steps must be specific to what was in the basket.
 - EMULSION NAMING: Say "mayonnaise" or "aioli" only when the method uses egg yolk, jarred mayo, aquafaba emulsion, or another real emulsion base. Cream + lemon alone is a sauce — name it honestly, not "mayo."
@@ -2889,6 +2891,7 @@ PLAIN LANGUAGE (kitchen dock, not press release):
 
 TIMELINE REALISM:
 - The work in your steps must honestly fit ~${ch.totalTime} min total challenge time (your ${ch.prepTime} prep + ${ch.cookTime} cook narrative). If tasks run in parallel, say so. Do not compress a full entrée into an obviously too-short window unless timing is explained.
+- Stacked oven work: long roast veg + scratch dough + blind bake + filled tart/custard bake often exceeds a 45 min clock — prefer store crust, stovetop-set filling, shorter roasts, or one bake with credible parallel minutes.
 ${["hard","insane"].includes(String(ch.diff||"").toLowerCase())&&Number(ch.totalTime)<=25?`- HARD/INSANE + ≤25 min: scratch dough + custarded bake + a separate wok/greens track is usually fantasy — prefer purchased pastry, one primary heat story, or honest parallel minutes.\n`:""}
 - Do not oversell "easy" or relaxed pacing when the sequence is tight — tip or balance.complete may note that the clock is aggressive but doable with parallel work (if true).
 
@@ -2937,9 +2940,10 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
       const formatViol=getRecipeFormatHonestyViolations(data);
       const kitchenViol=getKitchenScienceHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, formatViol, kitchenViol, classicViol);
+      const plantViol=getPlantProteinTransformationViolations(data,ch);
+      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, formatViol, kitchenViol, classicViol, plantViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy, brisket/collagen realism, must-use equipment centrality especially Wok vs oven story, timeline, basket coverage for every REQUIRED name, appetizer vs dessert read, format honesty, kitchen science, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy with real acid, brisket/collagen realism, must-use equipment centrality especially Wok vs oven story, blender on filling when assigned, timeline, basket coverage for every REQUIRED name, seitan/tempeh transformation not garnish-only, appetizer vs dessert read, format honesty, kitchen science, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
       if(attempt===maxAttempts-1) state.recipeRestrictionWarnings=viol;
     }
     state.recipe=data;
@@ -3081,9 +3085,10 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
       const formatViol=getRecipeFormatHonestyViolations(data);
       const kitchenViol=getKitchenScienceHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, formatViol, kitchenViol, classicViol);
+      const plantViol=getPlantProteinTransformationViolations(data,ch);
+      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, formatViol, kitchenViol, classicViol, plantViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (must-use equipment centrality, timeline, basket coverage for every MUST USE name, appetizer course fit, format honesty, kitchen science — real emulsion names, bread not flour slices). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (must-use equipment centrality, blender on filling when assigned, timeline, basket coverage for every MUST USE name, seitan/tempeh transformation not garnish-only, appetizer course fit, format honesty, kitchen science — real emulsion names, bread not flour slices). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
       if(att===maxAttempts-1) state.contestRecipeRestrictionWarnings=viol;
     }
     state.contestRecipe=data;
@@ -3665,6 +3670,10 @@ function getNoSaltCompensationViolations(recipe, restrictions){
   const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
   const strat=/\b(no\s+salt|salt[- ]?free|without\s+(added\s+)?salt|compensat|acid\s+balance|brighten|vinegar|citrus|lemon|lime|pickle|brine|capers?\b|ferment|umami|tomato\s+paste|charred|aggressive\s+reduction|low[\s-]?sodium|unsalted|sodium\s+from|latent\s+sodium)\b/i.test(low);
   if(!strat) msgs.push(`No Salt: state how you build savor without added salt — acid (citrus/vinegar/pickles), umami you name honestly, char, reduction, herbs/spices integrated into the sauce — not only butter/cream richness.`);
+  const sweetFatPit=/\b(maple|honey|brown\s+sugar|syrup)\b/.test(low)&&/\b(heavy\s+cream|cream|butter|half\s+and\s+half)\b/.test(low);
+  const acidNamed=/\b(lemon|lime|orange\s+(?:juice|zest)|grapefruit|citrus|cider\s+vinegar|wine\s+vinegar|sherry\s+vinegar|vinegar|verjuice|pickle|pickled|brine|capers?|yuzu|malt\s+vinegar|balsamic|shrub)\b/i.test(low);
+  if(sweetFatPit&&!acidNamed)
+    msgs.push(`No Salt: maple/honey + cream/butter without named acid (citrus, vinegar, pickle brine) reads one-dimensional — put acid/caramelization/spice in balance.flavor and real steps, not only richness.`);
   return msgs;
 }
 
@@ -3764,6 +3773,21 @@ function getProseTimelineViolations(low, total){
     if(scratchPastry.test(L)&&!negPastry.test(L))
       msgs.push(`Timeline: from-scratch laminated/puff pastry or long dough rest/proof is not credible in a ${t} min round — use purchased pastry, phyllo, tortillas, or a fast honest dough; or reflow minutes.`);
   }
+  msgs.push(...getStackedBakeSequenceViolations(L,t));
+  return msgs;
+}
+
+/** Roast veg + dough + blind bake + filled bake often exceeds short clocks (e.g. 45 min). */
+function getStackedBakeSequenceViolations(low, total){
+  const msgs=[];
+  const t=Math.max(1, total);
+  if(t>50) return msgs;
+  const L=String(low||"").toLowerCase();
+  const roastVeg=/\b(roast|roasted|oven)\b[\s\S]{0,220}?\b(squash|pumpkin|acorn|butternut|beet|root\s+veg)\b|\b(roast|oven)\b[\s\S]{0,120}?\b(vegetable|veg)\b/i.test(L);
+  const dough=/\b(dough|pastry|crust|shell|shortcrust|blind\s*bake|par[\s-]?bake|press\s+into\s+(?:the\s+)?(?:tart|pan))\b/i.test(L);
+  const filledBake=/\b(bake\s+(?:the\s+)?(?:filled|tart|quiche)|bake\s+until\s+set|fill\s+and\s+bake|custard\s+(?:in\s+)?(?:oven|shell)|second\s+bake)\b/i.test(L);
+  if(roastVeg&&dough&&filledBake)
+    msgs.push(`Timeline: roast veg + dough + blind bake + filled tart/custard bake usually exceeds ${t} min — use store crust, stovetop-thickened filling, shorter roast times, or one honest bake stage with parallel work spelled out.`);
   return msgs;
 }
 
@@ -3949,6 +3973,24 @@ function getRecipeEquipmentCentralityViolations(recipe, ch){
     if(!ok) msgs.push(`Must-use ${eq}: use it in a primary technique step (sear/braise/blend/bake as fits the tool) — not only a passing mention or side garnish.`);
   }
   msgs.push(...getWokMustUseCentralityViolations(recipe,ch));
+  msgs.push(...getBlenderMustUseCentralityViolations(recipe,ch));
+  return msgs;
+}
+
+/**
+ * Must-use Blender on tart/custard: filling/base purée, not only a drizzle.
+ */
+function getBlenderMustUseCentralityViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const req=(ch.reqEquip||[]).map(s=>String(s).trim().toLowerCase());
+  if(!req.some(r=>/\bblender\b/.test(r))) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  if(!/\b(blender|immersion|vitamix|nutribullet|blend|puree|purée)\b/i.test(low)) return msgs;
+  if(!/\b(tart|quiche|custard|blind\s*bake|pastry\s+shell)\b/i.test(low)) return msgs;
+  const strategic=/\b(blend|blended|blending|puree|purée|pureed)\b[\s\S]{0,180}?\b(squash|custard|filling|roast|base|smooth|silky|velvet|vegetable|pumpkin)\b|\b(squash|roast|custard|filling|vegetable)[\s\S]{0,180}?\b(blend|purée|puree|blender|vitamix)\b/i.test(low);
+  if(!strategic)
+    msgs.push(`Must-use Blender: on tart/custard plates, blend the filling or roast base (silky purée, custard mix, emulsified sauce) — not only a minor drizzle or garnish.`);
   return msgs;
 }
 
@@ -3983,6 +4025,20 @@ function getAppetizerCourseFitViolations(recipe, ch){
   const savoryBridge=/\b(lemon|lime|vinegar|verjuice|pickle|brine|mustard|fish\s+sauce|soy|charred|bitter|umami|chili|hot\s+sauce|gochujang|miso|anchovy|caper|salt\s+forward|acid\s+hit)\b/.test(low);
   if(sweetLean&&!savoryBridge)
     msgs.push(`Course fit (appetizer): cream/chocolate/custard reads dessert-heavy — name a savory bridge in balance.flavor (acid, bitter, umami, pickle, char) so judges read a starter, not dessert.`);
+  return msgs;
+}
+
+/** Seitan/tempeh: avoid soft-on-soft slices as garnish-only. */
+function getPlantProteinTransformationViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase());
+  if(!req.some(r=>/\b(seitan|tempeh)\b/.test(r))) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const garnishLay=/\b(slice|slices|layer|on\s+top|garnish|fan|shingle|lay(er|ers)?)\b/i.test(low);
+  const transform=/\b(fry|crisp|crispy|shred|dice|cube|caramel|char|toast|brown|sear|crunch|braise|glaze|deglaze|crumble|grind|pan[\s-]?fry|wok|bake\s+until\s+crisp|toss\s+in)\b/i.test(low);
+  if(garnishLay&&!transform)
+    msgs.push(`Basket protein (seitan/tempeh): do not only fan or layer slices on top — transform (dice + crisp, caramelize, shred, crumble, wok-fry) for texture and integration.`);
   return msgs;
 }
 
@@ -4267,7 +4323,8 @@ ACTIVE RESTRICTIONS (fail closed):
       s+=` — BANNED: table salt, kosher salt, finishing salt, seasoned salt, explicit "season with salt" / "salt to taste" in steps. MSG-as-salt is off unless you label an allowed exception (usually avoid).
 - Latent sodium is real: commercial stock, butter, cheese, soy sauce, miso, fish sauce, bacon, ham, brined pickles, many condiments — still allowed if your other rules permit them; name the source honestly. Prefer unsalted butter / low-sodium stock wording when the story allows so strict judges see intent.
 - Flavor architecture without added salt: push acid (citrus, vinegar), bitter (charred veg, greens), tomato paste or charred tomato for "red sauce" memory, aggressive reduction, herbs — especially when the basket has maple/honey/sweet; finish with extra acid so the plate stays savory, not dessert-leaning.
-- MANDATORY in balance.basket or balance.flavor: one explicit sentence on how you solve "no added salt" for judges — acid/umami/char/reduction/latent sodium tradeoffs — not only "cream and butter for richness."\n`;
+- MANDATORY in balance.basket or balance.flavor: one explicit sentence on how you solve "no added salt" for judges — acid/umami/char/reduction/latent sodium tradeoffs — not only "cream and butter for richness."
+- If maple, honey, or brown sugar AND cream/butter appear: you MUST also name citrus, vinegar, or pickle brine in steps or balance.flavor — sweet + fat alone is not a no-salt strategy.\n`;
     else s+=` — treat as strict; do not violate in any field.\n`;
   }
   s+=`SELF-CHECK: Output JSON must be restriction-clean on first save. Judges eliminate on rule breaks.\n`;
@@ -4293,7 +4350,8 @@ function equipmentHardPriorityBlock(ch){
   if(req.some(x=>/\bwok\b/i.test(String(x)))) s+=`- WOK: If the dish is oven/bake-forward (tart, quiche, baked custard), you must still run a starring wok technique on the main protein, eggs, noodles, rice, or sauce — do not relegate the wok to wilting one leafy side while the tart carries the plate.\n`;
   if(req.some(x=>/\bcast[\s-]*iron/i.test(String(x)))) s+=`- CAST IRON: A quick sear alone is weak — use the pan for fond, deglaze, reduction, or a real braise/simmer so the skillet earns its keep.\n`;
   if(req.some(x=>/\bblender\b/i.test(String(x)))||req.some(x=>/food\s*processor/i.test(String(x))))
-    s+=`- BLENDER / FOOD PROCESSOR: Put the tool name ("blender", "Vitamix", "immersion blender", or "food processor") in at least one step "how" line where you purée, blend, pulse, or process — not only in the ingredient list. If you describe puréeing without repeating the word "blender", still make the blend/pulse action unmistakable in that step.\n`;
+    s+=`- BLENDER / FOOD PROCESSOR: Put the tool name ("blender", "Vitamix", "immersion blender", or "food processor") in at least one step "how" line where you purée, blend, pulse, or process — not only in the ingredient list. If you describe puréeing without repeating the word "blender", still make the blend/pulse action unmistakable in that step.
+- On tarts/custards: use the blender for the filling or roast purée (silky base) — not only a small drizzle or plate garnish.\n`;
   const st=req.some(x=>String(x).toLowerCase().includes("stovetop"));
   const noSv=forb.some(x=>/\bsous/i.test(String(x)));
   const ovenReq=req.some(x=>/\boven\b/i.test(String(x)));
