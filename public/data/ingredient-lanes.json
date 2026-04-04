@@ -1,0 +1,172 @@
+{
+  "Seitan": {
+    "lanes": [
+      {
+        "id": "fast",
+        "label": "Fast / high impact",
+        "transformation": "Small dice → ripping-hot sear → deep golden edges → optional sugar + acid deglaze → cool to crisp shards",
+        "payoff": "Crunch + Maillard; reads intentional on the clock",
+        "timeCost": "~8–12 min active",
+        "bestUse": "Need contrast vs soft custard/purée; competition plates under ~40 min",
+        "risk": "Dry-blast too long → rubber; balance oil + heat",
+        "clockHint": "Strong default for short clocks"
+      },
+      {
+        "id": "balanced",
+        "label": "Balanced / quick sear",
+        "transformation": "Thin slice → hot pan sear → light browning → finish in sauce or on tart",
+        "payoff": "Soft protein with some crust — safe, readable",
+        "timeCost": "~5–8 min",
+        "bestUse": "Sandwich/bowl logic; when crunch isn’t the headline",
+        "risk": "Soft-on-soft if the rest of the plate is also creamy",
+        "clockHint": "OK when another element carries crunch"
+      },
+      {
+        "id": "deep",
+        "label": "Deep flavor / slow",
+        "transformation": "Simmer or braise in seasoned liquid → moist, flavored pieces",
+        "payoff": "Depth + sauce integration",
+        "timeCost": "~15–25 min",
+        "bestUse": "Curry, stew, saucy mains when clock allows",
+        "risk": "Eats clock on tight rounds; weak as “slice on top” garnish",
+        "clockHint": "Risky for ≤30 min unless pressure or pre-cooked called out"
+      }
+    ]
+  },
+  "Tempeh": {
+    "lanes": [
+      {
+        "id": "fast",
+        "label": "Fast / high impact",
+        "transformation": "Crumble or small dice → brown hard in oil → spice + splash acid",
+        "payoff": "Toasty bits + nutty depth fast",
+        "timeCost": "~6–10 min",
+        "bestUse": "Topping, filling, crunch layer",
+        "risk": "Dry if no fat/acid",
+        "clockHint": "Strong for short clocks"
+      },
+      {
+        "id": "balanced",
+        "label": "Balanced / sear",
+        "transformation": "Slice → sear both sides → glaze or stack",
+        "payoff": "Firm bite, clear technique",
+        "timeCost": "~8–12 min",
+        "bestUse": "Sandwich, composed plates",
+        "risk": "Bland center if under-seasoned (esp. no salt rounds)",
+        "clockHint": "Default lane"
+      },
+      {
+        "id": "deep",
+        "label": "Deep / braise",
+        "transformation": "Simmer in aromatic liquid → absorb flavor",
+        "payoff": "Moist, stew-friendly",
+        "timeCost": "~15–25 min",
+        "bestUse": "Curry, chili logic",
+        "risk": "Time sink on short clocks",
+        "clockHint": "Needs honest minutes or pressure"
+      }
+    ]
+  },
+  "Acorn Squash": {
+    "lanes": [
+      {
+        "id": "fast",
+        "label": "Fast / high impact",
+        "transformation": "Small wedges → high-heat roast or hot pan → char + maple glaze finish",
+        "payoff": "Caramel edges without long oven",
+        "timeCost": "~12–18 min (hot oven / small pieces)",
+        "bestUse": "Need roast flavor fast",
+        "risk": "Undercooked center if pieces too thick",
+        "clockHint": "Cut small for short clocks"
+      },
+      {
+        "id": "balanced",
+        "label": "Balanced / roast + blend",
+        "transformation": "Roast until tender → scoop → purée or fold into filling",
+        "payoff": "Silky-sweet body for tarts, soups, sauces",
+        "timeCost": "~20–35 min roast + blend",
+        "bestUse": "Custard/tart filling, soup",
+        "risk": "Stacks with dough + bake — watch total clock",
+        "clockHint": "Pair with store crust or stovetop-set custard"
+      },
+      {
+        "id": "deep",
+        "label": "Deep / concentrate",
+        "transformation": "Long roast → reduce purée → butter/oil finish",
+        "payoff": "Concentrated sweetness + depth",
+        "timeCost": "~35–50+ min",
+        "bestUse": "When clock is generous",
+        "risk": "Rarely fits tight competition clocks end-to-end",
+        "clockHint": "Usually trim for ≤45 min"
+      }
+    ]
+  },
+  "Maple Syrup": {
+    "lanes": [
+      {
+        "id": "fast",
+        "label": "Fast / high impact",
+        "transformation": "Brush + quick broil or torch → spot caramel; or whisk with acid for instant glaze",
+        "payoff": "Bitter-sweet in minutes",
+        "timeCost": "~2–6 min",
+        "bestUse": "Finish, shine, contrast",
+        "risk": "Burns fast — watch heat",
+        "clockHint": "No-salt rounds: pair acid in same step"
+      },
+      {
+        "id": "balanced",
+        "label": "Balanced / reduction",
+        "transformation": "Reduce with citrus, vinegar, or spice → sauce body",
+        "payoff": "Complex sweet-savory without dessert cliché",
+        "timeCost": "~8–15 min",
+        "bestUse": "Sauce, drizzle, tart bridge",
+        "risk": "One-dimensional if only cream + maple",
+        "clockHint": "Name acid on the plate"
+      },
+      {
+        "id": "deep",
+        "label": "Deep / candy",
+        "transformation": "Cook to soft-ball / caramel stage → shard, brittle, or ribbon",
+        "payoff": "Texture + drama",
+        "timeCost": "~12–25 min",
+        "bestUse": "Garnish, crunch layer",
+        "risk": "Thermometer discipline; sticky cleanup",
+        "clockHint": "Adds clock load — plan parallel work"
+      }
+    ]
+  },
+  "Heavy Cream": {
+    "lanes": [
+      {
+        "id": "fast",
+        "label": "Fast / high impact",
+        "transformation": "Simmer with acid (citrus) or mustard → quick pan sauce; or whip soft for dollop",
+        "payoff": "Body + brightness",
+        "timeCost": "~5–10 min",
+        "bestUse": "No-salt rounds: acid-forward sauce",
+        "risk": "Flat if no acid/char elsewhere",
+        "clockHint": "Avoid maple+cream only"
+      },
+      {
+        "id": "balanced",
+        "label": "Balanced / set",
+        "transformation": "Blend into custard base with eggs → gentle bake or stovetop thicken",
+        "payoff": "Silky filling",
+        "timeCost": "Bake time varies — budget with crust",
+        "bestUse": "Tarts, pots, savory-sweet plates",
+        "risk": "Stacks time with roast + dough",
+        "clockHint": "Crustless or bought shell saves minutes"
+      },
+      {
+        "id": "deep",
+        "label": "Deep / reduce",
+        "transformation": "Slow reduction → almost glaze → mount butter or oil",
+        "payoff": "Intense coating sauce",
+        "timeCost": "~15–30 min",
+        "bestUse": "Steak-adjacent veg plates",
+        "risk": "Needs stirring; clock heavy",
+        "clockHint": "Parallel with other steps"
+      }
+    ]
+  }
+}

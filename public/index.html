@@ -88,6 +88,36 @@
   #screen-build .pw-pantry-ing-tooltip-toolkit{font-size:10px;font-weight:600;color:#e9d5ff;line-height:1.5;white-space:pre-wrap;max-width:min(380px,92vw);text-align:left}
   #screen-build .pw-pantry-ing-tip-wrap:is(:hover,:focus-within) .pw-pantry-ing-tooltip{opacity:1;visibility:visible}
   #screen-build .pw-req-chip-wrap.pw-pantry-ing-tip-wrap{display:inline-flex;vertical-align:middle;margin:0 4px 4px 0;cursor:help}
+  #screen-build .pw-lane-panel{margin-top:10px;background:#faf5ff;border:2px solid #e9d5ff;border-radius:10px;padding:12px 14px}
+  #screen-build .pw-lane-head{font-size:10px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:#6d28d9;margin-bottom:6px}
+  #screen-build .pw-lane-clock{font-weight:800;color:#7c3aed}
+  #screen-build .pw-lane-lede{font-size:11px;color:#6b21a8;line-height:1.45;margin:0 0 10px}
+  #screen-build .pw-lane-ing{border:1px solid #ddd6fe;border-radius:8px;background:#fff;margin-bottom:8px;overflow:hidden}
+  #screen-build .pw-lane-sum{cursor:pointer;font-size:12px;font-weight:800;color:#5b21b6;padding:10px 12px;list-style:none;display:flex;align-items:center;gap:6px}
+  #screen-build .pw-lane-sum::-webkit-details-marker{display:none}
+  #screen-build .pw-lane-sum-sub{font-weight:600;color:#9333ea;font-size:11px}
+  #screen-build .pw-lane-inner{padding:0 10px 10px 12px}
+  #screen-build .pw-lane-block{border-top:1px solid #f5f3ff;padding-top:10px;margin-top:10px}
+  #screen-build .pw-lane-block:first-child{border-top:none;padding-top:0;margin-top:0}
+  #screen-build .pw-lane-title{font-size:11px;font-weight:800;color:#4c1d95;margin-bottom:6px}
+  #screen-build .pw-lane-dl{margin:0;font-size:11px;line-height:1.45}
+  #screen-build .pw-lane-dl dt{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;margin-top:6px}
+  #screen-build .pw-lane-dl dt:first-child{margin-top:0}
+  #screen-build .pw-lane-dl dd{margin:2px 0 0;color:#334155;font-weight:600}
+  #screen-build .pw-lane-hint{font-size:10px;font-weight:700;color:#7c3aed;margin-top:6px;font-style:italic}
+  #battle-constraints .pw-lane-panel{margin-top:12px;background:#1e293b;border:1px solid #475569;border-radius:10px;padding:12px 14px}
+  #battle-constraints .pw-lane-head{color:#c4b5fd}
+  #battle-constraints .pw-lane-lede{color:#94a3b8}
+  #battle-constraints .pw-lane-ing{border-color:#334155;background:#0f172a}
+  #battle-constraints .pw-lane-sum{color:#e9d5ff}
+  #battle-constraints .pw-lane-sum-sub{color:#a78bfa}
+  #battle-constraints .pw-lane-title{color:#ddd6fe}
+  #battle-constraints .pw-lane-dl dd{color:#e2e8f0}
+  #battle-constraints .pw-lane-hint{color:#c4b5fd}
+  #spin-host .pw-lane-panel{margin-top:10px;background:#faf5ff;border:2px solid #e9d5ff;border-radius:10px;padding:12px;text-align:left}
+  #spin-host .pw-lane-head{color:#6d28d9}
+  #spin-host .pw-lane-lede{color:#6b21a8}
+  #spin-host .pw-lane-ing{background:#fff}
   .contest-coach-hero{position:relative;}
   .contest-coach-hero-inner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;position:relative;z-index:1}
   .contest-coach-watermark{position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;display:flex;align-items:center;justify-content:center;overflow:hidden}
@@ -226,6 +256,9 @@
 </style>
 </head>
 <body>
+<script type="application/json" id="pw-ingredient-lanes-data">
+{"Seitan":{"lanes":[{"id":"fast","label":"Fast / high impact","transformation":"Small dice → ripping-hot sear → deep golden edges → optional sugar + acid deglaze → cool to crisp shards","payoff":"Crunch + Maillard; reads intentional on the clock","timeCost":"~8–12 min active","bestUse":"Need contrast vs soft custard/purée; competition plates under ~40 min","risk":"Dry-blast too long → rubber; balance oil + heat","clockHint":"Strong default for short clocks"},{"id":"balanced","label":"Balanced / quick sear","transformation":"Thin slice → hot pan sear → light browning → finish in sauce or on tart","payoff":"Soft protein with some crust — safe, readable","timeCost":"~5–8 min","bestUse":"Sandwich/bowl logic; when crunch isn’t the headline","risk":"Soft-on-soft if the rest of the plate is also creamy","clockHint":"OK when another element carries crunch"},{"id":"deep","label":"Deep flavor / slow","transformation":"Simmer or braise in seasoned liquid → moist, flavored pieces","payoff":"Depth + sauce integration","timeCost":"~15–25 min","bestUse":"Curry, stew, saucy mains when clock allows","risk":"Eats clock on tight rounds; weak as “slice on top” garnish","clockHint":"Risky for ≤30 min unless pressure or pre-cooked called out"}]},"Tempeh":{"lanes":[{"id":"fast","label":"Fast / high impact","transformation":"Crumble or small dice → brown hard in oil → spice + splash acid","payoff":"Toasty bits + nutty depth fast","timeCost":"~6–10 min","bestUse":"Topping, filling, crunch layer","risk":"Dry if no fat/acid","clockHint":"Strong for short clocks"},{"id":"balanced","label":"Balanced / sear","transformation":"Slice → sear both sides → glaze or stack","payoff":"Firm bite, clear technique","timeCost":"~8–12 min","bestUse":"Sandwich, composed plates","risk":"Bland center if under-seasoned (esp. no salt rounds)","clockHint":"Default lane"},{"id":"deep","label":"Deep / braise","transformation":"Simmer in aromatic liquid → absorb flavor","payoff":"Moist, stew-friendly","timeCost":"~15–25 min","bestUse":"Curry, chili logic","risk":"Time sink on short clocks","clockHint":"Needs honest minutes or pressure"}]},"Acorn Squash":{"lanes":[{"id":"fast","label":"Fast / high impact","transformation":"Small wedges → high-heat roast or hot pan → char + maple glaze finish","payoff":"Caramel edges without long oven","timeCost":"~12–18 min (hot oven / small pieces)","bestUse":"Need roast flavor fast","risk":"Undercooked center if pieces too thick","clockHint":"Cut small for short clocks"},{"id":"balanced","label":"Balanced / roast + blend","transformation":"Roast until tender → scoop → purée or fold into filling","payoff":"Silky-sweet body for tarts, soups, sauces","timeCost":"~20–35 min roast + blend","bestUse":"Custard/tart filling, soup","risk":"Stacks with dough + bake — watch total clock","clockHint":"Pair with store crust or stovetop-set custard"},{"id":"deep","label":"Deep / concentrate","transformation":"Long roast → reduce purée → butter/oil finish","payoff":"Concentrated sweetness + depth","timeCost":"~35–50+ min","bestUse":"When clock is generous","risk":"Rarely fits tight competition clocks end-to-end","clockHint":"Usually trim for ≤45 min"}]},"Maple Syrup":{"lanes":[{"id":"fast","label":"Fast / high impact","transformation":"Brush + quick broil or torch → spot caramel; or whisk with acid for instant glaze","payoff":"Bitter-sweet in minutes","timeCost":"~2–6 min","bestUse":"Finish, shine, contrast","risk":"Burns fast — watch heat","clockHint":"No-salt rounds: pair acid in same step"},{"id":"balanced","label":"Balanced / reduction","transformation":"Reduce with citrus, vinegar, or spice → sauce body","payoff":"Complex sweet-savory without dessert cliché","timeCost":"~8–15 min","bestUse":"Sauce, drizzle, tart bridge","risk":"One-dimensional if only cream + maple","clockHint":"Name acid on the plate"},{"id":"deep","label":"Deep / candy","transformation":"Cook to soft-ball / caramel stage → shard, brittle, or ribbon","payoff":"Texture + drama","timeCost":"~12–25 min","bestUse":"Garnish, crunch layer","risk":"Thermometer discipline; sticky cleanup","clockHint":"Adds clock load — plan parallel work"}]},"Heavy Cream":{"lanes":[{"id":"fast","label":"Fast / high impact","transformation":"Simmer with acid (citrus) or mustard → quick pan sauce; or whip soft for dollop","payoff":"Body + brightness","timeCost":"~5–10 min","bestUse":"No-salt rounds: acid-forward sauce","risk":"Flat if no acid/char elsewhere","clockHint":"Avoid maple+cream only"},{"id":"balanced","label":"Balanced / set","transformation":"Blend into custard base with eggs → gentle bake or stovetop thicken","payoff":"Silky filling","timeCost":"Bake time varies — budget with crust","bestUse":"Tarts, pots, savory-sweet plates","risk":"Stacks time with roast + dough","clockHint":"Crustless or bought shell saves minutes"},{"id":"deep","label":"Deep / reduce","transformation":"Slow reduction → almost glaze → mount butter or oil","payoff":"Intense coating sauce","timeCost":"~15–30 min","bestUse":"Steak-adjacent veg plates","risk":"Needs stirring; clock heavy","clockHint":"Parallel with other steps"}]}}
+</script>
 
 <!-- SCREENS -->
 <div id="screen-landing" class="page"></div>
@@ -1144,6 +1177,55 @@ function refreshAfterModalAdd() {
 function escapeHtml(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
+
+/** Time-based transformation lanes (UI + optional JSON catalog). Keys match pantry display names. */
+let INGREDIENT_LANES_BY_NAME = {};
+function ingredientLanesBundleForName(name){
+  const k=String(name||"").trim();
+  if(!k) return null;
+  let row=INGREDIENT_LANES_BY_NAME[k];
+  if(!row||!row.lanes||!row.lanes.length){
+    const low=k.toLowerCase();
+    for(const key of Object.keys(INGREDIENT_LANES_BY_NAME)){
+      if(String(key).toLowerCase()===low){ row=INGREDIENT_LANES_BY_NAME[key]; break; }
+    }
+  }
+  if(!row||!row.lanes||!row.lanes.length) return null;
+  return row;
+}
+function ingredientLanesSectionHtml(names, totalMinutes){
+  const t=Number(totalMinutes);
+  const clockLabel=Number.isFinite(t)&&t>0?t:45;
+  const parts=[];
+  (names||[]).forEach(n=>{
+    const b=ingredientLanesBundleForName(n);
+    if(!b||!b.lanes) return;
+    const laneRows=b.lanes.map(l=>{
+      const hint=l.clockHint?`<div class="pw-lane-hint">${escapeHtml(l.clockHint)}</div>`:"";
+      return `<div class="pw-lane-block">
+        <div class="pw-lane-title">${escapeHtml(l.label||"")}</div>
+        <dl class="pw-lane-dl">
+          <dt>Transformation</dt><dd>${escapeHtml(l.transformation||"")}</dd>
+          <dt>Payoff</dt><dd>${escapeHtml(l.payoff||"")}</dd>
+          <dt>Time cost</dt><dd>${escapeHtml(l.timeCost||"")}</dd>
+          <dt>Best use</dt><dd>${escapeHtml(l.bestUse||"")}</dd>
+          <dt>Risk</dt><dd>${escapeHtml(l.risk||"")}</dd>
+        </dl>${hint}</div>`;
+    }).join("");
+    parts.push(`<details class="pw-lane-ing"><summary class="pw-lane-sum">${escapeHtml(n)}<span class="pw-lane-sum-sub"> — pick a lane</span></summary><div class="pw-lane-inner">${laneRows}</div></details>`);
+  });
+  if(!parts.length) return "";
+  return `<div class="pw-lane-panel">
+    <div class="pw-lane-head">Transformation lanes <span class="pw-lane-clock">${clockLabel} min clock</span></div>
+    <p class="pw-lane-lede">Choose by time, role on the plate, and what the dish is missing (crunch, acid, depth).</p>
+    ${parts.join("")}
+  </div>`;
+}
+function ingredientLanesBattleSectionHtml(ch){
+  if(!ch) return "";
+  return ingredientLanesSectionHtml(ch.required||[], ch.totalTime);
+}
+
 function truncateStr(s,max){
   const t=String(s||"").trim();
   if(!t) return "";
@@ -1283,6 +1365,15 @@ function drawUnifiedConstraintsFeasible(n, pool, needSlots){
   return {spinConstraints:[],restrictions:[],forbEquip:[]};
 }
 const $ = id => document.getElementById(id);
+(function initIngredientLanesCatalog(){
+  const el=document.getElementById("pw-ingredient-lanes-data");
+  if(el&&el.textContent&&el.textContent.trim()){
+    try{ INGREDIENT_LANES_BY_NAME=JSON.parse(el.textContent.trim())||{}; }catch(e){ console.warn("ingredient lanes embed", e); }
+  }
+  fetch("data/ingredient-lanes.json",{cache:"no-cache"}).then(r=>r.ok?r.json():null).then(j=>{
+    if(j&&typeof j==="object"&&Object.keys(j).length) INGREDIENT_LANES_BY_NAME=j;
+  }).catch(()=>{});
+})();
 const el = (tag,attrs={},children=[]) => {
   const e=document.createElement(tag);
   Object.entries(attrs).forEach(([k,v])=>{
@@ -2029,6 +2120,12 @@ function renderBuild() {
     reqChips.appendChild(wrap);
   });
   rCard.appendChild(reqChips);
+  const laneHtml=ingredientLanesSectionHtml(state.req, state.total);
+  if(laneHtml){
+    const laneWrap=div({style:{marginTop:"10px"}});
+    laneWrap.innerHTML=laneHtml;
+    rCard.appendChild(laneWrap);
+  }
   const pantryScroll=div({style:{maxHeight:"90px",overflowY:"auto",display:"flex",flexWrap:"wrap",gap:"3px"}});
   (window.USER_PANTRY||PANTRY).filter(p=>!state.req.includes(p)).forEach(p=>{
     const b=el("button",{style:{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"2px 6px",fontSize:"10px",cursor:"pointer",color:"#475569"}});
@@ -2282,6 +2379,7 @@ function battleConstraintsHtml(ch){
         <div style="font-size:11px;font-weight:800;color:#a5b4fc;margin-bottom:6px">Must use</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px">${req||"<span style=\"color:#64748b;font-size:12px\">—</span>"}</div>
       </div>
+      ${ingredientLanesBattleSectionHtml(ch)}
       ${blocks.join("")}
     </div>
   </div>`;
@@ -4765,7 +4863,8 @@ function mysterySpinResultPanelHtml(){
   return `<div class="basket-spin-wrap">
     <div class="basket-spin-h"><span>🎰 Mystery basket</span><span style="font-size:11px;font-weight:700;color:#64748b">${escapeHtml(cfg.label)} · locked in</span></div>
     <div class="basket-spin-slots">${parts.join("")}</div>
-    <div style="font-size:11px;color:#64748b;margin-top:10px;text-align:center;line-height:1.45"><strong>AI clock</strong> is how long the rival-chef recipe assumes (20–45 min). <strong>Hover</strong> (or keyboard-focus) a <strong>must-use</strong> ingredient for <strong>what it is</strong>, <strong>time &amp; prep</strong> (when listed), flavor notes, and a chef tip. On <strong>Equipment</strong>, hover a <strong>must-use</strong> tool for <strong>ways to use it</strong> (often overlaps with how you’d cook the basket). <strong>Must-use equipment</strong> sometimes rolls on spin — check <strong>Equipment</strong> below. Change <strong>restrictions</strong>, required ingredients, or equipment there, or <strong>spin again</strong> for a new haul.</div>
+    ${ingredientLanesSectionHtml(state.req, state.total)}
+    <div style="font-size:11px;color:#64748b;margin-top:10px;text-align:center;line-height:1.45"><strong>AI clock</strong> is how long the rival-chef recipe assumes (20–45 min). <strong>Hover</strong> (or keyboard-focus) a <strong>must-use</strong> ingredient for <strong>what it is</strong>, <strong>time &amp; prep</strong> (when listed), flavor notes, and a chef tip. <strong>Expand “pick a lane”</strong> below (when listed) for time-based transformation choices. On <strong>Equipment</strong>, hover a <strong>must-use</strong> tool for <strong>ways to use it</strong> (often overlaps with how you’d cook the basket). <strong>Must-use equipment</strong> sometimes rolls on spin — check <strong>Equipment</strong> below. Change <strong>restrictions</strong>, required ingredients, or equipment there, or <strong>spin again</strong> for a new haul.</div>
   </div>`;
 }
 
