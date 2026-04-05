@@ -2579,14 +2579,19 @@ FAIL THE BRIEF IF:
 WHAT COUNTS AS A SNACK HERE:
 - Handheld pickup OR each portion is at most 1–3 bites; casual, quick eating — not a seated main eaten with knife-and-fork over a slab of protein.
 - Think crostini / mini tart / single vol-au-vent / skewer nibble / small slider half — one clear vehicle, not a deconstructed entrée plate.
-- Fish, meat, poultry: flake, small dice, thin slice on toast, skewer bit — never a whole fillet, full steak portion, or breast centerpiece.
+- **FORM = as important as flavor:** one **cohesive bite** (fritter, croquette, crisp shell, toast base) — not "sautéed veg + pan protein + drizzle" as three loose components.
+- **HARD difficulty:** **crunch / contrast** is expected — chip, sear, fry, crumb, kale chips — not soft + soft + sauce puddle.
+- **Dark chocolate on savory snack:** **IN** the bite (spiced fat bloom, tiny bitter note in mix, mole-style) — **NOT** a chocolate **drizzle on top** of an otherwise plain plate.
+- **Leafy greens:** chips, fine mince in binder, or integrated in patty — not limp sauté as a side garnish.
+- Fish, meat, poultry: bind or crust for snack shape — flake, dice, **fish cake / fritter**, thin on toast, skewer — never loose chunks that read as entrée components.
 
 REQUIRED IN OUTPUT:
-- title OR tagline should signal bite scale (crostini, bite, skewer, handheld, tartlet, etc.).
+- title OR tagline should signal bite scale (crostini, bite, skewer, handheld, tartlet, fritter, nugget, etc.).
 - Judges must not mistake the intended plate for a composed entrée or tasting-menu architecture.
 
 FAIL THE BRIEF IF:
-- The plan centers a full fillet/steak/breast portion, wide sauce pools, and multiple upscale components like a main course — that fails snack regardless of basket use.\n`;
+- The plan centers a full fillet/steak/breast portion, wide sauce pools, and multiple upscale components like a main course — that fails snack regardless of basket use.
+- **Deconstructed plate** with separate protein/veg/sauce tracks and no handheld structure — fails snack even if flavors are nice.\n`;
   }
   if(challengeTypeIsDinerClassic(ctype)){
     return `CHALLENGE INTENT (mandatory): DINER CLASSIC — counter culture comfort, not tasting-menu architecture.
@@ -2633,13 +2638,16 @@ FAIL THE BRIEF IF:
 
 WHAT COUNTS:
 - Mac & cheese, pot pie, shepherd's pie, casserole, baked pasta — dishes that trigger "home," then you justify a smart twist (technique, ingredient, texture) without erasing the dish.
+- **Reinvent the EXPERIENCE** (crisp + rich + cohesive), not only the flavor keywords — especially for **pot pie**: if **oven/sheet pan are forbidden**, you must still deliver **crust logic** (pan-crisp grain lid, griddled dough, crisp potato top, etc.), not "stew in a bowl + sweet sauce."
+- **Marshmallow / shelf-sweet in a savory comfort dish:** use as **technique** (caramelize, torch, salty-sweet **integrated** in filling, toasted crisp) — **NOT** as **marshmallow gravy** or a **dessert drizzle** that makes the plate "pork + sweet sauce." Judges must taste **one unified bite**.
 
 REQUIRED IN OUTPUT:
 - title OR tagline must name the comfort baseline (e.g. "pot pie," "mac and cheese") and the twist in plain words.
 - balance.basket sentence 1: "Comfort baseline: [dish] — twist: …" and one line on why it still feels like that comfort food.
 
 FAIL THE BRIEF IF:
-- Baseline disappears into a random fine-dining plate with no recognizable comfort anchor — that is replacement, not reinvention.\n`;
+- Baseline disappears into a random fine-dining plate with no recognizable comfort anchor — that is replacement, not reinvention.
+- **Marshmallow reads as the sauce identity** (gravy/essence drizzle) instead of supporting structure or subtle rounding — missed brief.\n`;
   }
   if(challengeTypeIsGlobalCuisine(ctype)){
     return `CHALLENGE INTENT (mandatory): GLOBAL CUISINE — flavor authenticity + honest technique markers.
@@ -2700,6 +2708,9 @@ CHALLENGE TYPE — ELEVATE A CHEAP MEAL:
     return `
 CHALLENGE TYPE — SNACK:
 - Penalize either side if the dish reads as a composed entrée, tasting-menu plate, or full protein portion (whole fillet, steak service, breast centerpiece) instead of handheld or ~1–3 bites.
+- Penalize **deconstructed plate** energy (sauté veg + pan protein + drizzle) with **no cohesive bite** — snack needs **structure** (fritter, croquette, crisp base).
+- Penalize **chocolate drizzle on top** of savory snack without integration; reward chocolate **in** the mix or savory glaze system.
+- On **HARD**, penalize **soft + soft + sauce** with no **crunch / sear / fry** story; penalize **limp sautéed greens** as side garnish instead of chips / fine mince in binder.
 - Reward bite-scale execution and casual pickup; flavor logic alone does not excuse main-course format. Factor snack fit into creativity/challenge execution and presentation.`;
   }
   if(challengeTypeIsDinerClassic(ctype)){
@@ -2724,6 +2735,7 @@ CHALLENGE TYPE — FINE DINING:
     return `
 CHALLENGE TYPE — COMFORT FOOD REINVENTED:
 - Penalize if no named comfort baseline (mac, pot pie, etc.) or if the twist erases recognition.
+- Penalize **marshmallow gravy / sweet drizzle spine** on savory comfort — reads as two cuisines; reward integrated technique (caramelize, binder, micro glaze with salt-acid) or **stovetop "crust"** (crisp grain/potato top) when oven is off the table.
 - Reward nostalgia + twist that still reads as "that dish, evolved."`;
   }
   if(challengeTypeIsGlobalCuisine(ctype)){
@@ -2804,7 +2816,7 @@ PHYSICS & CLOCK REALISM (apply to BOTH competitors' plans):
 /** Competition TV beat: contrast, transformation depth, not default restaurant trio. Appetizer + entree only. */
 function competitionEdgePromptBlock(ch, _sig){
   const id=String((ch&&ch.ctype&&ch.ctype.id)||"");
-  const edgeIds=new Set(["appetizer","entree","diner_classic","street_food","fine_dining","comfort_reinvented","global_cuisine"]);
+  const edgeIds=new Set(["appetizer","entree","snack","diner_classic","street_food","fine_dining","comfort_reinvented","global_cuisine"]);
   if(!edgeIds.has(id)) return "";
   return `COMPETITION EDGE (judges punish "polite restaurant" — you need tension):
 - A default **protein + one smooth purée + toasted seeds/nuts on top** reads competent and **loses** on creativity unless you add a clear **palate hook**: name in **balance.flavor** (rival JSON) or **flavorBalance** (contest plan JSON) how you deliver **acid** (citrus, vinegar, pickle brine, fermented tang), **heat/spice**, and/or **bitter/char** — not only soft + sweet + butterfat.
@@ -2817,7 +2829,7 @@ function competitionEdgePromptBlock(ch, _sig){
 /** When dark chocolate (or cocoa) is required on a savory course — forbid dessert-sauce collision; require one flavor system. */
 function savoryDarkChocolateBasketPromptBlock(ch){
   const id=String((ch&&ch.ctype&&ch.ctype.id)||"");
-  if(id!=="appetizer"&&id!=="entree") return "";
+  if(id!=="appetizer"&&id!=="entree"&&id!=="snack") return "";
   const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
   if(!/\bdark\s+chocolate\b|\bcocoa\s+nibs\b|\bunsweetened\s+cocoa\b/.test(req)) return "";
   const hard=["hard","insane"].includes(String(ch.diff||"").toLowerCase());
@@ -2828,18 +2840,21 @@ function savoryDarkChocolateBasketPromptBlock(ch){
 ${hard?`- HARD / INSANE: show real **transformation** (integrated sauce, two-way veg, formed protein) — not crumble + steam + dessert drizzle.\n`:""}`;
 }
 
-/** Marshmallow / shelf candy on appetizer+entree: must read as technique, not cold dessert fold. */
+/** Marshmallow / shelf candy on savory courses: must read as technique, not cold dessert fold. */
 function shelfSweetWildcardSavoryPromptBlock(ch){
-  const id=String((ch&&ch.ctype&&ch.ctype.id)||"");
-  if(id!=="appetizer"&&id!=="entree") return "";
+  if(!challengeTypeUsesMarshmallowSavoryRule(ch.ctype)) return "";
   const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
   if(!/\b(marshmallow|marshmallow\s+fluff|candy\s+bar)\b/.test(req)) return "";
   const hard=["hard","insane"].includes(String(ch.diff||"").toLowerCase());
   const hasPom=/\bpomegranate\b/.test(req);
+  const comfortExtra=challengeTypeIsComfortReinvented(ch.ctype)&&/\bmarshmallow\b/.test(req)
+    ?`- **COMFORT REINVENTED + marshmallow:** BANNED as the primary story — **marshmallow gravy**, **sweet drizzle finish**, or **marshmallow essence** on top of an otherwise savory bowl. Marshmallow must add **structure or subtle rounding** (caramelized cap, brûléed micro-layer, salty-sweet **integrated** into filling, toasted/crisp bits) — judges should taste **one unified comfort dish**, not dessert sauce on meat.
+`
+    :"";
   return `SHELF-SWEET WILDCARD — SAVORY PLATE (${hard?"HARD: wildcards must transform, not sit raw.":""}):
 - **Marshmallow / candy on meat or savory compose:** make it a **tool** — **melt** into glaze or pan sauce, **caramelize** or **torch/brûlée**, **dissolve** into a reduction, **toast/brown** in dry pan, or **crisp** as intentional garnish — NOT a cold **stir-into-ricotta/cream** or fluffy **dollop** that reads "steak + dessert blob."
 - **Ricotta + marshmallow:** forbidden as "fold together gently" as the only story — tie marshmallow in with **heat** or **one sauce system** so the finish reads one bite, not two cuisines.
-${hasPom?`- **Pomegranate (or any fruit juice glaze):** **reduce** juice to syrupy with **salt/acid** balance — not thin juice + honey alone.\n`:""}`;
+${comfortExtra}${hasPom?`- **Pomegranate (or any fruit juice glaze):** **reduce** juice to syrupy with **salt/acid** balance — not thin juice + honey alone.\n`:""}`;
 }
 
 /** Dessert + awkward savory/shelf items: judges punish "parfait + drizzle" with no technique story. */
@@ -2929,22 +2944,27 @@ function courseEnforcementBlock(ch, sig) {
     return `COURSE LOCK — ENTREE: Clear main-course identity — satisfying center-of-plate, not a snack or dessert unless basket forces sweet mains.\n`;
   }
   if (id === "snack" || /\bsnack\b/.test(label)) {
+    const hardSnack=["hard","insane"].includes(String(ch.diff||"").toLowerCase());
     let s = `COURSE LOCK — SNACK (format is as binding as flavor — hard rule):
 - Course type here means HOW it is eaten and portion scale — not only "do the ingredients go together." A judge must read SNACK FIRST: casual, quick, small — not a composed entrée or fine-dining pass eaten with knife-and-fork over a protein slab.
+- **COHESION:** one snack architecture (fritter, croquette, crisp toast cup, skewer bite) — **not** three separate components + drizzle that reads as a deconstructed main.
 - FORMAT RULES (all must hold):
   • HANDHELD or at most 1–3 BITES per portion — crostini, mini tart / vol-au-vent, skewer nibble, small slider half, single bite-sized pastry base. Pick ONE vehicle and commit.
   • MAX BITES ≈ 3 on the pickup piece — not a deconstructed main with separate protein plank + wide sauce pool + quenelle + scattered shards as a tasting plate.
-  • NO FULL PROTEIN PORTIONS: ban whole fish fillet, steak cut, full chicken breast portion, or carve centerpiece. Fish / meat / poultry = flake, small dice, tartare-style bits, thin slice on toast, skewer cube — scaled to the bite only.
+  • NO FULL PROTEIN PORTIONS: ban whole fish fillet, steak cut, full chicken breast portion, or carve centerpiece. Fish / meat / poultry = **bound** (cake/fritter), flake on base, tartare dice, thin slice on toast, skewer cube — scaled to the bite only.
   • AVOID ENTRÉE PLATING: no center-of-plate fillet + swooshes + multiple sculptural components. Snack = pickup or one fork-assisted tiny bite, not a ceremony plate.
-  • PREFER SIMPLE STRUCTURE: one crisp or tender base + one protein treatment + at most one sweet/sauce accent (e.g. pin-dot caramel, micro cream) — not stacked luxury architecture.
+  • PREFER SIMPLE STRUCTURE: one **crisp** or tender base + one protein treatment + at most one integrated accent — chocolate/sweet must **merge into** the bite or glaze (savory), not pool on top.
 - DENSITY: rich items (fish, pastry, cream) may appear only if each is a whisper sized to the bite; if it reads entrée-heavy, the snack brief fails.
-- balance.complete: one sentence MUST state the snack format (e.g. "Two-bite puff square; flaked fish; tiny date caramel swipe; trace white chocolate — handheld pickup").
+- balance.complete: one sentence MUST state the snack format (e.g. "Two-bite fish–kale fritter; crisp crust; chocolate in spiced fat — handheld").
 - SNACK JUDGE RUBRIC (score like a comp table):
   • snack_fit — would a judge call this a snack or mistake it for an entrée?
   • bite_scale — handheld or ≤3 bites; protein not a full portion?
   • format_not_flavor_only — good flavors on a main-course plate still miss the course.\n`;
     if (sig.hardBasket) {
       s += `SIMPLICITY OVERRIDE (hard basket + snack): Cap at 2 primary textures + one sauce/accent on the bite — no extra restaurant tiers.\n`;
+    }
+    if(hardSnack){
+      s+=`HARD SNACK: **Crunch wins** — name at least one **crisp / fry / chip / sear / crumb** element; soft+soft+drizzle without structural contrast fails the brief.\n`;
     }
     return s;
   }
@@ -2998,9 +3018,21 @@ function courseEnforcementBlock(ch, sig) {
 - balance.texture + balance.visual must justify each element (no orphan dots).\n`;
   }
   if(challengeTypeIsComfortReinvented(ch.ctype)){
+    const forb=(ch.forbEquip||[]).map(x=>String(x).toLowerCase()).join(" ");
+    const noOven=/\boven\b/.test(forb);
+    const noSheet=/sheet\s*pan/.test(forb);
+    const ovenSheetLock=(noOven||noSheet)
+      ?`- **NO OVEN / NO SHEET PAN + pie or pot-pie story:** you cannot bake a classic crust — fake **pot pie EXPERIENCE** on the stovetop: **pan-crisp couscous** or **toasted grain "lid"**, **griddled tortilla/phyllo**, **smashed/crisp potato top**, or **crumb crisp** — name the **crust substitute** in balance.basket; do not serve "stew + sweet gravy" and call it pot pie.\n`
+      :"";
+    const hardDiff=["hard","insane"].includes(String(ch.diff||"").toLowerCase());
+    const hardText=hardDiff
+      ?`- **HARD:** require **texture contrast** — not all boil/soft/mush; crisp or char at least one anchor (potato, protein surface, or grain).\n`
+      :"";
     return `COURSE LOCK — COMFORT FOOD REINVENTED:
 - NAMED comfort baseline first (mac & cheese, pot pie, baked pasta, casserole) — then one clear twist. Still recognizable comfort; not a new genre.
-- balance.basket must lead with "Comfort baseline: … — twist: …"\n`;
+- balance.basket must lead with "Comfort baseline: … — twist: …"
+- **Reinvention = experience + cohesion**, not only removing the crust and adding sugar. If the basket has **marshmallow**, it is NOT allowed as **dessert gravy** or **sweet drizzle spine** — use **heat**, **binder**, or **micro** salty-sweet integrated into the filling/top.
+${ovenSheetLock}${hardText}`;
   }
   if(challengeTypeIsGlobalCuisine(ch.ctype)){
     return `COURSE LOCK — GLOBAL CUISINE:
@@ -3207,7 +3239,7 @@ JAR-SAUCE / SPAGHETTI NIGHT: If that is the baseline, give judges a tomato or "c
 SNACK OVERRIDE — BITE FORMAT: One pickup vehicle only (crostini, mini tart, puff square, skewer, small slider). Scale every REQUIRED item to that bite — flake not fillet, smear not sauce pool, micro dairy not quenelle service. Cap composed elements on the bite to what a real snack allows (${Math.min(3,simplicityGoal)} effective layers max); not a composed entrée or tasting plate.`;
     }
     const productSweetNote=sig.processedSweet
-      ?` PROCESSED SWEET ALERT: At least one required item is shelf-sweet. It must read as that product in use (squeeze, scoop, from bottle) — not re-labeled as artisan chocolate. On **appetizer/entree**, marshmallow/candy must **transform with heat** (melt, caramelize, torch) — not a cold fold into dairy; keep it a supporting player unless dessert.`
+      ?` PROCESSED SWEET ALERT: At least one required item is shelf-sweet. It must read as that product in use (squeeze, scoop, from bottle) — not re-labeled as artisan chocolate. On **savory courses** (appetizer, entree, comfort reinvented, etc.), marshmallow/candy must **transform with heat** (melt, caramelize, torch) — not a cold fold into dairy; on **Comfort Reinvented**, never **marshmallow gravy** or dessert-drizzle spine — integrated technique only.`
       :"";
     const courseBlock=courseEnforcementBlock(ch,sig);
     const competitionEdgeBlock=competitionEdgePromptBlock(ch,sig);
@@ -3242,11 +3274,14 @@ ${classicArchetypeHardBlock()}`
 - NO GLUTEN + NOODLE / RAMEN BASELINE: default **wheat** ramen / udon / egg noodles / unlabeled instant noodles **violate** No Gluten. Ingredients must name **gluten-free** product (e.g. "GF instant rice noodles," "certified GF ramen," rice vermicelli) or naturally GF noodles (rice sticks, glass, mung bean, shirataki) — and use **tamari or gluten-free soy**, not standard soy sauce unless labeled GF.
 - REQUIRED BASKET (every line): each MUST appear in **ingredients[]** (honest store name) **and** at least one **step** — including **Dark Chocolate**, spices, bay, bacon, plum — omission fails validation.\n`
       :"";
+    const snackHard=["hard","insane"].includes(String(ch.diff||"").toLowerCase());
     const snackJsonRule=challengeTypeIsSnack(ch.ctype)
       ?`SNACK — JSON / BRIEF LOCK:
-- balance.basket MUST name the bite/handheld FORMAT in clause 1 or 2 (e.g. "Handheld: …", "Two-bite puff square: …", "Skewer: …") and state that protein is NOT a full fillet/steak/breast portion — flake, dice, or thin-on-base only.
-- title OR tagline MUST read as snack scale (crostini, bite, skewer, tartlet, handheld, 1–2 bites) — not "seared sea bass plate" or other entrée-headline energy.
-- balance.complete MUST echo snack format in one short phrase (pickup / bite count / no knife-and-fork main).\n`
+- balance.basket MUST name the bite/handheld FORMAT in clause 1 or 2 (e.g. "Handheld: …", "Two-bite puff square: …", "Skewer: …", "Crisp fritter: …") and state that protein is NOT a full fillet/steak/breast portion — **bind** (fritter/patty), flake-on-toast, dice, or thin-on-base only.
+- title OR tagline MUST read as snack scale (crostini, bite, skewer, tartlet, handheld, fritter, nugget, 1–2 bites) — not "seared sea bass plate" or other entrée-headline energy.
+- balance.complete MUST echo snack format in one short phrase (pickup / bite count / no knife-and-fork main).
+- If **dark chocolate** is required: forbid **dessert drizzle / ganache pool** — integrate into **one savory snack system** (fat-bloom, mole-ish depth, bitter note **in** mix); balance.flavor names that unity.
+${snackHard?`- HARD: balance.texture MUST name **crunch or crisp** (fry, chip, sear, crumb) — not three soft tracks + sauce.\n`:""}`
       :"";
     let extendedChallengeJsonRule="";
     if(challengeTypeIsDinerClassic(ch.ctype)) extendedChallengeJsonRule+=`DINER CLASSIC — JSON / BRIEF LOCK:
@@ -3260,7 +3295,9 @@ ${classicArchetypeHardBlock()}`
 - balance.complete MUST name one refinement move (sauce precision, emulsion, torch, quenelle-style placement — honest to the clock).\n`;
     if(challengeTypeIsComfortReinvented(ch.ctype)) extendedChallengeJsonRule+=`COMFORT REINVENTED — JSON / BRIEF LOCK:
 - balance.basket MUST begin: "Comfort baseline: [specific dish — mac & cheese, pot pie, etc.] — twist: …"
-- title OR tagline MUST include both comfort anchor and twist in plain words.\n`;
+- title OR tagline MUST include both comfort anchor and twist in plain words.
+- If **marshmallow** is in the basket: **forbidden** — "marshmallow gravy," "marshmallow essence" drizzle, or sweet sauce as the **lead** finish; balance.flavor must describe **one unified savory comfort bite** (marshmallow as caramelized/binder/micro glaze with salt-acid, or toasted crisp — not dessert-on-meat).
+- If **pot pie / pie** without oven: name a **stovetop crust substitute** (e.g. pan-crisp couscous lid, griddled dough, crisp potato top) when equipment forbids oven/sheet pan.\n`;
     if(challengeTypeIsGlobalCuisine(ch.ctype)) extendedChallengeJsonRule+=`GLOBAL CUISINE — JSON / BRIEF LOCK:
 - balance.basket sentence 1 MUST name the cuisine lane (Italian, Thai, Mexican, Japanese, etc.) + one backbone technique or flavor system (sofrito, curry paste, miso tare, corn tortilla service, etc.).
 - title OR tagline MUST echo that lane — not vague "international" only.\n`;
@@ -3375,6 +3412,7 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     if((ch.reqEquip||[]).length) maxAttempts=Math.max(maxAttempts,4);
     if(challengeTypeIsElevateCheap(ch.ctype)&&rSan.some(x=>normalizeRestrictionKey(x)==="No Gluten")) maxAttempts=Math.max(maxAttempts,5);
     if(challengeTypeIsFineDining(ch.ctype)||challengeTypeIsGlobalCuisine(ch.ctype)) maxAttempts=Math.max(maxAttempts,3);
+    if(challengeTypeIsSnack(ch.ctype)&&["hard","insane"].includes(String(ch.diff||"").toLowerCase())) maxAttempts=Math.max(maxAttempts,4);
     let data=null;
     let regenNote="";
     state.recipeRestrictionWarnings=null;
@@ -4413,6 +4451,8 @@ function getRecipeTimelineViolations(recipe, ch){
   msgs.push(...getCompetitionSavoryEdgeViolations(recipe,ch));
   msgs.push(...getSavoryChocolateIntegrationViolations(recipe,ch));
   msgs.push(...getMarshmallowSavoryTransformationViolations(recipe,ch));
+  msgs.push(...getComfortReinventedMarshmallowViolations(recipe,ch));
+  msgs.push(...getSnackFormatEnforcementViolations(recipe,ch));
   msgs.push(...getDessertSnapPeaTransformationViolations(recipe,ch));
   return [...new Set(msgs)];
 }
@@ -4438,12 +4478,69 @@ function getDessertSnapPeaTransformationViolations(recipe, ch){
   return msgs;
 }
 
+/** Savory-ish challenge types where marshmallow must transform (not dessert sauce default). */
+function challengeTypeUsesMarshmallowSavoryRule(ctype){
+  const id=String((ctype&&ctype.id)||"");
+  const label=String((ctype&&ctype.label)||"").toLowerCase();
+  if(id==="dessert"||/\bdessert\b/.test(label)) return false;
+  return new Set(["appetizer","entree","comfort_reinvented","diner_classic","street_food","fine_dining","global_cuisine","elevate","recreate","snack"]).has(id);
+}
+
+/** Snack challenge: form = binding; HARD = crunch/cohesion — catch deconstructed plate + drizzle chocolate + loose fish + limp greens. */
+function getSnackFormatEnforcementViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch||!challengeTypeIsSnack(ch.ctype)) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
+  const hard=["hard","insane"].includes(String(ch.diff||"").toLowerCase());
+
+  if(/\b(deconstructed|composed\s+entree|tasting[\s-]menu|three\s+components|separate\s+components)\b/i.test(low))
+    msgs.push(`Snack: reads as deconstructed entree — build **one** handheld/poppable structure (fritter, croquette, crisp toast, skewer bite) with cohesive chew — not sautéed X + pan Y + drizzle Z as separate tracks.`);
+
+  if(hard){
+    if(/\b(kale|collard|spinach|swiss\s+chard|mustard\s+greens)\b/.test(req)){
+      const wiltOnly=/\bsaut[eé]e?\w*\s+(?:the\s+)?(?:kale|greens|spinach|chard)\b|\b(kale|spinach|greens)[\s\S]{0,55}?\bsaut[eé]e?\w*\b/i.test(low);
+      const integrated=/\b(chip|chips|crisp|dehydrat|fritter|patty|croquette|mix\s+into|finely\s+chop|mince|batter|nugget|cake)\b/i.test(low);
+      if(wiltOnly&&!integrated)
+        msgs.push(`Snack + leafy greens (HARD): limp sautéed greens read as side garnish — **chips**, **fine chop in binder**, or **baked into** fritter/nugget — not a soft pile next to protein.`);
+    }
+    if(/\b(cod|halibut|salmon|tuna|fish)\b/.test(req)){
+      const looseFish=/\b(?:pan|skillet)[\s\S]{0,120}?\b(?:chunk|chunks|piece|pieces|flake)\b|\bchunk\w*\s+of\s+(?:cod|fish|salmon)\b|\bpan[\s-]?cook(?:ed|ing)?\b[\s\S]{0,140}?\b(?:cod|fish|salmon)\b/i.test(low);
+      const structured=/\b(fritter|croquette|patty|cake|ball|nugget|skewer|toast|bind|batter|mix\s+into)\b/i.test(low);
+      if(looseFish&&!structured)
+        msgs.push(`Snack + fish (HARD): loose pan-cooked chunks fall apart — **bind** (fish cake, fritter, crisp on toast) so the bite holds shape and repeats.`);
+    }
+    if(/\bnutritional\s+yeast\b/.test(req)){
+      const workedIn=/\b(mix|fold|blend|batter|dough|filling|coat|into\s+the|fritter)\b[\s\S]{0,140}?\bnutritional\s+yeast\b|\bnutritional\s+yeast\b[\s\S]{0,140}?\b(mix|fold|blend|batter|into)\b/i.test(low);
+      const onlySprinkle=/\b(sprinkle|garnish)\b[\s\S]{0,100}?\bnutritional\s+yeast\b/i.test(low)&&!workedIn;
+      if(onlySprinkle)
+        msgs.push(`Snack + nutritional yeast: drive **umami in the mix** (binder/coating) — not **only** a sprinkle garnish — so it reads cheesy-snack, not afterthought.`);
+    }
+    if(!/\b(crisp|crispy|crunch|toast|fry|fried|sear|skillet|griddle|bake|chip|crumb|crust|fritter|croquette)\b/i.test(low))
+      msgs.push(`Snack (HARD): need **texture contrast** — at least one **crisp / crunch / sear** story (fried bite, toast base, kale chips, crumb crust). Soft + soft + drizzle alone fails snack viability.`);
+  }
+  return msgs;
+}
+
+/** Comfort Reinvented + marshmallow: ban "marshmallow gravy" / sweet sauce spine (eval: technique + cohesion, not dessert drizzle). */
+function getComfortReinventedMarshmallowViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch||!challengeTypeIsComfortReinvented(ch.ctype)) return msgs;
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
+  if(!/\bmarshmallow\b/.test(req)) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const badGravy=/\bmarshmallow\s+gravy\b|\bgravy\b[\s\S]{0,160}?\bmarshmallow\b|\bmarshmallow\b[\s\S]{0,120}?\bgravy\b/i.test(low);
+  const sweetFinish=/\bdrizzle\b[\s\S]{0,140}?\bmarshmallow\b|\bmarshmallow\s+essence\b|\bessence\b[\s\S]{0,80}?\bmarshmallow\b/i.test(low);
+  if(badGravy||sweetFinish)
+    msgs.push(`Comfort reinvented + marshmallow: forbidden pattern — **marshmallow gravy**, **marshmallow essence drizzle**, or sweet sauce as the lead finish. Use marshmallow as **technique** (caramelize, torch, tiny salty-sweet glaze integrated into the filling, or crisp/toast) for **one cohesive savory bite**; balance.flavor must explain the **unified** story — not "pork + sweet sauce."`);
+  return msgs;
+}
+
 /** Marshmallow in basket + savory course: require documented heat work, not cold dairy fold. */
 function getMarshmallowSavoryTransformationViolations(recipe, ch){
   const msgs=[];
   if(!recipe||!ch) return msgs;
-  const id=String((ch.ctype&&ch.ctype.id)||"");
-  if(id!=="appetizer"&&id!=="entree") return msgs;
+  if(!challengeTypeUsesMarshmallowSavoryRule(ch.ctype)) return msgs;
   const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
   if(!/\bmarshmallow\b/.test(req)) return msgs;
   const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
@@ -4458,12 +4555,12 @@ function getMarshmallowSavoryTransformationViolations(recipe, ch){
   return msgs;
 }
 
-/** Dark chocolate in basket + savory course: block dessert-style sauce/drizzle collision without fusion technique. */
+/** Dark chocolate in basket + savory course or SNACK: block dessert-style sauce/drizzle collision without fusion technique. */
 function getSavoryChocolateIntegrationViolations(recipe, ch){
   const msgs=[];
   if(!recipe||!ch) return msgs;
   const id=String((ch.ctype&&ch.ctype.id)||"");
-  if(id!=="appetizer"&&id!=="entree") return msgs;
+  if(id!=="appetizer"&&id!=="entree"&&id!=="snack") return msgs;
   const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
   if(!/\bdark\s+chocolate\b/.test(req)) return msgs;
   const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
@@ -4485,7 +4582,9 @@ function getSavoryChocolateIntegrationViolations(recipe, ch){
     /\b(melt(?:ed|ing|s)?\s+(?:the\s+)?chocolate)\b[\s\S]{0,110}?\b(heavy\s+cream|whipping\s+cream)\b/i.test(low)||
     /\b(heavy\s+cream|whipping\s+cream)\b[\s\S]{0,110}?\bmelt(?:ed|ing|s)?\s+(?:the\s+)?chocolate\b/i.test(low);
   if(dessertCollision)
-    msgs.push(`Savory + dark chocolate: integrate into one system — not a separate dessert-style chocolate sauce or ganache (melt chocolate + cream alone) or drizzle on a savory base. Use mole/adobo-style depth, bloom paprika/chile in fat then dissolve chocolate, or bitter cocoa in reduced stock/coffee with acid/salt.`);
+    msgs.push(id==="snack"
+      ?`Snack + dark chocolate: **no dessert drizzle / pooled chocolate sauce on top** — melt **into** the bite (fritter mix, glaze with acid/salt, mole-style depth, bloom in spiced fat). Judges taste **one cohesive snack**, not fish + greens + chocolate stripe.`
+      :`Savory + dark chocolate: integrate into one system — not a separate dessert-style chocolate sauce or ganache (melt chocolate + cream alone) or drizzle on a savory base. Use mole/adobo-style depth, bloom paprika/chile in fat then dissolve chocolate, or bitter cocoa in reduced stock/coffee with acid/salt.`);
   return msgs;
 }
 
