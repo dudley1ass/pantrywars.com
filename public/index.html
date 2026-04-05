@@ -357,6 +357,14 @@ function sanitizeRestrictionList(arr){
   }
   return out;
 }
+function challengeHasNoGluten(ch){
+  const r=sanitizeRestrictionList((ch&&ch.restrictions)||[]);
+  return r.some(x=>normalizeRestrictionKey(x)==="No Gluten");
+}
+/** Lowercase blob of required names — physics / prompt flags. */
+function requiredChallengeBlob(ch){
+  return ((ch&&ch.required)||[]).map(s=>String(s).toLowerCase()).join(" ");
+}
 function sanitizeSpinConstraints(arr){
   return (arr||[]).map(x=>{
     const s=String(x==null?"":x);
@@ -380,7 +388,7 @@ const FULL_PANTRY = [
   {id:5,  name:"Honey",               cat:"Baking & Bases",          flavor:["sweet"],                texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Reduces to sticky glaze fast. Varietal honey defines flavor."},
   {id:6,  name:"Maple Syrup",         cat:"Baking & Bases",          flavor:["sweet"],                texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Grade B darker = more flavor for cooking."},
   {id:7,  name:"Sugar (Brown)",       cat:"Baking & Bases",          flavor:["sweet"],                texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Molasses content adds depth. Great in glazes."},
-  {id:8,  name:"Spaghetti",           cat:"Grains & Legumes",        flavor:["umami"],                texture:["chewy"],             richness:"lean",   acidity:"none", intensity:"mild",   notes:"Salt water aggressively. Reserve pasta water — thickens sauces."},
+  {id:8,  name:"Spaghetti",           cat:"Grains & Legumes",        flavor:["umami"],                texture:["chewy"],             richness:"lean",   acidity:"none", intensity:"mild",   notes:"Salt water aggressively. Reserve pasta water — thickens wheat sauces. GF spaghetti: longer boil (~10–14 min); pasta-water finito less reliable than wheat."},
   {id:9,  name:"Arborio Rice",        cat:"Grains & Legumes",        flavor:["umami"],                texture:["creamy","chewy"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Never stop stirring. Finish off heat with butter and parm.",cookSheet:"Risotto 18–28 min active simmer adding hot liquid; toast grains first. Not a 5-minute grain."},
   {id:10, name:"Quinoa",              cat:"Grains & Legumes",        flavor:["bitter"],               texture:["crunchy","soft"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Toast dry in pan before liquid for nutty depth."},
   {id:11, name:"Chickpeas",           cat:"Grains & Legumes",        flavor:["umami"],                texture:["creamy","crunchy"],  richness:"lean",   acidity:"none", intensity:"mild",   notes:"Roast canned at 425F for crispy croutons. Puree into hummus.",cookSheet:"Canned: drain, warm 5 min or roast 15–20 min. Dry: soak overnight + simmer 1–2 hr until tender. Mash, fry, or purée."},
@@ -451,7 +459,7 @@ const FULL_PANTRY = [
   {id:76, name:"Caramel",             cat:"Sweet Items",             flavor:["sweet","bitter"],       texture:["soft","creamy"],    richness:"rich",   acidity:"none", intensity:"strong", notes:"Dry caramel = more control. Pull darker than you think."},
   {id:77, name:"Broccoli Rabe",       cat:"Vegetables",              flavor:["bitter","umami"],       texture:["crunchy","soft"],    richness:"lean",   acidity:"none", intensity:"strong", notes:"Blanch then sauté with garlic; classic Italian side."},
   {id:78, name:"Romanesco",           cat:"Vegetables",              flavor:["sweet","nutty"],        texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"mild",   notes:"Fractal florets roast beautifully whole."},
-  {id:79, name:"Kohlrabi",            cat:"Vegetables",              flavor:["sweet","peppery"],      texture:["crunchy","juicy"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"Peel; raw in slaw or roast wedges."},
+  {id:79, name:"Kohlrabi",            cat:"Vegetables",              flavor:["sweet","peppery"],      texture:["crunchy","juicy"],   richness:"lean",   acidity:"none", intensity:"mild",   notes:"Peel; raw in slaw or roast wedges. Grated fritters/roesti: squeeze/drain aggressively — excess water = steam, no crisp."},
   {id:80, name:"Sunchoke",            cat:"Vegetables",              flavor:["sweet","nutty"],        texture:["crunchy","creamy"],  richness:"lean",   acidity:"none", intensity:"medium", notes:"Jerusalem artichoke — purée or chips; watch portion (inulin)."},
   {id:81, name:"Fennel Bulb",         cat:"Vegetables",              flavor:["sweet","anise"],        texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"medium", notes:"Shave raw; braise; fronds = garnish."},
   {id:82, name:"Celery Root",         cat:"Vegetables",              flavor:["earthy","bitter"],      texture:["firm","creamy"],     richness:"lean",   acidity:"none", intensity:"medium", notes:"Celeriac purée rivals potato with more depth."},
@@ -563,7 +571,7 @@ const FULL_PANTRY = [
   {id:188,name:"Cornstarch",          cat:"Baking & Bases",          flavor:["neutral"],              texture:[],                    richness:"lean",   acidity:"none", intensity:"none",   notes:"Slurry; velveting; crispy tofu coat."},
   {id:189,name:"Miso Paste",            cat:"Canned & Jarred",         flavor:["salty","umami"],        texture:["smooth"],            richness:"medium", acidity:"none", intensity:"strong", notes:"White vs red — sweet vs bold."},
   {id:190,name:"Gochujang",             cat:"Canned & Jarred",         flavor:["spicy","sweet","umami"],texture:["thick"],             richness:"medium", acidity:"none", intensity:"strong", notes:"Korean heat; glaze and marinade."},
-  {id:191,name:"Fish Sauce",            cat:"Oils & Vinegars",         flavor:["funky","salty"],        texture:[],                    richness:"lean",   acidity:"none", intensity:"strong", notes:"In drops; Southeast Asian depth."},
+  {id:191,name:"Fish Sauce",            cat:"Oils & Vinegars",         flavor:["funky","salty"],        texture:[],                    richness:"lean",   acidity:"none", intensity:"strong", notes:"In drops; Southeast Asian depth. No-gluten rounds: many brands are naturally GF (fish+salt) — some add wheat; label GF-certified when rules are strict."},
   {id:192,name:"Rice Vinegar",          cat:"Oils & Vinegars",         flavor:["mild","sweet"],         texture:[],                    richness:"lean",   acidity:"mild", intensity:"mild",   notes:"Sushi rice; pickles."},
   {id:193,name:"Sherry Vinegar",        cat:"Oils & Vinegars",         flavor:["nutty","complex"],      texture:[],                    richness:"lean",   acidity:"high", intensity:"medium", notes:"Salads; reduction glaze."},
   {id:194,name:"White Wine",            cat:"Oils & Vinegars",         flavor:["fruity","acid"],        texture:[],                    richness:"lean",   acidity:"high", intensity:"medium", notes:"Deglaze; poach; risotto (if allowed)."},
@@ -708,7 +716,7 @@ const INGREDIENT_TOOLKIT_BY_NAME={
   "Caramel":{ingredientToolkitAi:"Toolkit (Caramel): melt, whip, fold, or temper — sweet as structure, shine, or cloud.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nMelt / temper → Stable ganache → Glaze, truffle\nWhip with dairy → Foam / mousse → Dessert\nFold into batter → Structure balance → Cake\nShave / chip → Texture top → Finish\nInfuse cream → Flavor carrier → Panna cotta\n\nRoles: sweet · fat · texture"},
   "Broccoli Rabe":{ingredientToolkitAi:"Toolkit (Broccoli Rabe): raw crunch, roast depth, purée body, or fry crisp — veg as texture + sugar + acid.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nRaw / shave → Crunch → Salad, slaw\nRoast / char → Sweet + bitter → Side, purée\nBlanch / steam → Tender bright → Plate, pickle\nPurée / soup → Body → Sauce, bowl\nFry / crisp → Garnish → Snack, topping\n\nRoles: texture · acid · sweetness"},
   "Romanesco":{ingredientToolkitAi:"Toolkit (Romanesco): raw crunch, roast depth, purée body, or fry crisp — veg as texture + sugar + acid.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nRaw / shave → Crunch → Salad, slaw\nRoast / char → Sweet + bitter → Side, purée\nBlanch / steam → Tender bright → Plate, pickle\nPurée / soup → Body → Sauce, bowl\nFry / crisp → Garnish → Snack, topping\n\nRoles: texture · acid · sweetness"},
-  "Kohlrabi":{ingredientToolkitAi:"Toolkit (Kohlrabi): raw crunch, roast depth, purée body, or fry crisp — veg as texture + sugar + acid.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nRaw / shave → Crunch → Salad, slaw\nRoast / char → Sweet + bitter → Side, purée\nBlanch / steam → Tender bright → Plate, pickle\nPurée / soup → Body → Sauce, bowl\nFry / crisp → Garnish → Snack, topping\n\nRoles: texture · acid · sweetness"},
+  "Kohlrabi":{ingredientToolkitAi:"Toolkit (Kohlrabi): raw crunch, roast depth, purée body, or fry crisp — veg as texture + sugar + acid. Grated fritters: salt/drain/squeeze very dry — wet mix is the #1 kohlrabi crisp failure.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nRaw / shave → Crunch → Salad, slaw\nRoast / char → Sweet + bitter → Side, purée\nBlanch / steam → Tender bright → Plate, pickle\nPurée / soup → Body → Sauce, bowl\nFry / crisp → Garnish → Snack, topping\n\nRoles: texture · acid · sweetness\n\nFritter/roesti: aggressive moisture removal or patties steam flat."},
   "Sunchoke":{ingredientToolkitAi:"Toolkit (Sunchoke): raw crunch, roast depth, purée body, or fry crisp — veg as texture + sugar + acid.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nRaw / shave → Crunch → Salad, slaw\nRoast / char → Sweet + bitter → Side, purée\nBlanch / steam → Tender bright → Plate, pickle\nPurée / soup → Body → Sauce, bowl\nFry / crisp → Garnish → Snack, topping\n\nRoles: texture · acid · sweetness"},
   "Fennel Bulb":{ingredientToolkitAi:"Toolkit (Fennel Bulb): raw crunch, roast depth, purée body, or fry crisp — veg as texture + sugar + acid.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nRaw / shave → Crunch → Salad, slaw\nRoast / char → Sweet + bitter → Side, purée\nBlanch / steam → Tender bright → Plate, pickle\nPurée / soup → Body → Sauce, bowl\nFry / crisp → Garnish → Snack, topping\n\nRoles: texture · acid · sweetness"},
   "Celery Root":{ingredientToolkitAi:"Toolkit (Celery Root): raw crunch, roast depth, purée body, or fry crisp — veg as texture + sugar + acid.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nRaw / shave → Crunch → Salad, slaw\nRoast / char → Sweet + bitter → Side, purée\nBlanch / steam → Tender bright → Plate, pickle\nPurée / soup → Body → Sauce, bowl\nFry / crisp → Garnish → Snack, topping\n\nRoles: texture · acid · sweetness"},
@@ -1430,6 +1438,12 @@ function loadAppConfig() {
 
 /** Default model for JSON recipe / judge calls (Anthropic Messages API). See https://docs.anthropic.com/en/docs/about-claude/models */
 const PW_CLAUDE_MODEL = "claude-sonnet-4-6";
+/** Engine physics matrix: GF long pasta vs wheat — boil window + pasta-water emulsification reliability. */
+const PW_PHYSICS_GLUTEN_FREE_PASTA={
+  minCookTimeMinutes:10,
+  typicalBoilRangeMinutes:"10–14",
+  starchEmulsification:"low",
+};
 
 function getAnthropicApiKey() {
   const fromConst = (typeof BASKET_API_KEY === "string" && BASKET_API_KEY.trim()) ? BASKET_API_KEY.trim() : "";
@@ -1535,10 +1549,88 @@ const pick = (arr,n) => {
   return shuffleArray(src).slice(0,c);
 };
 
+/** Mystery wheel: same ingredient / restriction / equipment cannot repeat until N full spins later (persisted). */
+const PW_MYSTERY_SPIN_COOLDOWN_SPINS=7;
+const PW_MYSTERY_COOLDOWN_STORAGE_KEY="pw_mystery_spin_cooldown_v1";
+
+function loadMysterySpinCooldown(){
+  try{
+    const j=localStorage.getItem(PW_MYSTERY_COOLDOWN_STORAGE_KEY);
+    if(!j) return {serial:0,hot:{}};
+    const o=JSON.parse(j);
+    if(!o||typeof o.hot!=="object") return {serial:0,hot:{}};
+    return {serial:Math.max(0,+o.serial||0),hot:o.hot};
+  }catch(_e){ return {serial:0,hot:{}}; }
+}
+function saveMysterySpinCooldown(cd){
+  try{ localStorage.setItem(PW_MYSTERY_COOLDOWN_STORAGE_KEY, JSON.stringify(cd)); }catch(_e){}
+}
+
+function mysterySpinCooldownEligible(key, serial, hot){
+  if(serial==null||serial===undefined||!hot) return true;
+  const k=String(key||"").trim();
+  if(!k) return true;
+  const last=hot[k];
+  if(last==null||last===undefined) return true;
+  return serial-last>PW_MYSTERY_SPIN_COOLDOWN_SPINS;
+}
+
+function filterOrFallback(arr, pred){
+  const f=(arr||[]).filter(pred);
+  return f.length?f:arr.slice();
+}
+
+function mysteryFilterConstraintsForCooldown(all, serial, hot){
+  if(serial==null||!hot) return all.slice();
+  const filtered=all.filter(c=>{
+    if(c.type==="res") return mysterySpinCooldownEligible("res:"+normalizeRestrictionKey(c.label), serial, hot);
+    return mysterySpinCooldownEligible("forb:"+String(c.raw).toLowerCase(), serial, hot);
+  });
+  return filtered.length?filtered:all.slice();
+}
+
+function mysteryFilterEquipListForCooldown(equipArr, serial, hot, kind){
+  if(serial==null||!hot) return equipArr.slice();
+  const prefix=kind==="forb"?"forb:":"must:";
+  const pred=e=>mysterySpinCooldownEligible(prefix+String(e).toLowerCase(), serial, hot);
+  return filterOrFallback(equipArr||[], pred);
+}
+
+function filterIngredientsForCooldown(pool, serial, hot){
+  if(serial==null||!hot) return pool.slice();
+  const pred=n=>mysterySpinCooldownEligible("ing:"+String(n).trim().toLowerCase(), serial, hot);
+  return filterOrFallback(pool||[], pred);
+}
+
+/** Increment spin serial and persist; return { serial, hotSnapshot } for this turn. */
+function beginMysterySpinCooldownTurn(){
+  const cd=loadMysterySpinCooldown();
+  const serial=(cd.serial||0)+1;
+  const hot={...(cd.hot||{})};
+  saveMysterySpinCooldown({serial, hot});
+  return {serial, hot};
+}
+
+/** Record picks for this spin so they stay out of the pool for PW_MYSTERY_SPIN_COOLDOWN_SPINS turns. */
+function finalizeMysterySpinSelection(serial, hotBefore, parts){
+  const h={...hotBefore};
+  const mark=k=>{ h[k]=serial; };
+  for(const name of parts.req||[])
+    if(name&&String(name).trim()) mark("ing:"+String(name).trim().toLowerCase());
+  for(const r of parts.res||[])
+    if(r) mark("res:"+normalizeRestrictionKey(r));
+  for(const e of parts.forbEq||[])
+    if(e!=null) mark("forb:"+String(e).trim().toLowerCase());
+  for(const e of parts.reqEq||[])
+    if(e!=null) mark("must:"+String(e).trim().toLowerCase());
+  saveMysterySpinCooldown({serial, hot:h});
+}
+
 /** Mystery spin / constraint random: roll 0–1 must-use equipment (never contradicts forbidden). */
-function rollMustUseEquipment(diffKey, forbEq){
+function rollMustUseEquipment(diffKey, forbEq, spinSerial, hot){
   const forb=new Set(forbEq||[]);
-  const cand=EQUIP.filter(e=>!forb.has(e));
+  let cand=EQUIP.filter(e=>!forb.has(e));
+  if(spinSerial!=null&&hot) cand=mysteryFilterEquipListForCooldown(cand, spinSerial, hot, "must");
   state.reqEq=[];
   if(!cand.length) return;
   const p=diffKey==="easy"?0.38:diffKey==="medium"?0.48:(diffKey==="hard"||diffKey==="insane")?0.55:0.45;
@@ -1546,12 +1638,13 @@ function rollMustUseEquipment(diffKey, forbEq){
   state.reqEq=[cand[randomIndex(cand.length)]];
 }
 
-function drawUnifiedConstraints(count){
+function drawUnifiedConstraints(count, spinSerial, hot){
   const n=Math.max(0, Number(count)||0);
-  const candidates=[
+  const all=[
     ...RESTRICT.map(r=>({type:"res",label:r})),
     ...EQUIP.map(e=>({type:"forb",label:"✕ "+e,raw:e})),
   ];
+  const candidates=mysteryFilterConstraintsForCooldown(all, spinSerial, hot);
   const chosen=pick(candidates,n);
   return {
     spinConstraints: chosen.map(c=>c.label),
@@ -1568,20 +1661,21 @@ function pantryFeasibleCount(pool, restrictions){
 }
 
 /** Re-roll unified draws until the pantry can still fill required slots (avoids No dairy + heavy cream style impossibilities). */
-function drawUnifiedConstraintsFeasible(n, pool, needSlots){
+function drawUnifiedConstraintsFeasible(n, pool, needSlots, spinSerial, hot){
   const need=Math.max(0, Number(needSlots)||0);
   const count=Math.max(0, Number(n)||0);
-  if(need<=0) return drawUnifiedConstraints(count);
+  if(need<=0) return drawUnifiedConstraints(count, spinSerial, hot);
   let best=null, bestScore=-1;
   for(let attempt=0; attempt<55; attempt++){
-    const draw=drawUnifiedConstraints(count);
+    const draw=drawUnifiedConstraints(count, spinSerial, hot);
     const fc=pantryFeasibleCount(pool, draw.restrictions);
     if(fc>=need) return draw;
     if(fc>bestScore){ bestScore=fc; best=draw; }
   }
   for(let attempt=0; attempt<35; attempt++){
     const k=Math.max(0, Math.min(count, EQUIP.length));
-    const fe=pick(EQUIP,k);
+    const feSrc=mysteryFilterEquipListForCooldown(EQUIP, spinSerial, hot, "forb");
+    const fe=pick(feSrc,k);
     const draw={
       spinConstraints:fe.map(e=>"✕ "+e),
       restrictions:[],
@@ -1592,7 +1686,8 @@ function drawUnifiedConstraintsFeasible(n, pool, needSlots){
   if(best&&bestScore>0){
     while(best.restrictions.length&&pantryFeasibleCount(pool,best.restrictions)<need)
       best.restrictions.pop();
-    best.forbEquip=pick(EQUIP,Math.min(count-best.restrictions.length,EQUIP.length));
+    const feSrc=mysteryFilterEquipListForCooldown(EQUIP, spinSerial, hot, "forb");
+    best.forbEquip=pick(feSrc,Math.min(count-best.restrictions.length,feSrc.length));
     best.spinConstraints=[...best.restrictions,...best.forbEquip.map(e=>"✕ "+e)];
     if(pantryFeasibleCount(pool,best.restrictions)>=need) return best;
   }
@@ -2265,13 +2360,15 @@ function renderBuild() {
   resbtns.append(
     btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("restriction")),
     btn("Random "+totalRestr,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{
+      const {serial, hot}=beginMysterySpinCooldownTurn();
       const p=pantryPool();
-      const draw=drawUnifiedConstraintsFeasible(totalRestr, p, cfg.req);
+      const draw=drawUnifiedConstraintsFeasible(totalRestr, p, cfg.req, serial, hot);
       state.spinConstraints=sanitizeSpinConstraints(draw.spinConstraints);
       state.res=sanitizeRestrictionList(draw.restrictions);
       state.forbEq=draw.forbEquip;
-      rollMustUseEquipment(state.diff, state.forbEq);
-      pruneConflictingReq(cfg);
+      rollMustUseEquipment(state.diff, state.forbEq, serial, hot);
+      pruneConflictingReq(cfg, {spinSerial:serial, hot});
+      finalizeMysterySpinSelection(serial, hot, {req:state.req,res:state.res,forbEq:state.forbEq,reqEq:state.reqEq});
       renderBuild();
     })
   );
@@ -2328,9 +2425,12 @@ function renderBuild() {
   const rlbl=el("span",{class:"lbl",style:{marginBottom:"0"}});rlbl.textContent="Required Ingredients";
   const rbtns=div({style:{display:"flex",gap:"4px"}});
     rbtns.append(btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("ingredient")),btn("Random "+cfg.req,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{
+      const {serial, hot}=beginMysterySpinCooldownTurn();
       const p=pantryPool();
-      state.req=pickRequiredPattern(p,cfg.req,state.res);
-      state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,p,state.res,pwChaosOrInsane());
+      const cd={spinSerial:serial, hot};
+      state.req=pickRequiredPattern(p,cfg.req,state.res,cd);
+      state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,p,state.res,pwChaosOrInsane(),cd);
+      finalizeMysterySpinSelection(serial, hot, {req:state.req,res:state.res,forbEq:state.forbEq,reqEq:state.reqEq});
       renderBuild();
     }));
   rHead.append(rlbl,rbtns);rCard.appendChild(rHead);
@@ -2513,15 +2613,15 @@ Return ONLY compact JSON with this shape:
 
 WEIGHTED TOTAL (must match your summary): taste×3.5 + creativity×2.5 + presentation×2 + difficulty×2 (max 100). Whoever has the higher total is the winner — your summary must name that same winner (or say "tie" only if totals are equal).
 
-SCORING RUBRIC:
+SCORING RUBRIC (apply the same standards to BOTH competitors):
 - Taste: flavor logic, balance, plausibility
-- Basket compliance: heavily penalize the AI entry if any required basket ingredient is missing from the described dish (ingredients + steps). A missing required item is a major failure; note it in the summary if it occurs.
-- Must-use equipment: if the challenge lists required gear (e.g. Wok), penalize the AI heavily when that tool is only a minor side step while the main cook uses a different vessel (e.g. baked tart + wok only for greens). Centralize the required tool in the primary technique or downscore hard.
+- Basket compliance: for EACH side, check that every required basket ingredient is clearly used in the described plan or recipe. Heavily downscore either side that omits or hand-waves a required item. A missing required item is a major failure; note it in the summary if it occurs on either side.
+- Must-use equipment: if the challenge lists required gear (e.g. Instant Pot), penalize EITHER side heavily when that tool is only a minor side step while the main cook uses a different vessel. Centralize the required tool in the primary technique or downscore hard.
 - No Salt: penalize sweet maple/cream plans without clear acid (citrus, vinegar, pickle). Penalize seitan/tempeh used only as soft slices on top with no crisp/caramelize/shred integration.
 - Creativity: originality without nonsense — but for "Recreate a Classic," creativity must serve a NAMED classic; pure original with no classic = lower creativity/challenge execution
 - Presentation: plating clarity from described dish
 - Difficulty: technical ambition that fits time
-${challengeIntentJudgeAddon(ch.ctype)}${restrictionsJudgeAddon(ch)}${noSaltRestrictionJudgeAddon(ch)}${dessertJudgeAddon(ch)}${snackJudgeAddon(ch)}${elevateCheapJudgeAddon(ch)}${recreateClassicJudgeAddon(ch)}${physicsRealismJudgeAddon(ch)}
+${challengeIntentJudgeAddon(ch.ctype)}${restrictionsJudgeAddon(ch)}${noSaltRestrictionJudgeAddon(ch)}${dessertJudgeAddon(ch)}${snackJudgeAddon(ch)}${elevateCheapJudgeAddon(ch)}${recreateClassicJudgeAddon(ch)}${physicsRealismJudgeAddon(ch)}${glutenPhysicsJudgeAddon(ch)}
 
 Challenge:
 - Type: ${ch.ctype.label}
@@ -3046,6 +3146,23 @@ PHYSICS & CLOCK REALISM (apply to BOTH competitors' plans):
 - Reward plans that match technique to time; downscore fantasy timing even if flavor ideas sound clever.`;
 }
 
+/** Gluten + GF pasta timing / fish sauce labeling — judging lens when restrictions + basket match. */
+function glutenPhysicsJudgeAddon(ch){
+  if(!challengeHasNoGluten(ch)) return "";
+  const blob=requiredChallengeBlob(ch);
+  const parts=[];
+  if(/\b(spaghetti|pasta|linguine|fettuccine|penne|rigatoni|macaroni|noodles?)\b/i.test(blob)){
+    parts.push(`GF pasta / noodles: penalize **under-boiled** GF spaghetti (active boil **~${PW_PHYSICS_GLUTEN_FREE_PASTA.minCookTimeMinutes}+ min** typical; ${PW_PHYSICS_GLUTEN_FREE_PASTA.typicalBoilRangeMinutes} min window common) or timelines that **drop pasta too late** without honest parallel water. Penalize **wheat-style glossy pasta-water finish** as the only bind when noodles are GF — **starch emulsification is ${PW_PHYSICS_GLUTEN_FREE_PASTA.starchEmulsification}** vs wheat unless the plan names slurry, reduction, or alternate noodle.`);
+  }
+  if(/\bfish\s+sauce\b/i.test(blob)){
+    parts.push(`Fish sauce + No Gluten: penalize generic **fish sauce** with no **GF label / verified brand** when strict compliance matters — some products contain wheat.`);
+  }
+  if(!parts.length) return "";
+  return `
+GLUTEN REALISM — JUDGING LENS:
+- ${parts.join("\n- ")}`;
+}
+
 /** Competition TV beat: contrast, transformation depth, not default restaurant trio. Appetizer + entree only. */
 function competitionEdgePromptBlock(ch, _sig){
   const id=String((ch&&ch.ctype&&ch.ctype.id)||"");
@@ -3125,7 +3242,14 @@ function elevateCheapContestCoachBlock(ch){
 - Title / tagline / atThePass must name the **humble baseline** in plain words (cup noodles, boxed mac, instant noodle bowl, etc.).
 - Every MUST USE must appear in **ingredients** and **steps** (including **Dark Chocolate**, bay, spices, bacon, fruit) — one missing line fails validation.
 `;
-  if(ng) s+=`- NO GLUTEN: **Wheat** ramen / udon / unlabeled instant noodles / standard **soy sauce** = fail. List **GF instant noodles**, **rice vermicelli**, **glass noodles**, or **tamari / gluten-free soy** by name.\n`;
+  if(ng){
+    s+=`- NO GLUTEN: **Wheat** ramen / udon / unlabeled instant noodles / standard **soy sauce** = fail. List **GF instant noodles**, **rice vermicelli**, **glass noodles**, or **tamari / gluten-free soy** by name.\n`;
+    const blob=requiredChallengeBlob(ch);
+    if(/\b(spaghetti|pasta|linguine|fettuccine|penne|noodles?)\b/i.test(blob))
+      s+=`- GF LONG PASTA: allow **~${PW_PHYSICS_GLUTEN_FREE_PASTA.minCookTimeMinutes}+ min boil** (${PW_PHYSICS_GLUTEN_FREE_PASTA.typicalBoilRangeMinutes} min typical); start water early. **Pasta-water emulsification** is **${PW_PHYSICS_GLUTEN_FREE_PASTA.starchEmulsification}** vs wheat — use slurry/reduction/rice noodles if you need reliable cling.\n`;
+    if(/\bfish\s+sauce\b/i.test(blob))
+      s+=`- FISH SAUCE: name a **GF-labeled** or **verified GF** brand — not all bottles are wheat-free.\n`;
+  }
   return s;
 }
 
@@ -3471,7 +3595,7 @@ async function generateRecipe() {
       executionMode+=`
 
 ELEVATE OVERRIDE — CHEAP MEAL, NOT FINE-DINING DEFAULT: This challenge is NOT a license to compose a polished original that ignores weeknight food. Lead with a judge-recognizable cheap baseline (examples: cup noodles, boxed mac, tuna salad, spaghetti + jar sauce, fried bologna sandwich, hot dog plate, frozen microwave dinner, flavored rice/pasta packet). Do NOT pivot to mushroom risotto, quinoa pilaf, luxe composed entree, or "protein-with-two-sides" plating unless you explicitly named that baseline class and the budget analogue. TRANSFORMATION NOT REPLACEMENT: the finished plan must still look/sound like the same humble dish — upgraded — not a new genre that dropped the baseline. Pantry supports the same cheap dish — does not replace it with a new restaurant genre.
-JAR-SAUCE / SPAGHETTI NIGHT: If that is the baseline, give judges a tomato or "cheap marinara memory" hook (paste, charred tomato, herbs) — not noodles with no sauce story. PASTA FINISH: emulsify sauce with starchy pasta water + toss for cling when saucing long pasta. SWEET BASKET (maple/honey): finish savory with extra acid/char so it does not read dessert-pasta.`;
+JAR-SAUCE / SPAGHETTI NIGHT: If that is the baseline, give judges a tomato or "cheap marinara memory" hook (paste, charred tomato, herbs) — not noodles with no sauce story. PASTA FINISH: emulsify sauce with starchy pasta water + toss for cling when saucing long pasta. SWEET BASKET (maple/honey): finish savory with extra acid/char so it does not read dessert-pasta.${challengeHasNoGluten(ch)&&/\b(spaghetti|pasta|noodles?)\b/i.test(requiredChallengeBlob(ch))?` NO GLUTEN: GF pasta needs longer boil; wheat-style pasta-water gloss is unreliable — see PHYSICS block.`:""}`;
     }
     if(challengeTypeIsSnack(ch.ctype)){
       executionMode+=`
@@ -3512,6 +3636,7 @@ ${classicArchetypeHardBlock()}`
 - BANNED without explicit baseline tie: new foundations like quinoa/farro pilaf, "grain bowl" reboot, or center-plate protein + separate starch when baseline was sandwich/salad/ramen bowl/etc.
 - If REQUIRED items do not obviously imply one cheap dish, you MUST still commit to one plausible recognizable baseline — NOT a silent jump to restaurant risotto or luxury templates without naming the budget analogue.
 - NO GLUTEN + NOODLE / RAMEN BASELINE: default **wheat** ramen / udon / egg noodles / unlabeled instant noodles **violate** No Gluten. Ingredients must name **gluten-free** product (e.g. "GF instant rice noodles," "certified GF ramen," rice vermicelli) or naturally GF noodles (rice sticks, glass, mung bean, shirataki) — and use **tamari or gluten-free soy**, not standard soy sauce unless labeled GF.
+${challengeHasNoGluten(ch)&&/\b(spaghetti|pasta|linguine|fettuccine|penne|rigatoni|macaroni|noodles?)\b/i.test(requiredChallengeBlob(ch))?`- NO GLUTEN + GF LONG PASTA: timeline must allow **~${PW_PHYSICS_GLUTEN_FREE_PASTA.minCookTimeMinutes}+ min active boil** (often **${PW_PHYSICS_GLUTEN_FREE_PASTA.typicalBoilRangeMinutes} min**); **start pasta water at the front** of the round. **Starch emulsification = ${PW_PHYSICS_GLUTEN_FREE_PASTA.starchEmulsification}** vs wheat — if you claim glossy cling, name **cornstarch slurry**, **longer reduction**, or **rice/glass noodles** as the honest path.\n`:""}${challengeHasNoGluten(ch)&&/\bfish\s+sauce\b/i.test(requiredChallengeBlob(ch))?`- NO GLUTEN + FISH SAUCE: **ingredients[]** must name a **gluten-free labeled** fish sauce or a **verified naturally GF** product — some brands add wheat.\n`:""}
 - REQUIRED BASKET (every line): each MUST appear in **ingredients[]** (honest store name) **and** at least one **step** — including **Dark Chocolate**, spices, bay, bacon, plum — omission fails validation.\n`
       :"";
     const snackHard=["hard","insane"].includes(String(ch.diff||"").toLowerCase());
@@ -5341,7 +5466,28 @@ function executionHonestyBlock(ch){
 - Timeline: step "dur" values should sum realistically vs ${t} min; long braises must fit; say "parallel" when two things run at once; avoid vague filler steps whose only job is to pad minutes.
 - **Tart / pastry shell / quiche / galette (${t} min):** On tight clocks, name **store-bought or frozen pastry** in ingredients if you use a baked shell — or pick a **no-crust** format. Scratch dough + chill + bake is not credible when minutes are short; the app gate checks this.
 - Format words: if you say tartlet, sandwich, pot pie, taco, calzone — include the real structure (pastry shell, bread, tortilla, etc.) or rename the dish.
-- Kitchen naming: mayonnaise/aioli implies a real emulsion (egg yolk, jarred mayo, etc.) — not cream whisked with lemon unless you rename the sauce.\n`;
+- Kitchen naming: mayonnaise/aioli implies a real emulsion (egg yolk, jarred mayo, etc.) — not cream whisked with lemon unless you rename the sauce.
+- **Pan fond:** Do not **wipe/scrape the pan clean** of browned bits before building a sauce or glaze and then claim **fond / Maillard depth** from that same pan — **deglaze** the crumbs into the next stage or skip the wipe; those lines contradict each other.\n`;
+}
+
+/** No Gluten + pasta/noodle shape in required haul — GF boil + starch physics for prompts. */
+function glutenFreePastaPhysicsPromptBlock(ch){
+  if(!challengeHasNoGluten(ch)) return "";
+  const blob=requiredChallengeBlob(ch);
+  if(!/\b(spaghetti|pasta|linguine|fettuccine|penne|rigatoni|macaroni|fusilli|orzo|noodles?)\b/i.test(blob)) return "";
+  const t=Math.max(1, Number((ch&&ch.totalTime)||30));
+  return `GLUTEN-FREE PASTA / NOODLE PHYSICS (matrix: min_cook_time_minutes ≥ ${PW_PHYSICS_GLUTEN_FREE_PASTA.minCookTimeMinutes}; typical_boil ${PW_PHYSICS_GLUTEN_FREE_PASTA.typicalBoilRangeMinutes} min; starch_emulsification: ${PW_PHYSICS_GLUTEN_FREE_PASTA.starchEmulsification} vs wheat):
+- **Boil time:** Gluten-free dry spaghetti and most GF long pasta need **~${PW_PHYSICS_GLUTEN_FREE_PASTA.typicalBoilRangeMinutes} min** to cook through — often **longer than wheat**, not shorter. Start salted **pasta water early**; dropping GF pasta **too late** in a ${t} min round is a common clock fail (under-boiled GF pasta reads chalky).
+- **Pasta-water finito:** The glossy **starchy pasta water + butter + toss** trick assumes **wheat starch**. GF noodles (rice, legume, corn blends) release **different starch** — emulsified cling is **unreliable**; sauces can read **greasy or broken**. If you still want that finish, name a **fallback** (small **cornstarch slurry**, longer **reduction**, extra cheese bind) or use **rice noodles / glass noodles** when the story allows a faster, more predictable cling.
+`;
+}
+
+/** No Gluten + Fish Sauce in basket — product truth (some brands add wheat). */
+function noGlutenFishSaucePhysicsPromptBlock(ch){
+  if(!challengeHasNoGluten(ch)) return "";
+  if(!/\bfish\s+sauce\b/i.test(requiredChallengeBlob(ch))) return "";
+  return `NO GLUTEN + FISH SAUCE (brand / product flag):
+- Most traditional fish sauce is **fish + salt** (often naturally GF), but **some brands add wheat** as a process aid. Under strict no-gluten, **ingredients[]** must name a **gluten-free labeled** fish sauce or a **specific verified GF** product — not only the words "fish sauce" with no label story.\n`;
 }
 
 /** Real cooking constraints — rival + coach must not claim impossible outcomes to satisfy the basket. */
@@ -5366,6 +5512,8 @@ function physicsRealismBlock(ch){
   if(challengeTypeIsRecreateClassic(ctype)){
     s+=`RECREATE A CLASSIC — NAME VS. CLOCK: If the signature technique of the named classic needs longer than ${t} min in the real world, you MUST pivot honestly — "inspired by," "flavors of," faster protein treatment — or use only real shortcuts (pressure when allowed). **Do not title it as the textbook classic if the timeline makes that dish impossible.**\n`;
   }
+  s+=glutenFreePastaPhysicsPromptBlock(ch);
+  s+=noGlutenFishSaucePhysicsPromptBlock(ch);
   return s;
 }
 
@@ -5834,16 +5982,18 @@ function filterPoolByRestrictions(pool, restrictions){
   return [...new Set((pool||[]).filter(Boolean))].filter(n=>!ingredientConflictsWithAny(n,r));
 }
 
-function pruneConflictingReq(cfg){
+function pruneConflictingReq(cfg, cdOpt){
   const need=cfg.req;
   state.req=state.req.filter(n=>!ingredientConflictsWithAny(n,state.res));
-  const pool=filterPoolByRestrictions(pantryPool(),state.res).filter(x=>!state.req.includes(x));
+  let pool=filterPoolByRestrictions(pantryPool(),state.res).filter(x=>!state.req.includes(x));
+  if(cdOpt&&cdOpt.hot!=null&&cdOpt.spinSerial!=null)
+    pool=filterIngredientsForCooldown(pool,cdOpt.spinSerial,cdOpt.hot);
   while(state.req.length<need && pool.length){
     const i=randomIndex(pool.length);
     state.req.push(pool.splice(i,1)[0]);
   }
   const p=pantryPool();
-  state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,p,state.res,pwChaosOrInsane());
+  state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,p,state.res,pwChaosOrInsane(),cdOpt);
 }
 
 function classifyRequiredBucket(name){
@@ -6107,7 +6257,7 @@ function viabilitySwapAttempts(diffKey, chaos, ctype){
   return 2+bonus;
 }
 
-function ensureCourseBasketViability(req, ctype, diffKey, pool, restrictions, chaos){
+function ensureCourseBasketViability(req, ctype, diffKey, pool, restrictions, chaos, cdOpt){
   if(!req||!req.length) return req||[];
   if(chaos) return req.slice();
   const filt=filterPoolByRestrictions(pool||[],restrictions||[]);
@@ -6120,7 +6270,9 @@ function ensureCourseBasketViability(req, ctype, diffKey, pool, restrictions, ch
       if(out.some(isDessertSpoilerIngredient)) needFix=true;
     }else if(!savoryBasketHasPath(out)) needFix=true;
     if(!needFix) break;
-    const spare=filt.filter(x=>!out.includes(x));
+    let spare=filt.filter(x=>!out.includes(x));
+    if(cdOpt&&cdOpt.hot!=null&&cdOpt.spinSerial!=null)
+      spare=filterIngredientsForCooldown(spare,cdOpt.spinSerial,cdOpt.hot);
     const anchor=courseIsDessert(ctype)
       ?pickDessertAnchorFromPool(spare,restrictions)
       :pickSavoryAnchorFromPool(spare,restrictions,out);
@@ -6131,9 +6283,11 @@ function ensureCourseBasketViability(req, ctype, diffKey, pool, restrictions, ch
   return out;
 }
 
-function pickRequiredPattern(pool,count,resList){
+function pickRequiredPattern(pool,count,resList,cdOpt){
   const r=resList!==undefined?resList:state.res;
-  const filtered=filterPoolByRestrictions(pool||[],r||[]);
+  let filtered=filterPoolByRestrictions(pool||[],r||[]);
+  if(cdOpt&&cdOpt.hot!=null&&cdOpt.spinSerial!=null)
+    filtered=filterIngredientsForCooldown(filtered,cdOpt.spinSerial,cdOpt.hot);
   const uniq=shuffleArray([...new Set(filtered.filter(Boolean))]);
   if(uniq.length===0){
     alert("Nothing in your pantry matches the current restrictions. Clear a restriction or add compatible ingredients.");
@@ -6403,23 +6557,26 @@ function runMysteryRandomize(){
 }
 
 function doRandomize(){
+  const {serial, hot}=beginMysterySpinCooldownTurn();
+  const cd={spinSerial:serial, hot};
   const d=DIFF[state.diff];
   const nConstraints=Math.max(Number(d.res)||0, Number(d.forb)||0);
   const pool=window.USER_PANTRY||PANTRY;
-  const draw=drawUnifiedConstraintsFeasible(nConstraints, pool, d.req);
+  const draw=drawUnifiedConstraintsFeasible(nConstraints, pool, d.req, serial, hot);
   state.spinConstraints=sanitizeSpinConstraints(draw.spinConstraints);
   state.res=sanitizeRestrictionList(draw.restrictions);
   state.forbEq=draw.forbEquip;
-  rollMustUseEquipment(state.diff, state.forbEq);
+  rollMustUseEquipment(state.diff, state.forbEq, serial, hot);
   state.lim=false;
   state.cut=d.cut;
   const allTypes=[...CTYPES,...state.customTypes];
   state.ctype=allTypes[randomIndex(allTypes.length)];
-  state.req=pickRequiredPattern(pool,d.req,state.res);
-  state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,pool,state.res,pwChaosOrInsane());
+  state.req=pickRequiredPattern(pool,d.req,state.res,cd);
+  state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,pool,state.res,pwChaosOrInsane(),cd);
   const t=SPIN_AI_TIMES[randomIndex(SPIN_AI_TIMES.length)];
   state.total=t;state.prep=Math.round(t*0.35);state.cook=Math.round(t*0.65);
-  pruneConflictingReq(d);
+  pruneConflictingReq(d, cd);
+  finalizeMysterySpinSelection(serial, hot, {req:state.req,res:state.res,forbEq:state.forbEq,reqEq:state.reqEq});
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
