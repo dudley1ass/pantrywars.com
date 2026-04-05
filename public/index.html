@@ -20,6 +20,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Pantry Wars</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/favicon.svg">
 <style>
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;color:#0f172a;min-height:100vh;}
@@ -936,6 +938,39 @@ const PROTEIN_TECHNIQUE_MATRIX={
   "Italian Sausage":{sear:"8–12m",sliceThin:"6–10m",grind:"—",quickBraise:"—",sousVide:"15–25m",slowCook:"—"},
 };
 
+/**
+ * Minimum round length (minutes) for a credible **default** braise/roast story for this cut — vs challenge totalTime when the item is MUST USE.
+ * Honest short-clock paths (grind, paper-thin sear, leftover, pressure if allowed) skip the check via getProteinMinClockViolations.
+ * Custom pantry rows can set `minClockMinutes` to override or extend.
+ */
+const PROTEIN_MIN_CLOCK_MINUTES={
+  "Brisket":48,
+  "Beef Short Rib":44,
+  "Oxtail":44,
+  "Whole Chicken":38,
+};
+
+function minClockMinutesForPantryName(name){
+  const meta=pantryMetaByName(name);
+  if(meta&&Number.isFinite(Number(meta.minClockMinutes))){
+    const n=Math.round(Number(meta.minClockMinutes));
+    if(n>0&&n<=600) return n;
+  }
+  const key=String(name||"").trim();
+  if(!key) return null;
+  if(PROTEIN_MIN_CLOCK_MINUTES[key]!=null) return PROTEIN_MIN_CLOCK_MINUTES[key];
+  const low=key.toLowerCase();
+  for(const k of Object.keys(PROTEIN_MIN_CLOCK_MINUTES)){
+    if(k.toLowerCase()===low) return PROTEIN_MIN_CLOCK_MINUTES[k];
+  }
+  return null;
+}
+
+/** Prose signals that the plan uses a competition-viable fast lane for collagen / whole-bird cuts. */
+function recipeProseSuggestsShortClockCompPath(low){
+  return /\b(grind|ground|mince|minced|thinly\s+sliced|thin\s+slices?|paper[\s-]*thin|shaved|leftover|pre[\s-]?(?:cooked|braised|smoked)|deli|corned|pastrami|pressure|instant\s*pot|spatchcock|joint(?:ed|ing)?|break\s*down|parts\s+only|boneless|chicken\s+parts|thighs?\s+and|drumsticks?|wing\s+only)\b/i.test(String(low||""));
+}
+
 function techniqueMatrixForName(name){
   const meta=pantryMetaByName(name);
   if(meta&&meta.techniqueMatrix&&typeof meta.techniqueMatrix==="object") return meta.techniqueMatrix;
@@ -1168,7 +1203,11 @@ function basketCookFundamentalsBlock(ch){
   for(const name of req){
     const meta=pantryMetaByName(name);
     const cs=meta&&meta.cookSheet!=null?String(meta.cookSheet).trim():"";
-    if(cs) lines.push(`• ${name}: ${cs}`);
+    const mcm=minClockMinutesForPantryName(name);
+    const bits=[];
+    if(cs) bits.push(cs);
+    if(mcm&&t<mcm) bits.push(`**Clock:** classic braise/roast for this cut often needs ~${mcm}+ min; this round is ${t} min — use grind, thin sear, leftover/deli, breakdown + parts, or pressure (if allowed).`);
+    if(bits.length) lines.push(`• ${name}: ${bits.join(" ")}`);
   }
   if(!lines.length) return "";
   return `BASKET COOK FUNDAMENTALS (typical times & prep — your round is ${t} min total; pick methods that fit; dice/grind/shave change surface area and time):
@@ -2368,6 +2407,8 @@ async function runAutoBattleScoring(){
     const prompt=`You are a fair cooking competition judge. Compare two competitors from the same basket.
 Return ONLY compact JSON with this shape:
 {"you":{"taste":1-10,"creativity":1-10,"presentation":1-10,"difficulty":1-10},"ai":{"taste":1-10,"creativity":1-10,"presentation":1-10,"difficulty":1-10},"summary":"2-4 sentences with winner + why"}
+
+WEIGHTED TOTAL (must match your summary): taste×3.5 + creativity×2.5 + presentation×2 + difficulty×2 (max 100). Whoever has the higher total is the winner — your summary must name that same winner (or say "tie" only if totals are equal).
 
 SCORING RUBRIC:
 - Taste: flavor logic, balance, plausibility
@@ -3746,7 +3787,7 @@ function showRecipeData(r) {
     </div>
     <div>
       <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:8px">Timeline</div>
-      ${(r.steps||[]).map((s,i)=>{const col=({"PREP":"#3b82f6","COOK":"#ef4444","SAUCE":"#f97316","ASSEMBLE":"#a855f7","PLATE":"#22c55e"})[s.phase]||"#64748b";return`<div style="display:flex;gap:10px;margin-bottom:10px"><div style="text-align:right;min-width:36px;padding-top:2px;flex-shrink:0"><div style="font-size:11px;font-weight:800;color:#f59e0b">${s.time}</div><div style="font-size:10px;color:#475569">${s.dur}</div></div><div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="width:10px;height:10px;border-radius:50%;background:${s.phase==="PLATE"?col:"#334155"};border:2px solid ${col};margin-top:3px"></div>${i<(r.steps.length-1)?`<div style="width:2px;flex:1;background:#1e293b;min-height:12px;margin-top:2px"></div>`:""}</div><div style="flex:1"><div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><span style="background:${col}22;color:${col};border:1px solid ${col}55;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800">${s.phase}</span><span style="font-size:12px;font-weight:800;color:#f8fafc">${s.what}</span></div><div style="font-size:11px;color:#94a3b8;line-height:1.4">${s.how}</div></div></div>`}).join("")}
+      ${(r.steps&&r.steps.length)?(r.steps||[]).map((s,i)=>{const col=({"PREP":"#3b82f6","COOK":"#ef4444","SAUCE":"#f97316","ASSEMBLE":"#a855f7","PLATE":"#22c55e"})[s.phase]||"#64748b";return`<div style="display:flex;gap:10px;margin-bottom:10px"><div style="text-align:right;min-width:36px;padding-top:2px;flex-shrink:0"><div style="font-size:11px;font-weight:800;color:#f59e0b">${escapeHtml(s.time||"")}</div><div style="font-size:10px;color:#475569">${escapeHtml(s.dur||"")}</div></div><div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0"><div style="width:10px;height:10px;border-radius:50%;background:${s.phase==="PLATE"?col:"#334155"};border:2px solid ${col};margin-top:3px"></div>${i<(r.steps.length-1)?`<div style="width:2px;flex:1;background:#1e293b;min-height:12px;margin-top:2px"></div>`:""}</div><div style="flex:1"><div style="display:flex;align-items:center;gap:5px;margin-bottom:2px"><span style="background:${col}22;color:${col};border:1px solid ${col}55;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800">${escapeHtml(s.phase||"")}</span><span style="font-size:12px;font-weight:800;color:#f8fafc">${escapeHtml(s.what||"")}</span></div><div style="font-size:11px;color:#94a3b8;line-height:1.4">${escapeHtml(s.how||"")}</div></div></div>`}).join(""):`<div style="font-size:12px;color:#94a3b8;line-height:1.45;padding:8px 0;border:1px dashed #475569;border-radius:8px;text-align:center"><strong style="color:#cbd5e1">No step timeline in this response.</strong> The model may have omitted <code style="font-size:11px">steps[]</code> — tap <strong>Try Again</strong> on the rival chef, or follow the tagline and ingredients. Challenge time is still <strong>${ch.totalTime} min</strong>.</div>`}
     </div>
   </div>`;
   const battleFooter=`<div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px 14px;background:#0f172a;border:1px solid #334155;border-radius:14px">
@@ -3884,6 +3925,7 @@ function renderScore(){
           <div><span style="color:#f59e0b;font-weight:800">You</span> · ${escapeHtml((uc.dish||"").slice(0,160))}${(uc.dish||"").length>160?"…":""}</div>
         </div>
         ${(uc.techniques||"").trim()?`<div style="font-size:11px;color:#57534e;margin-top:8px;line-height:1.45"><strong>Your techniques:</strong> ${escapeHtml((uc.techniques||"").slice(0,200))}${(uc.techniques||"").length>200?"…":""}</div>`:""}
+        ${(()=>{const ty=calcTotal(state.scoresYou),ta=calcTotal(state.scoresAI);let w="";if(ty>ta)w=`Weighted score favors you (${ty}/100 vs ${ta}/100).`;else if(ta>ty)w=`Weighted score favors rival chef (${ta}/100 vs ${ty}/100).`;else w=`Weighted score is tied (${ty}/100 each).`;return`<div style="font-size:11px;color:#0f172a;font-weight:700;margin-top:8px">${escapeHtml(w)}</div>`;})()}
         ${state.duelAutoSummary?`<div style="font-size:11px;color:#1f2937;line-height:1.5;margin-top:8px"><strong>Judge summary:</strong> ${escapeHtml(state.duelAutoSummary)}</div>`:""}
       </div>`;})()}
       <div class="duel-score-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
@@ -4065,6 +4107,8 @@ function normalizeCustomPantryFromAi(data){
   if(ingredientToolkitAi) row.ingredientToolkitAi=ingredientToolkitAi;
   if(ingredientToolkit) row.ingredientToolkit=ingredientToolkit;
   if(techniqueMatrix) row.techniqueMatrix=techniqueMatrix;
+  const mcm=Number(src.minClockMinutes);
+  if(Number.isFinite(mcm)&&mcm>0&&mcm<=600) row.minClockMinutes=Math.round(mcm);
   return row;
 }
 
@@ -4178,8 +4222,22 @@ function ingredientConflictsWithRestriction(ingName, restriction){
     return false;
   }
   if(restriction==="No Sugar"){
-    if(/\b(honey|sugar|maple|molasses|candy|frosting|icing|marshmallow|nesquik|syrup|caramel sauce|jam)\b/i.test(n)) return true;
-    if(/\b(chocolate|dark chocolate)\b/i.test(n)) return true;
+    /** No granulated sugar (white or brown) and no powdered/confectioners. OK: honey, maple, caramel, molasses, syrups, chocolate bar, etc. */
+    const nl=String(ingName||"").toLowerCase();
+    const raw=String(ingName||"");
+    if(/\bsugar\s+snap\b/i.test(nl)) return false;
+    if(/\bsugar\s+pumpkin\b/i.test(nl)) return false;
+    if(/\b(powdered|confectioners?|icing)\s+sugar\b/i.test(nl)) return true;
+    if(/\b(granulated|table)\s+sugar\b/i.test(nl)) return true;
+    if(/\b(white)\s+sugar\b/i.test(nl)) return true;
+    if(/\b(caster|castor|superfine)\s+sugar\b/i.test(nl)) return true;
+    if(/\bbrown\s+sugar\b/i.test(nl)) return true;
+    if(/\bsugar\s*\(\s*brown\s*\)/i.test(raw)) return true;
+    if(/\bcane\s+sugar\b/i.test(nl)) return true;
+    if(/\bcoconut\s+sugar\b/i.test(nl)) return true;
+    if(/\bturbinado(?:\s+sugar)?\b/i.test(nl)) return true;
+    if(/\bdemerara(?:\s+sugar)?\b/i.test(nl)) return true;
+    if(/^\s*sugar\s*$/i.test(raw.trim())) return true;
     return false;
   }
   if(restriction==="No Pre-made Sauces"){
@@ -4287,7 +4345,7 @@ function textSuggestsButterFat(low){
 function textSuggestsAnimalFleshOrBroth(low){
   const l=String(low||"").toLowerCase();
   if(/\b(chicken|beef|pork|lamb|duck|turkey|goose|quail|venison|bison|veal|mutton|rabbit|bacon|pancetta|guanciale|prosciutto|salami|chorizo|andouille|kielbasa|sausage|mortadella|capicola|nduja|hot\s+dog|frankfurter|bratwurst|lard|tallow|suet|crackl(?:e|ing)s?|oxtail|brisket|short\s*rib|ribeye|offal|sweetbreads|foie|liver\b|ground\s+(beef|pork|lamb|turkey|chicken)|meatball|meat\s+loaf|carnitas|barbacoa)\b/i.test(l)) return true;
-  if(/\b(anchov|sardine|mackerel|salmon|tuna|cod|halibut|trout|bass|fish\b|fillet|sea\s+bass|shrimp|prawn|scallop|clam|mussel|oyster|crab|lobster|calamari|squid|octopus|eel|caviar|\broe\b|uni\b|surimi)\b/i.test(l)) return true;
+  if(/\b(anchov|sardine|mackerel|salmon|tuna|cod|halibut|trout|bass|fish(?!\s+sauce)\b|fillet|sea\s+bass|shrimp|prawn|scallop|clam|mussel|oyster(?!\s+sauce)|crab|lobster|calamari|squid|octopus|eel|caviar|\broe\b|uni\b|surimi)\b/i.test(l)) return true;
   if(/\b(chicken|beef|veal|fish|turkey|ham|shrimp|bone)\s+(stock|broth|broths|base|bases)\b/i.test(l)) return true;
   if(/\bbone\s+broth\b/i.test(l)) return true;
   if(/\b(fish|oyster)\s+sauce\b/i.test(l)) return true;
@@ -4300,6 +4358,27 @@ function textSuggestsAnimalFleshOrBroth(low){
 }
 function textSuggestsMeatOrFish(low){
   return textSuggestsAnimalFleshOrBroth(low);
+}
+
+/** Strip "no fish sauce / without honey …" style lines so Vegan checks do not false-positive on negated mentions. */
+function scrubNegatedNonVeganPhrases(low){
+  let s=String(low||"");
+  const reps=[
+    /\b(no|without|sans|omit|avoid(?:ing|s)?|never|free\s+of|not\s+using|contains\s+no|zero)\s+[^.;]{0,52}?\b(fish\s+sauce|oyster\s+sauce|honey|gelatin|whey|casein|lactose|eggs?|egg\s+yolks?)\b/gi,
+    /\b(no|without)\s+[^.;]{0,40}?\b(dairy|animal\s+products?)\b/gi,
+  ];
+  for(const re of reps) s=s.replace(re," ");
+  return s;
+}
+
+/** No Sugar: no granulated (white, brown, coconut, turbinado, demerara…) and no powdered/confectioners — honey, maple, caramel, etc. OK. */
+function textSuggestsGranulatedOrPowderedSugar(low){
+  const L=String(low||"").toLowerCase();
+  if(/\b(no|without|omit|avoid|sans)\s+[^.;]{0,52}?\b(granulated|powdered|table|white|brown|confectioners?|icing|caster|castor|superfine|coconut)\s+sugar\b/i.test(L)) return false;
+  if(/\b(no|without|omit)\s+brown\s+sugar\b/i.test(L)) return false;
+  if(/\b(no|without|omit)\s+coconut\s+sugar\b/i.test(L)) return false;
+  if(/\b(no|without|omit)\s+turbinado\b/i.test(L)) return false;
+  return /\b(granulated|table|white)\s+sugar\b|\b(powdered|confectioners?|icing)\s+sugar\b|\b(caster|castor|superfine)\s+sugar\b|\bbrown\s+sugar\b|\bcoconut\s+sugar\b|\bturbinado(?:\s+sugar)?\b|\bdemerara(?:\s+sugar)?\b/i.test(L);
 }
 
 /** Post-check AI output vs challenge restrictions; drives regen + UI warning. */
@@ -4332,8 +4411,9 @@ function getRecipeRestrictionViolations(recipe, restrictions){
     else if(norm==="Vegetarian"&&textSuggestsAnimalFleshOrBroth(low))
       msgs.push(`${norm}: text suggests meat, fish, shellfish, or animal stock/fish sauce`);
     else if(norm==="Vegan"){
-      const veganHit=textSuggestsAnimalDairy(low)||textSuggestsButterFat(low)||textSuggestsAnimalFleshOrBroth(low)
-        ||/\b(honey|bee\s*honey)\b/i.test(low)||/\b(eggs?|egg\s+yolk|egg\s+white|mayo|mayonnaise)\b/i.test(low);
+      const lowV=scrubNegatedNonVeganPhrases(low);
+      const veganHit=textSuggestsAnimalDairy(lowV)||textSuggestsButterFat(lowV)||textSuggestsAnimalFleshOrBroth(lowV)
+        ||/\b(honey|bee\s*honey)\b/i.test(lowV)||/\b(eggs?|egg\s+yolk|egg\s+white|mayo|mayonnaise)\b/i.test(lowV);
       if(veganHit) msgs.push(`${norm}: non-vegan wording detected (meat, seafood, dairy, egg, honey, animal stock/broth, fish sauce, gelatin, etc.)`);
     }
     else if(norm==="No Alcohol"&&/\b(wine|beer|rum|vodka|whiskey|whisky|bourbon|brandy|sake|liqueur|champagne|prosecco)\b/i.test(low)
@@ -4341,6 +4421,8 @@ function getRecipeRestrictionViolations(recipe, restrictions){
       msgs.push(`${norm}: mentions alcoholic ingredient`);
     else if(norm==="No Nuts"&&/\b(almond|cashew|pistachio|pecan|walnut|hazelnut|pine\s*nut|pesto|peanut)\b/i.test(low))
       msgs.push(`${norm}: mentions nuts or peanut`);
+    else if(norm==="No Sugar"&&textSuggestsGranulatedOrPowderedSugar(low))
+      msgs.push(`${norm}: text still references granulated sugar (white, brown, coconut, turbinado, demerara…), powdered, or confectioners — use honey, maple, caramel, syrups, fruit, etc.`);
   }
   if(rlist.some(x=>normalizeRestrictionKey(x)==="No Gluten")&&!msgs.some(m=>/^No Gluten:\s+conflicts/i.test(m))){
     if(/\bramen\b/i.test(low)&&!/\b(gluten[\s-]?free|certified\s+gf|\bg[\s/.]*f[\s/.]*|rice\s+noodles?|rice\s+vermicelli|glass\s+noodles?|mung\s+bean|bean\s+thread|konjac|shirataki)\b/i.test(low))
@@ -4447,6 +4529,7 @@ function equipmentAliasRegex(name){
   if(n==="air fryer") return /\bair\s*fryer\b/i;
   if(n==="instant pot") return /\binstant\s*pot|pressure\s*cooker\b/i;
   if(n==="sheet pan") return /\bsheet\s*pan\b/i;
+  if(n==="torch") return /\b(torch|torched|torching|blow-?\s*torch|kitchen\s*torch|butane\s*torch|propane\s*torch)\b/i;
   return new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s*")}\\b`,"i");
 }
 
@@ -4581,6 +4664,24 @@ function getStackedBakeSequenceViolations(low, total){
 }
 
 /**
+ * Basket protein vs challenge clock: long-cut classics need either more minutes or an explicit fast path (grind, leftover, pressure…).
+ */
+function getProteinMinClockViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const total=Math.max(1, Number(ch.totalTime)||30);
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  if(recipeProseSuggestsShortClockCompPath(low)) return msgs;
+  if(/\b(pressure|instant\s*pot|pre[\s-]?cooked|pre[\s-]?braised|leftover|smoked|sous\s*vide|\d+\s*h(?:ou)?rs?\b)\b/i.test(low)) return msgs;
+  for(const name of ch.required||[]){
+    const minM=minClockMinutesForPantryName(name);
+    if(minM==null||total>=minM) continue;
+    msgs.push(`Timeline: **${name}** usually needs **~${minM}+ min** for a classic braise/roast — this round is **${total} min**. Use grind / paper-thin sear / leftover or deli (named), breakdown + parts, or pressure (if allowed), and say so in steps; or change the cut.`);
+  }
+  return msgs;
+}
+
+/**
  * Rough timeline check: summed step durations vs challenge clock.
  * Catches "20 min braise + rest in 25 min" style fantasy.
  */
@@ -4604,6 +4705,7 @@ function getRecipeTimelineViolations(recipe, ch){
     if(!parallel&&steps.length>=5&&sum<total*0.42&&total>=28) msgs.push(`Timeline: step durations sum to ~${sum} min vs ${total} min — avoid idle padding; assign real minutes to active prep/cook or state honest parallel work so the clock is believable.`);
   }
   msgs.push(...getProseTimelineViolations(low, total));
+  msgs.push(...getProteinMinClockViolations(recipe,ch));
   msgs.push(...getShortClockHardKitchenLoadViolations(recipe,ch));
   msgs.push(...getAppetizerCourseFitViolations(recipe,ch));
   msgs.push(...getAppetizerStarterArchitectureViolations(recipe,ch));
@@ -4930,7 +5032,7 @@ function getRecipeEquipmentCentralityViolations(recipe, ch){
         continue;
       }
       if(!hasTool) continue;
-      if(/torch/i.test(en)) ok=/\b(brul|torch|melt|char\s+with)\b/i.test(blob)||/^PLATE$|^ASSEMBLE$/i.test(String(ph||"").trim());
+      if(/torch/i.test(en)) ok=/\b(brul|torch|torched|torching|blow-?\s*torch|kitchen\s*torch|melt|char\s+with)\b/i.test(blob)||/^PLATE$|^ASSEMBLE$/i.test(String(ph||"").trim());
       else if(/sous\s*vide/i.test(en)) ok=/\b(sous\s*vide|water\s*bath|\d+\s*°?f|\d+\s*°?c)\b/i.test(blob);
       else if(/microwave/i.test(en)) ok=/\b(microwave|nuke)\b/i.test(blob);
       else if(/air\s*fryer/i.test(en)) ok=/\bair\s*fryer\b/i.test(blob);
@@ -5182,7 +5284,7 @@ function getRecipeProcessEquipmentForbiddenViolations(recipe, ch){
       continue;
     }
     if(en==="torch"){
-      if(/\bbr[ûu]l[eé]/i.test(L)&&!/\btorch\b/i.test(L))
+      if(/\bbr[ûu]l[eé]/i.test(L)&&!/\b(torch|torched|torching|blow-?\s*torch|kitchen\s*torch|butane\s*torch|propane\s*torch)\b/i.test(L))
         push("torch",`Process equipment: method implies **torch-style brûlée** but **Torch is forbidden** — use broiler (if oven allowed) or alternate finish.`);
       continue;
     }
@@ -5507,6 +5609,8 @@ ACTIVE RESTRICTIONS (fail closed):
       s+=` — BANNED: wine, beer, spirits in food; cooking wine counts.\n`;
     else if(norm==="No Nuts")
       s+=` — BANNED: tree nuts, peanuts, nut milks, pesto with pine nuts unless exception stated.\n`;
+    else if(norm==="No Sugar")
+      s+=` — BANNED: **granulated sugar** in any common dry form — white, brown, **coconut sugar**, **turbinado**, **demerara**, **caster/superfine**, **powdered / confectioners / icing**. **OK:** honey, maple, caramel, molasses (as syrup), agave, fruit, date paste, chocolate, marshmallow, liquid syrups — not dry crystalline baking sugars. Do not list those granulated products or powdered sugar in ingredients or steps.\n`;
     else if(norm==="No Salt")
       s+=` — BANNED: table salt, kosher salt, finishing salt, seasoned salt, explicit "season with salt" / "salt to taste" in steps. MSG-as-salt is off unless you label an allowed exception (usually avoid).
 - Latent sodium is real: commercial stock, butter, cheese, soy sauce, miso, fish sauce, bacon, ham, brined pickles, many condiments — still allowed if your other rules permit them; name the source honestly. Prefer unsalted butter / low-sodium stock wording when the story allows so strict judges see intent.
@@ -5695,14 +5799,13 @@ const PW_NAME_BLOCKS_DESSERT_SWEET=/\b(chipotle|chipotles|adobo|sriracha|harissa
 
 function dessertIngredientAnchorsCourse(name, restrictions){
   const r=restrictions||[];
-  const noSugar=r.includes("No Sugar");
   const noDairy=r.includes("No Dairy")||r.includes("Vegan");
   const m=getIngredientCompatibilityMeta(name);
   if(m.isFruit) return true;
   if(!noDairy&&m.isDairy) return true;
-  if(!noSugar&&m.isSugarSource) return true;
+  if(m.isSugarSource&&!ingredientConflictsWithRestriction(name,"No Sugar")) return true;
   if(classifyRequiredBucket(name)==="wildcard") return true;
-  if(noSugar) return false;
+  if(ingredientConflictsWithRestriction(name,"No Sugar")) return false;
   const row=pantryCatalog().find(x=>String(x.name||"").toLowerCase()===String(name||"").toLowerCase());
   const cat=String((row&&row.cat)||"").toLowerCase();
   const flavors=(row&&row.flavor)||[];
@@ -5747,21 +5850,54 @@ function pickDessertAnchorFromPool(candidates, restrictions){
   return ok[randomIndex(ok.length)];
 }
 
-/** Vegan baskets: diversify plant proteins — deprioritize tempeh and avoid stacking tofu+tempeh+seitan when legumes/produce exist. */
+/** Session log for mystery spins — used to avoid tofu streaks (two firm+silken SKUs skewed probability). */
+const PW_SPIN_TOFU_KEY="pw_spin_had_tofu";
+function recordMysterySpinTofuPresence(req){
+  const had=(req||[]).some(n=>/\btofu\b/i.test(String(n)));
+  try{
+    let a=JSON.parse(sessionStorage.getItem(PW_SPIN_TOFU_KEY)||"[]");
+    if(!Array.isArray(a)) a=[];
+    a.push(had);
+    while(a.length>12) a.shift();
+    sessionStorage.setItem(PW_SPIN_TOFU_KEY,JSON.stringify(a));
+  }catch(_e){}
+}
+function recentTofuSpinStreak(){
+  try{
+    const a=JSON.parse(sessionStorage.getItem(PW_SPIN_TOFU_KEY)||"[]");
+    if(!Array.isArray(a)||!a.length) return 0;
+    let streak=0;
+    for(let i=a.length-1;i>=0;i--){
+      if(a[i]) streak++; else break;
+    }
+    return streak;
+  }catch(_e){ return 0; }
+}
+
+/** Vegan baskets: diversify plant proteins — deprioritize tempeh and avoid stacking tofu+tempeh+seitan when legumes/produce exist.
+ *  Non-vegan: Firm + Silken tofu are two catalog rows — treat as one probability bucket vs other proteins, and skip tofu after 2 spins in a row that included tofu. */
 function pickPlantProteinForBasketSlot(avail, restrictions, alreadyPicked){
   if(!avail||!avail.length) return null;
   const r=sanitizeRestrictionList(restrictions||[]);
   const vegan=r.some(x=>normalizeRestrictionKey(x)==="Vegan");
-  if(!vegan) return avail[randomIndex(avail.length)];
   let pool=avail.slice();
   const picked=alreadyPicked||[];
   const hasSoy=picked.some(n=>/\b(tofu|tempeh|seitan)\b/i.test(String(n)));
-  if(hasSoy){
+  if(vegan&&hasSoy){
     const noMoreSoy=pool.filter(n=>!/\b(tofu|tempeh|seitan)\b/i.test(String(n)));
     if(noMoreSoy.length) pool=noMoreSoy;
   }
+  const streak=recentTofuSpinStreak();
+  const nonTofu=pool.filter(n=>!/\btofu\b/i.test(String(n)));
+  const tofuOnly=pool.filter(n=>/\btofu\b/i.test(String(n)));
+  if(streak>=2&&nonTofu.length) pool=nonTofu;
+  else if(nonTofu.length&&tofuOnly.length){
+    if(randomUnit()*(nonTofu.length+1)<nonTofu.length)
+      return nonTofu[randomIndex(nonTofu.length)];
+    return tofuOnly[randomIndex(tofuOnly.length)];
+  }
   const nonTempeh=pool.filter(n=>!/\btempeh\b/i.test(String(n)));
-  if(nonTempeh.length&&randomUnit()<0.82) return nonTempeh[randomIndex(nonTempeh.length)];
+  if(vegan&&nonTempeh.length&&randomUnit()<0.82) return nonTempeh[randomIndex(nonTempeh.length)];
   return pool[randomIndex(pool.length)];
 }
 
@@ -6077,6 +6213,7 @@ function runMysteryRandomize(){
     const bar=host.querySelector(".basket-spin-h span:last-child");
     if(bar) bar.textContent=cfg.label+" · locked in";
     state.mysterySpinLocked=true;
+    recordMysterySpinTofuPresence(state.req);
     trackPWEvent("basket_generated", pwParamsBuilder());
     renderBuild();
   }
@@ -6118,6 +6255,7 @@ function doRandomize(){
   state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,pool,state.res,pwChaosOrInsane());
   const t=SPIN_AI_TIMES[randomIndex(SPIN_AI_TIMES.length)];
   state.total=t;state.prep=Math.round(t*0.35);state.cook=Math.round(t*0.65);
+  pruneConflictingReq(d);
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
