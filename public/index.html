@@ -1785,7 +1785,8 @@ async function ai(prompt, tokens=300, opts) {
     pwTrackDailyLimitHit("blocked_precheck");
     throw new Error(PW_DAILY_LIMIT_MESSAGE);
   }
-  const runXhr = (useJsonObject) => new Promise((resolve, reject) => {
+  const runXhr = (useJsonObject, forceServerKeyOnly) => new Promise((resolve, reject) => {
+    const keyToSend=forceServerKeyOnly?"":apiKey;
     const xhr = new XMLHttpRequest();
     const timer = setTimeout(() => { xhr.abort(); reject(new Error("Request timed out (60s)")); }, 60000);
     xhr.open("POST", "/api/openai");
@@ -1799,7 +1800,11 @@ async function ai(prompt, tokens=300, opts) {
           if (errJ.error && errJ.error.message) detail = errJ.error.message;
         } catch (_e) {}
         if (xhr.status === 400 && useJsonObject && !opts.noJsonObjectMode && /response_format|json_object/i.test(detail)) {
-          runXhr(false).then(resolve).catch(reject);
+          runXhr(false, forceServerKeyOnly).then(resolve).catch(reject);
+          return;
+        }
+        if(xhr.status===401&&!forceServerKeyOnly&&_serverOpenaiConfigured&&apiKey){
+          runXhr(useJsonObject,true).then(resolve).catch(reject);
           return;
         }
         reject(new Error("HTTP " + xhr.status + (detail ? ": " + detail : "")));
@@ -1835,9 +1840,9 @@ async function ai(prompt, tokens=300, opts) {
       messages: [{ role: "user", content: prompt }]
     };
     if (useJsonObject && !opts.noJsonObjectMode) payload.response_format = { type: "json_object" };
-    xhr.send(JSON.stringify({ api_key: apiKey, payload }));
+    xhr.send(JSON.stringify({ api_key: keyToSend, payload }));
   });
-  return runXhr(true);
+  return runXhr(true,false);
 }
 
 // ── PANTRY SCREEN ────────────────────────────────────────────────────────────
@@ -3029,9 +3034,12 @@ function courseEnforcementBlock(ch, sig) {
   }
 
   if (id === "appetizer") {
-    let s=`COURSE LOCK — APPETIZER: Starter scale and pacing — not a full entree, not dessert unless label clearly asks.
+    let s=`COURSE LOCK — APPETIZER: **First-course identity** — not a full entree, not dessert unless label clearly asks.
+- Judges must read a **starter**: palate wake-up, modest portion, clear intent — not a **brunch side** or **starch hash** plated like a main without reframing. If the basket pushes hash / sauté / bowl, still **name** first-course logic in title, tagline, or balance.basket (e.g. crisp base, two-bite round, composed small plate, acid-forward open) — not only "mound on a plate" like eggs' sidekick.
+- **BANNED as the whole dish read:** center-plate **hash / home fries / skillet pile** as the only architecture with no starter frame — that scans as **side dish**; pivot to toast cup, crostini, small composed round, or skewer bite if the flavors are similar.
 - Judges must read a coherent starter — not "random fusion tart" where sweet custard, chocolate, and cream dominate without a savory spine.
 - If the basket includes white chocolate, cream, or sugar: balance.flavor must name acid, bitter, umami, pickle/brine, or aggressive char so the plate does not scan as dessert.
+- **Balsamic vinegar (when in basket):** do not **only** cold-drizzle at the pass — **reduce, deglaze, or glaze** so it integrates; a 2-minute puddle on starch reads like raw acid, not a composed sauce.
 - Leafy greens (collards, kale) as a featured ingredient: do not stop at a light wilt — use enough heat, fat, and time (or an honest quick shred + pickle) so texture reads intentional, not tough garnish.
 `;
     const reqEq=(ch.reqEquip||[]).map(x=>String(x).toLowerCase());
@@ -3539,7 +3547,7 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     showRecipeData(data);
   } catch(e) {
     console.error("Recipe generation failed:", e);
-    const err=`<div style="text-align:center;padding:32px 16px;color:#f87171">Failed: ${escapeHtml(e.message)}<br><br><small style="color:#94a3b8">Use <code>npm start</code> or your deployed URL (not file://). HTTP 401 = bad API key.</small><br><br><button type="button" onclick="generateRecipe()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:700">Try Again</button></div>`;
+    const err=`<div style="text-align:center;padding:32px 16px;color:#f87171">Failed: ${escapeHtml(e.message)}<br><br><small style="color:#94a3b8">Use <code>npm start</code> or your deployed URL (not <code>file://</code>). <strong>HTTP 401</strong> = OpenAI rejected the API key (wrong, expired, or revoked). On a hosted site, a key saved in this browser overrides the host key — clear it: <code style="font-size:11px">localStorage.removeItem(&quot;basket_openai_key_v1&quot;)</code> then reload. Transient failures sometimes succeed on Try Again.</small><br><br><button type="button" onclick="generateRecipe()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:700">Try Again</button></div>`;
     const ap=$("recipe-ai-panel");
     const foot=$("recipe-battle-footer");
     if(foot) foot.innerHTML="";
@@ -4537,7 +4545,30 @@ function getProseTimelineViolations(low, total){
     if(scratchPastry.test(L)&&!negPastry.test(L))
       msgs.push(`Timeline: from-scratch laminated/puff pastry or long dough rest/proof is not credible in a ${t} min round — use purchased pastry, phyllo, tortillas, or a fast honest dough; or reflow minutes.`);
   }
+  msgs.push(...getPastryFormatTimeViolations(L,t));
   msgs.push(...getStackedBakeSequenceViolations(L,t));
+  return msgs;
+}
+
+/** Tart / baked pastry formats on short clocks need a purchased shell or a different format — not implied scratch + chill in 30–45 min. */
+function getPastryFormatTimeViolations(low, total){
+  const msgs=[];
+  const t=Math.max(1, total);
+  const L=String(low||"").toLowerCase();
+  const popTart=/\bpop[\s-]?tart\b/i.test(L);
+  const pastryFormat=!popTart&&(
+    /\b(?:mini\s+)?tartlet\b|\bmini\s+tart\b|\bgalette\b|\bquiche\b|\bpie\s+(?:crust|shell)\b|\bpastry\s+(?:shell|case|base)\b|\bshortcrust\b|\bblind\s*bake\b|\bvol[\s-]?au[\s-]?vent\b|\bcrust\s+for\s+(?:a\s+)?tart\b|\b(?:sweet|savory)\s+tart\b|\b(?:a|the)\s+tart\b|\b\w{4,}\s+tart\b/i.test(L)
+  );
+  if(!pastryFormat) return msgs;
+  const storeOk=/\b(store[\s-]?bought|pre[\s-]?made|frozen\s+(?:pastry|puff|pie)|puff\s+from\s+(?:the\s+)?(?:pack|freezer|case)|phyllo\s+from\s+(?:the\s+)?(?:box|freezer)|prepared\s+(?:tart\s+)?shell|pastry\s+from\s+(?:the\s+)?(?:pack|box|freezer)|refrigerated\s+pie\s+dough|dough\s+from\s+(?:the\s+)?(?:pack|tube))\b/i.test(L);
+  if(storeOk) return msgs;
+  if(t<=50){
+    msgs.push(`Timeline & format: **tart / pastry shell / quiche / galette** on a **${t} min** clock must use a **named store-bought or frozen shell** (ingredients + steps) or change format — scratch dough + chill/rest is not credible here.`);
+    return msgs;
+  }
+  const scratchChill=/\bchill\s+(?:the\s+)?(?:dough|pastry|crust)\b|\brest\s+(?:the\s+)?dough\b|\bice\s+water\b[\s\S]{0,80}?\b(dough|crust)\b|\bmake\s+(?:the\s+)?(?:crust|dough|shell)\s+from\b/i.test(L);
+  if(t<=60&&scratchChill&&!storeOk)
+    msgs.push(`Timeline & format: **chill/rest pastry dough** + **tart or shell bake** is still tight in ${t} min — prefer **purchased pastry** named in the list or simplify the structure.`);
   return msgs;
 }
 
@@ -4581,6 +4612,8 @@ function getRecipeTimelineViolations(recipe, ch){
   msgs.push(...getProseTimelineViolations(low, total));
   msgs.push(...getShortClockHardKitchenLoadViolations(recipe,ch));
   msgs.push(...getAppetizerCourseFitViolations(recipe,ch));
+  msgs.push(...getAppetizerStarterArchitectureViolations(recipe,ch));
+  msgs.push(...getBalsamicBasketIntegrationViolations(recipe,ch));
   msgs.push(...getCompetitionSavoryEdgeViolations(recipe,ch));
   msgs.push(...getSavoryChocolateIntegrationViolations(recipe,ch));
   msgs.push(...getMarshmallowSavoryTransformationViolations(recipe,ch));
@@ -4974,6 +5007,35 @@ function getAppetizerCourseFitViolations(recipe, ch){
   return msgs;
 }
 
+/** Appetizer: title/tagline "hash" reads side/brunch — need starter frame in the plan. */
+function getAppetizerStarterArchitectureViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  if(String((ch.ctype&&ch.ctype.id)||"")!=="appetizer") return msgs;
+  const head=(String(recipe.title||"")+" "+String(recipe.tagline||"")).toLowerCase();
+  if(!/\bhash\b/.test(head)) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const starterFrame=/\b(crostini|bruschetta|vol[\s-]?au[\s-]?vent|amuse|two[\s-]?bite|skewer|toast\s+(?:round|cup)|first\s+course|starter\s+(?:bite|round|scale)|composed\s+(?:bite|round)|crisp\s+base|pickup|canap[eé])\b/i.test(low);
+  if(!starterFrame)
+    msgs.push(`Course fit (appetizer): **hash** in the title reads **side dish / brunch** — reframe to a **starter** (crostini, bite, toast cup, composed small plate) or justify first-course intent in balance.basket with acid/portion logic.`);
+  return msgs;
+}
+
+/** Balsamic in basket: presence vs integration — block drizzle-only with no reduction/glaze/deglaze story. */
+function getBalsamicBasketIntegrationViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
+  if(!/\bbalsamic\b/.test(req)) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const hasDepth=/\b(balsamic|caramel)\b[\s\S]{0,220}?\b(reduc|reduction|glaze|simmer|deglaze|cook\s+down|until\s+thick|syrupy|aged)\b|\b(reduc|reduction|glaze|deglaze|simmer)[\s\S]{0,180}?\b(balsamic|caramel)\b|\bbalsamic\s+(?:glaze|reduction)\b|\b(reduced|aged)\s+balsamic\b|\b(vinaigrette|emulsif)[\s\S]{0,120}?\b(balsamic|vinegar)\b/i.test(low);
+  if(hasDepth) return msgs;
+  const lazyDrizzle=/\bdrizzle\b[\s\S]{0,160}?\b(balsamic|vinegar)\b|\b(balsamic|vinegar)[\s\S]{0,120}?\b(drizzle|at\s+the\s+pass|off\s+heat|finish(?:ing)?\s+with)\b|\bfinish\b[\s\S]{0,100}?\b(balsamic|vinegar)\b/i.test(low);
+  if(lazyDrizzle)
+    msgs.push(`Basket (balsamic): **drizzle-only** does not read integrated — **reduce to a glaze**, **deglaze**, or build a **vinaigrette**; name the technique in steps and balance.flavor (presence ≠ proper application).`);
+  return msgs;
+}
+
 /** Seitan/tempeh: avoid soft-on-soft slices as garnish-only. */
 function getPlantProteinTransformationViolations(recipe, ch){
   const msgs=[];
@@ -4993,6 +5055,7 @@ function executionHonestyBlock(ch){
   return `EXECUTION HONESTY (judging table):
 - Must-use equipment: integrate in the main cook story (COOK/SAUCE or the step that matches the tool) — not only for a minor component while the heaviest step uses a different vessel.
 - Timeline: step "dur" values should sum realistically vs ${t} min; long braises must fit; say "parallel" when two things run at once; avoid vague filler steps whose only job is to pad minutes.
+- **Tart / pastry shell / quiche / galette (${t} min):** On tight clocks, name **store-bought or frozen pastry** in ingredients if you use a baked shell — or pick a **no-crust** format. Scratch dough + chill + bake is not credible when minutes are short; the app gate checks this.
 - Format words: if you say tartlet, sandwich, pot pie, taco, calzone — include the real structure (pastry shell, bread, tortilla, etc.) or rename the dish.
 - Kitchen naming: mayonnaise/aioli implies a real emulsion (egg yolk, jarred mayo, etc.) — not cream whisked with lemon unless you rename the sauce.\n`;
 }
