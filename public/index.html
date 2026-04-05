@@ -1286,8 +1286,8 @@ function loadAppConfig() {
   return _configPromise;
 }
 
-/** Default model for JSON recipe / judge calls (Anthropic Messages API). Change if your org uses a different snapshot. */
-const PW_CLAUDE_MODEL = "claude-3-5-sonnet-20241022";
+/** Default model for JSON recipe / judge calls (Anthropic Messages API). See https://docs.anthropic.com/en/docs/about-claude/models */
+const PW_CLAUDE_MODEL = "claude-sonnet-4-6";
 
 function getAnthropicApiKey() {
   const fromConst = (typeof BASKET_API_KEY === "string" && BASKET_API_KEY.trim()) ? BASKET_API_KEY.trim() : "";
@@ -3534,7 +3534,7 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     showRecipeData(data);
   } catch(e) {
     console.error("Recipe generation failed:", e);
-    const err=`<div style="text-align:center;padding:32px 16px;color:#f87171">Failed: ${escapeHtml(e.message)}<br><br><small style="color:#94a3b8">Use <code>npm start</code> or your deployed URL (not <code>file://</code>). <strong>HTTP 401</strong> = Anthropic rejected the API key (wrong, expired, or revoked). On a hosted site, a key saved in this browser overrides the host key — clear it: <code style="font-size:11px">localStorage.removeItem(&quot;basket_anthropic_key_v1&quot;)</code> then reload. Transient failures sometimes succeed on Try Again.</small><br><br><button type="button" onclick="generateRecipe()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:700">Try Again</button></div>`;
+    const err=`<div style="text-align:center;padding:32px 16px;color:#f87171">Failed: ${escapeHtml(e.message)}<br><br><small style="color:#94a3b8">Use <code>npm start</code> or your deployed URL (not <code>file://</code>). <strong>HTTP 401</strong> = bad API key. <strong>HTTP 404</strong> on <code>model:</code> = that model name is not available — deploy the latest app or set <code>CLAUDE_MODEL</code> / <code>PW_CLAUDE_MODEL</code> to a current ID from Anthropic’s docs. On a hosted site, a browser-stored key overrides the server — clear: <code style="font-size:11px">localStorage.removeItem(&quot;basket_anthropic_key_v1&quot;)</code> then reload.</small><br><br><button type="button" onclick="generateRecipe()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:700">Try Again</button></div>`;
     const ap=$("recipe-ai-panel");
     const foot=$("recipe-battle-footer");
     if(foot) foot.innerHTML="";

@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3000;
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 const DEFAULT_CLAUDE_MODEL =
-  process.env.CLAUDE_MODEL || "claude-3-5-sonnet-20241022";
+  process.env.CLAUDE_MODEL || "claude-sonnet-4-6";
 
 app.disable("x-powered-by");
 app.use(express.json({ limit: "2mb" }));

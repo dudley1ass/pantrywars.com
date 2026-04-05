@@ -15,7 +15,7 @@ Open **http://localhost:3000/** (or the port printed in the terminal).
 
 Set **`ANTHROPIC_API_KEY`** in the environment before `npm start` so you are not prompted (e.g. PowerShell: `$env:ANTHROPIC_API_KEY='sk-ant-…'; npm start`). Otherwise the app asks once per browser and stores the key in `localStorage`. See `.env.example` for the variable name (Render injects it server-side).
 
-The default Claude model is **`claude-3-5-sonnet-20241022`** (`PW_CLAUDE_MODEL` in `public/index.html`). Adjust there if you prefer another [Anthropic model ID](https://docs.anthropic.com/en/docs/about-claude/models).
+The default Claude model is **`claude-sonnet-4-6`** (`PW_CLAUDE_MODEL` in `public/index.html`, or override with env **`CLAUDE_MODEL`** on the server). Adjust if you prefer another [Anthropic model ID](https://docs.anthropic.com/en/docs/about-claude/models).
 
 **Deploying an existing site:** replace **`OPENAI_API_KEY`** with **`ANTHROPIC_API_KEY`** in your host’s environment (same value slot on Render — paste a new key from Anthropic, not OpenAI).
 
