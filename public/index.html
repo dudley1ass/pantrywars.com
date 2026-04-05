@@ -105,15 +105,8 @@
   #screen-build .pw-lane-dl dt:first-child{margin-top:0}
   #screen-build .pw-lane-dl dd{margin:2px 0 0;color:#334155;font-weight:600}
   #screen-build .pw-lane-hint{font-size:10px;font-weight:700;color:#7c3aed;margin-top:6px;font-style:italic}
-  #battle-constraints .pw-lane-panel{margin-top:12px;background:#1e293b;border:1px solid #475569;border-radius:10px;padding:12px 14px}
-  #battle-constraints .pw-lane-head{color:#c4b5fd}
-  #battle-constraints .pw-lane-lede{color:#94a3b8}
-  #battle-constraints .pw-lane-ing{border-color:#334155;background:#0f172a}
-  #battle-constraints .pw-lane-sum{color:#e9d5ff}
-  #battle-constraints .pw-lane-sum-sub{color:#a78bfa}
-  #battle-constraints .pw-lane-title{color:#ddd6fe}
-  #battle-constraints .pw-lane-dl dd{color:#e2e8f0}
-  #battle-constraints .pw-lane-hint{color:#c4b5fd}
+  #screen-build .pw-transform-panel summary{list-style:none}
+  #screen-build .pw-transform-panel summary::-webkit-details-marker{display:none}
   #spin-host .pw-lane-panel{margin-top:10px;background:#faf5ff;border:2px solid #e9d5ff;border-radius:10px;padding:12px;text-align:left}
   #spin-host .pw-lane-head{color:#6d28d9}
   #spin-host .pw-lane-lede{color:#6b21a8}
@@ -905,7 +898,7 @@ const PROTEIN_TECHNIQUE_MATRIX={
   "Clams":{sear:"—",sliceThin:"—",grind:"—",quickBraise:"5–7m (steam)",sousVide:"—",slowCook:"❌"},
   "Squid":{sear:"1–2m",sliceThin:"—",grind:"—",quickBraise:"—",sousVide:"—",slowCook:"60m+"},
   "Octopus":{sear:"❌",sliceThin:"—",grind:"—",quickBraise:"30m+",sousVide:"—",slowCook:"1–2h"},
-  "Tofu (Firm)":{sear:"6–10m",sliceThin:"5–8m",grind:"5–8m",quickBraise:"—",sousVide:"—",slowCook:"—"},
+  "Tofu (Firm)":{sear:"6–12m (whole slab / patty)",sliceThin:"5–8m",grind:"—",quickBraise:"—",sousVide:"—",slowCook:"—"},
   "Tempeh":{sear:"6–10m",sliceThin:"5–8m",grind:"5–8m",quickBraise:"10–15m",sousVide:"—",slowCook:"—"},
   "Seitan":{sear:"5–8m",sliceThin:"4–6m",grind:"5–7m",quickBraise:"10–15m",sousVide:"—",slowCook:"—"},
   "Eggs":{sear:"2–5m",sliceThin:"—",grind:"—",quickBraise:"—",sousVide:"10–20m",slowCook:"—"},
@@ -941,6 +934,112 @@ function formatTechniqueMatrixDisplay(tm){
 function compactTechniqueMatrixForAi(tm){
   if(!tm) return "";
   return `sear ${tm.sear} | slice ${tm.sliceThin} | grind ${tm.grind} | quick ${tm.quickBraise} | SV ${tm.sousVide} | slow ${tm.slowCook}`;
+}
+
+/** Form-aware transformation rules (exact SKU × technique). Keys match FULL_PANTRY `name`; extend for more proteins. */
+const PROTEIN_TRANSFORMATION_RULES={
+  "Tofu (Silken)":{
+    allowedSummary:"Blend, purée, fold into sauces or layers, gentle simmer (mapo-style), cold soft bowls, custard/set — soft and fragile.",
+    forbiddenBullets:["Dredge / bread / panko + fry (falls apart)","Deep-fry or crisp-fry a block","Crumble or grind like ground meat"],
+    violations(low, req){
+      const msgs=[];
+      const hasSilken=req.some(n=>/\bsilken\b/i.test(String(n)));
+      if(!hasSilken) return msgs;
+      const hasFirm=req.some(n=>/\btofu\b/i.test(String(n))&&/\bfirm\b/i.test(String(n))&&!/\bsilken\b/i.test(String(n)));
+      if(/\b(silken|soft\s+tofu)\b[\s\S]{0,260}?\b(dredge|dredged|breaded|bread\s+and|panko|batter|cornstarch\s+dredge)\b/i.test(low)||/\b(dredge|dredged|breaded|panko|batter)\b[\s\S]{0,260}?\b(silken|soft\s+tofu)\b/i.test(low))
+        msgs.push(`Transformation (silken tofu): **no dredge/bread/batter** — silken falls apart; use blended, simmered, or cold soft applications.`);
+      if(/\b(silken|soft\s+tofu)\b[\s\S]{0,260}?\b(deep[\s-]*fry|double[\s-]?fry|fry\s+until\s+crisp)\b/i.test(low))
+        msgs.push(`Transformation (silken tofu): **no deep-fry / crisp-fry block** — pivot to **cream / sauce / set**; use **firm tofu** for crunch.`);
+      if(/\b(silken|soft\s+tofu)\b[\s\S]{0,220}?\b(crumble|crumbled|ground)\b/i.test(low)||/\b(crumble|crumbled|ground)\b[\s\S]{0,120}?\b(silken|soft\s+tofu)\b/i.test(low))
+        msgs.push(`Transformation (silken tofu): **no crumble/grind like ground meat** — blend into a cream/cheese layer or set gently.`);
+      if(!hasFirm&&/\btofu\b/i.test(low)&&/\b(dredge|breaded|panko)\b/i.test(low)&&/\b(fry|frying|deep)\b/i.test(low))
+        msgs.push(`Transformation: basket is **silken tofu** — do not write generic **breaded fried tofu**; if you mean crisp fry, put **firm tofu** in the basket, otherwise use silken as **cream/sauce/set**.`);
+      return msgs;
+    }
+  },
+  "Tofu (Firm)":{
+    allowedSummary:"Press/dry, sear whole slab or patty, cubes, hand-crumble for scramble, bake, cornstarch pan-fry — whole-piece or crumble, not meat-grinder mince.",
+    forbiddenBullets:["Meat-grinder / “ground beef” texture story without honest binders"],
+    violations(low, req){
+      const msgs=[];
+      const hasFirm=req.some(n=>/\btofu\b/i.test(String(n))&&/\bfirm\b/i.test(String(n))&&!/\bsilken\b/i.test(String(n)));
+      if(!hasFirm) return msgs;
+      if(/\b(meat\s+grinder|through\s+the\s+grinder)\b/i.test(low)&&/\btofu\b/i.test(low))
+        msgs.push(`Transformation (firm tofu): **not meat-grinder ground beef** — hand-crumble, or press and **sear slab/patty**; matrix “grind” is **—** (not meat mince).`);
+      return msgs;
+    }
+  }
+};
+function transformationRulesForIngredient(name){
+  const raw=String(name||"").trim();
+  if(!raw) return null;
+  if(PROTEIN_TRANSFORMATION_RULES[raw]) return PROTEIN_TRANSFORMATION_RULES[raw];
+  const low=raw.toLowerCase();
+  for(const k of Object.keys(PROTEIN_TRANSFORMATION_RULES)){
+    if(k.toLowerCase()===low) return PROTEIN_TRANSFORMATION_RULES[k];
+  }
+  const meta=pantryMetaByName(raw);
+  if(meta&&meta.name&&PROTEIN_TRANSFORMATION_RULES[meta.name]) return PROTEIN_TRANSFORMATION_RULES[meta.name];
+  return null;
+}
+function basketTransformationPreflightBlock(ch){
+  const req=(ch&&ch.required)||[];
+  if(!req.length) return "";
+  const lines=[];
+  for(const name of req){
+    const r=transformationRulesForIngredient(name);
+    if(!r) continue;
+    lines.push(`• ${name}: ALLOWED — ${r.allowedSummary}`);
+    if(Array.isArray(r.forbiddenBullets)&&r.forbiddenBullets.length)
+      lines.push(`  DO NOT — ${r.forbiddenBullets.join("; ")}`);
+  }
+  if(!lines.length) return "";
+  const t=Math.max(1, Number((ch&&ch.totalTime)||30));
+  return `PROTEIN FORM & TRANSFORMATION (mandatory — app gate checks technique vs this exact SKU; ~${t} min):
+${lines.join("\n")}
+Rule: **Identify form (e.g. silken vs firm tofu) before picking techniques.** Protein form dictates technique — not the dish idea. Forbidden pairs fail generation.
+
+`;
+}
+function transformationValidatorPanelHtml(reqArr, totalMinutes){
+  const req=reqArr||[];
+  if(!req.length) return "";
+  const parts=[];
+  const tmLabel=Number.isFinite(Number(totalMinutes))&&Number(totalMinutes)>0?`${totalMinutes} min`:"";
+  for(const name of req){
+    const r=transformationRulesForIngredient(name);
+    if(!r) continue;
+    const tm=techniqueMatrixForName(name);
+    const matrixBlock=tm?`<div style="font-size:10px;color:#475569;font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;margin-top:6px;line-height:1.4">${escapeHtml(formatTechniqueMatrixDisplay(tm))}</div>`:"";
+    const forbid=r.forbiddenBullets&&r.forbiddenBullets.length?`<ul style="margin:6px 0 0 16px;padding:0;font-size:11px;color:#9a3412;line-height:1.4">${r.forbiddenBullets.map(b=>`<li>${escapeHtml(b)}</li>`).join("")}</ul>`:"";
+    parts.push(`<div style="border:1px solid #ddd6fe;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#faf5ff">
+      <div style="font-size:11px;font-weight:800;color:#5b21b6">${escapeHtml(name)}${tmLabel?` <span style="font-weight:600;color:#9333ea">· ${escapeHtml(tmLabel)}</span>`:""}</div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#15803d;margin-top:8px">Allowed</div>
+      <div style="font-size:11px;color:#334155;line-height:1.45">${escapeHtml(r.allowedSummary)}</div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#c2410c;margin-top:8px">Do not</div>
+      ${forbid||'<div style="font-size:11px;color:#64748b">—</div>'}
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-top:8px">Technique matrix</div>
+      ${matrixBlock||'<div style="font-size:11px;color:#94a3b8">No matrix row for this item.</div>'}
+    </div>`);
+  }
+  if(!parts.length) return "";
+  return `<details class="pw-transform-panel" style="margin-top:12px;background:#f5f3ff;border:2px solid #c4b5fd;border-radius:12px;padding:12px 14px">
+    <summary style="cursor:pointer;font-size:12px;font-weight:800;color:#5b21b6;list-style:none">Transformation checker — protein form vs technique</summary>
+    <p style="font-size:11px;color:#64748b;margin:8px 0 10px;line-height:1.45">Use techniques that match the <strong>exact</strong> must-use SKU. Rival/coach JSON is checked against these rules.</p>
+    ${parts.join("")}
+  </details>`;
+}
+function getProteinFormTransformationViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const req=ch.required||[];
+  for(const name of req){
+    const rules=transformationRulesForIngredient(name);
+    if(!rules||typeof rules.violations!=="function") continue;
+    msgs.push(...rules.violations(low, req));
+  }
+  return [...new Set(msgs)];
 }
 
 /** One-sentence identity for hover tooltips (what the thing is, not how to cook it). Overrides optional for obscure items. */
@@ -1226,11 +1325,6 @@ function ingredientLanesSectionHtml(names, totalMinutes){
     ${parts.join("")}
   </div>`;
 }
-function ingredientLanesBattleSectionHtml(ch){
-  if(!ch) return "";
-  return ingredientLanesSectionHtml(ch.required||[], ch.totalTime);
-}
-
 function truncateStr(s,max){
   const t=String(s||"").trim();
   if(!t) return "";
@@ -2131,6 +2225,12 @@ function renderBuild() {
     laneWrap.innerHTML=laneHtml;
     rCard.appendChild(laneWrap);
   }
+  const transHtml=transformationValidatorPanelHtml(state.req, state.total);
+  if(transHtml){
+    const tw=div({style:{marginTop:"10px"}});
+    tw.innerHTML=transHtml;
+    rCard.appendChild(tw);
+  }
   const pantryScroll=div({style:{maxHeight:"90px",overflowY:"auto",display:"flex",flexWrap:"wrap",gap:"3px"}});
   (window.USER_PANTRY||PANTRY).filter(p=>!state.req.includes(p)).forEach(p=>{
     const b=el("button",{style:{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:"6px",padding:"2px 6px",fontSize:"10px",cursor:"pointer",color:"#475569"}});
@@ -2384,7 +2484,6 @@ function battleConstraintsHtml(ch){
         <div style="font-size:11px;font-weight:800;color:#a5b4fc;margin-bottom:6px">Must use</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px">${req||"<span style=\"color:#64748b;font-size:12px\">—</span>"}</div>
       </div>
-      ${ingredientLanesBattleSectionHtml(ch)}
       ${blocks.join("")}
     </div>
   </div>`;
@@ -3316,7 +3415,7 @@ JSON SYNTAX (must be machine-parseable): Do not put unescaped " inside any strin
 CHALLENGE: ${ch.ctype.label} | DIFFICULTY: ${ch.diff} | TIME: ${ch.totalTime}min (Prep ${ch.prepTime}, Cook ${ch.cookTime})
 ${hardDiffBar}REQUIRED BASKET (each must CARRY the dish, not garnish-only): ${ch.required.join(", ")}
 PANTRY you may use (only these + basics like salt/oil/water): ${pantryLines}
-${basketCookFundamentalsBlock(ch)}${basketClockPlaybookBlock(ch)}${basketTechniqueMatrixBlock(ch)}${basketIngredientToolkitBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${res}
+${basketCookFundamentalsBlock(ch)}${basketClockPlaybookBlock(ch)}${basketTechniqueMatrixBlock(ch)}${basketIngredientToolkitBlock(ch)}${basketTransformationPreflightBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${res}
 ${fe} ${re} ${bl}
 
 ${restrictionHardPriorityBlock(ch)}
@@ -3430,9 +3529,10 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
       const kitchenViol=getKitchenScienceHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
       const plantViol=getPlantProteinTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, fruitDriftViol, formatViol, kitchenViol, classicViol, plantViol);
+      const formViol=getProteinFormTransformationViolations(data,ch);
+      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, fruitDriftViol, formatViol, kitchenViol, classicViol, plantViol, formViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy with real acid, brisket/collagen realism, must-use equipment centrality especially Wok vs oven story, blender on filling when assigned, timeline, basket coverage for every REQUIRED name, named fruit sauces only for fruits in REQUIRED or PANTRY (no strawberry reduction if only plum is in the haul), seitan/tempeh transformation not garnish-only, appetizer vs dessert read, competition edge on appetizer/entree — acid/heat/char named in balance.flavor, savory dark chocolate integrated (not dessert drizzle on meat), marshmallow on savory = heat transformation not cold dairy fold, dessert awkward basket (snap peas need technique, tofu/quinoa/caramel need transformation — not parfait drizzle), format honesty, kitchen science, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy with real acid, brisket/collagen realism, must-use equipment centrality especially Wok vs oven story, blender on filling when assigned, timeline, basket coverage for every REQUIRED name, named fruit sauces only for fruits in REQUIRED or PANTRY (no strawberry reduction if only plum is in the haul), seitan/tempeh transformation not garnish-only, **protein form vs technique** (e.g. silken tofu = no dredge-fry crumble — see PROTEIN FORM & TRANSFORMATION block), appetizer vs dessert read, competition edge on appetizer/entree — acid/heat/char named in balance.flavor, savory dark chocolate integrated (not dessert drizzle on meat), marshmallow on savory = heat transformation not cold dairy fold, dessert awkward basket (snap peas need technique, tofu/quinoa/caramel need transformation — not parfait drizzle), format honesty, kitchen science, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
       if(attempt===maxAttempts-1) state.recipeRestrictionWarnings=viol;
     }
     state.recipe=data;
@@ -3543,7 +3643,7 @@ EQUIPMENT: must ${(ch.reqEquip||[]).join(", ")||"—"} · forbidden ${(ch.forbEq
 COURSE: ${courseLabel} | ${totT} min (prep ${prepT}, cook ${cookT})
 PANTRY ADD-ONS: ${pantryLines}
 
-${basketCookFundamentalsBlock(ch)}${basketClockPlaybookBlock(ch)}${basketTechniqueMatrixBlock(ch)}${basketIngredientToolkitBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${restrictionHardPriorityBlock(ch)}
+${basketCookFundamentalsBlock(ch)}${basketClockPlaybookBlock(ch)}${basketTechniqueMatrixBlock(ch)}${basketIngredientToolkitBlock(ch)}${basketTransformationPreflightBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${restrictionHardPriorityBlock(ch)}
 ${equipmentHardPriorityBlock(ch)}
 ${whiteChocolateHonestyBlock(ch.required)}
 ${elevateCheapContestCoachBlock(ch)}
@@ -3584,9 +3684,10 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
       const kitchenViol=getKitchenScienceHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
       const plantViol=getPlantProteinTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, fruitDriftViol, formatViol, kitchenViol, classicViol, plantViol);
+      const formViol=getProteinFormTransformationViolations(data,ch);
+      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, fruitDriftViol, formatViol, kitchenViol, classicViol, plantViol, formViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (must-use equipment centrality, blender on filling when assigned, timeline, basket coverage for every MUST USE name, named fruit sauces only for fruits in REQUIRED or PANTRY, seitan/tempeh transformation not garnish-only, appetizer course fit, competition edge on appetizer/entree — acid/heat/char in flavorBalance, savory dark chocolate integrated when in basket (not dessert sauce on savory base), marshmallow on savory = heat move not cold ricotta fold, dessert snap/snow peas need blanch/sauté/char not raw garnish, format honesty, kitchen science — real emulsion names, bread not flour slices). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (must-use equipment centrality, blender on filling when assigned, timeline, basket coverage for every MUST USE name, named fruit sauces only for fruits in REQUIRED or PANTRY, seitan/tempeh transformation not garnish-only, **protein form vs technique** (silken vs firm tofu — see PROTEIN FORM & TRANSFORMATION), appetizer course fit, competition edge on appetizer/entree — acid/heat/char in flavorBalance, savory dark chocolate integrated when in basket (not dessert sauce on savory base), marshmallow on savory = heat move not cold ricotta fold, dessert snap/snow peas need blanch/sauté/char not raw garnish, format honesty, kitchen science — real emulsion names, bread not flour slices). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
       if(att===maxAttempts-1) state.contestRecipeRestrictionWarnings=viol;
     }
     state.contestRecipe=data;
@@ -4301,6 +4402,38 @@ function getBrisketPhysicsViolations(recipe, ch){
       pushCollagenFantasy("Chuck", low.match(chuckRx));
   }
 
+  msgs.push(...getChickenWingPhysicsViolations(recipe, ch));
+  return msgs;
+}
+
+/** Wings: short wet braise vs crisp/fry promises; chocolate-in-wing-braise handled in getSavoryChocolateIntegrationViolations. */
+function getChickenWingPhysicsViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
+  if(!/\b(?:chicken\s+)?wings?\b/.test(low)&&!/\b(?:chicken\s+)?wings?\b/.test(req)) return msgs;
+
+  const pressureOk=/\b(pressure\s*cooker|instant\s*pot|high\s+pressure)\b/i.test(low);
+  const braiseWing=/\b(?:chicken\s+)?wings?\b[\s\S]{0,450}?\b(?:braise|braised|braising)\b|\b(?:braise|braised|braising)\b[\s\S]{0,450}?\b(?:chicken\s+)?wings?\b/i.test(low);
+  const crispPromise=/\b(crisp|crispy|crackl|shatter|deep[\s-]*fry|fry\s+until\s+crisp|fry\s+for\s+crisp|air\s*fry|toasted\s+skin)\b/i.test(low);
+  const fryPath=/\b(?:deep[\s-]*fry|fry\s+(?:the\s+)?(?:chicken\s+)?wings|wings?\s+[^\n]{0,100}(?:deep[\s-]*fry|fry|frying)|double[\s-]?fry)\b/i.test(low);
+
+  if(braiseWing&&crispPromise)
+    msgs.push(`Physics: chicken wings — **crisp skin and a wet braise on the same wing** contradict each other — pick **one lane**: hard sear + sticky glaze / air-fry or high-heat roast / **honest long braise** (tender, not crackling) — not "braise then crisp" on the same surface.`);
+
+  if(braiseWing&&fryPath)
+    msgs.push(`Technique: **braise wings** + **deep-fry/fry** in the same plan fights the dish — wet cooking softens skin; frying targets crackle. Pick one coherent path (e.g. sear + reduce glaze; roast/air-fry; or confit with an explicit story).`);
+
+  if(braiseWing&&!pressureOk){
+    const shortWingBraise=/\b(?:chicken\s+)?wings?\b[\s\S]{0,380}?\b(?:braise|braised|braising)\b[\s\S]{0,380}?\b([1-9]|1[0-9]|2[0-5])\s*(?:min|minutes)/i.exec(low);
+    if(shortWingBraise){
+      const n=+shortWingBraise[1];
+      if(n>=5&&n<=25)
+        msgs.push(`Physics: **short braise (~${n} min) on wings** rarely gives tenderness or crackle — skin can stay rubbery, fat under-rendered. Use **sear + glaze**, **high-heat roast/air-fry**, **pressure** (if allowed), or a **long braise** with an honest texture story — not a weak middle path.`);
+    }
+  }
+
   return msgs;
 }
 
@@ -4574,6 +4707,9 @@ function getSavoryChocolateIntegrationViolations(recipe, ch){
     /\b(red\s+wine|sherry|balsamic|espresso)\b[\s\S]{0,130}?\b(chocolate|cocoa)\b/i.test(low)||
     /\b(chocolate|cocoa)\b[\s\S]{0,130}?\b(red\s+wine|sherry|balsamic|espresso)\b/i.test(low);
   if(fusion) return msgs;
+  const wingChocBraise=/\b(?:chicken\s+)?wings?\b/.test(low)&&/\b(braise|braised)\b/.test(low)&&/\b(chocolate|cocoa|dark\s+chocolate)\b/.test(low);
+  if(wingChocBraise)
+    msgs.push(`Savory + dark chocolate + wings: **do not bury chocolate in the wing braise** — judges read muddy bitter-sweet. Build a **controlled glaze or reduction** (chile, coffee, vinegar, salt/fat balance named in balance.flavor) or mole-style depth **reduced beside** the wings, then toss or brush — not chocolate simmered in the same wing liquid without a clear system.`);
   const dessertCollision=
     (/\bchocolate\s+sauce\b/.test(low)&&!/\bsavory\s+chocolate\s+sauce\b/.test(low))||
     /\bchocolate\s+ganache\b/.test(low)||
@@ -4875,6 +5011,7 @@ function physicsRealismBlock(ch){
   • **Sear + concentrated liquid** — Build flavor with reduced stock, char, fond, tomato paste — without pretending 3 hours of collagen extraction happened.
   • **Pantry depth** — Quality beef stock / demi concentrate (named honestly) for body when the clock cannot build stock from scratch.
   • **Fast techniques on a different cut** — Thin-slice across the grain after pressure pre-cook; crispy shredded bits from pressure-then-broil; not "fork-tender osso buco" from a flash simmer.
+- **Chicken wings — pick a texture lane:** crackle (sear + glaze, air-fry, high-heat roast) **or** long wet braise / pressure for fall-off — not a **short braise** that promises both tenderness and crackle; dark chocolate fits a **controlled reduction or glaze** (acid/salt/fat), not an uncontrolled simmer on the wing.
 - Do not claim 2–3 hour outcomes (deep collagen breakdown, from-scratch demi in minutes, textbook osso buco / bourguignon braise) inside this clock unless the method honestly matches — pressure, quality stock concentrate from pantry with clear label, or an honest "inspired by" dish name.
 - Reductions and stocks: respect evaporation; no "instant demi" or full stock body without a credible source or time budget in the steps.
 - Grill / live fire: harder to hold low steady braise temps than an oven; do not assume oven-like stability — simplify or say how you manage heat.
