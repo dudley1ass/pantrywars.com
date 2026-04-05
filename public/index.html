@@ -278,6 +278,11 @@ const CTYPES = [
   {id:"snack",label:"Snack",emoji:"🥨"},
   {id:"elevate",label:"Elevate a Cheap Meal",emoji:"⬆️"},
   {id:"recreate",label:"Recreate a Classic",emoji:"🔄"},
+  {id:"diner_classic",label:"Diner Classic",emoji:"🍔"},
+  {id:"street_food",label:"Street Food",emoji:"🌮"},
+  {id:"fine_dining",label:"Fine Dining",emoji:"✨"},
+  {id:"comfort_reinvented",label:"Comfort Food Reinvented",emoji:"🥧"},
+  {id:"global_cuisine",label:"Global Cuisine",emoji:"🌍"},
 ];
 const EQUIP=["Oven","Stovetop","Air Fryer","Grill","Microwave","Instant Pot","Blender","Food Processor","Cast Iron","Wok","Sous Vide","Torch","Sheet Pan"];
 
@@ -1236,7 +1241,7 @@ function truncateStr(s,max){
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let state = {
   pantryItems: [],   // ids of items in user's pantry
-  customPantryItems: [], // {id,name,cat,flavor,texture,richness,acidity,intensity,notes,custom}
+  customPantryItems: [], // same core fields as FULL_PANTRY; optional cookSheet, clockPlaybookAi, clockPlaybook, ingredientToolkit*, techniqueMatrix
   pantrySearch: "",
   pantryCategory: "All",
   diff:"medium", ctype:CTYPES[1], customTypes:[],
@@ -2454,6 +2459,46 @@ function challengeTypeIsSnack(ctype){
   if(/\bsnack\b/.test(label)) return true;
   return false;
 }
+function challengeTypeIsDinerClassic(ctype){
+  const id=String((ctype&&ctype.id)||"");
+  const label=String((ctype&&ctype.label)||"").toLowerCase();
+  if(id==="diner_classic") return true;
+  if(/\bdiner\s+classic\b/.test(label)) return true;
+  if(/\bdiner\b/.test(label)&&/\b(burger|melt|fries|milkshake|blue[\s-]?plate|counter)\b/.test(label)) return true;
+  return false;
+}
+function challengeTypeIsStreetFood(ctype){
+  const id=String((ctype&&ctype.id)||"");
+  const label=String((ctype&&ctype.label)||"").toLowerCase();
+  if(id==="street_food") return true;
+  if(/\bstreet\s+food\b/.test(label)) return true;
+  if(/\b(taco|skewer|handheld|cart|stall)\b/.test(label)&&/\bfood\b/.test(label)) return true;
+  return false;
+}
+function challengeTypeIsFineDining(ctype){
+  const id=String((ctype&&ctype.id)||"");
+  const label=String((ctype&&ctype.label)||"").toLowerCase();
+  if(id==="fine_dining") return true;
+  if(/\bfine\s+dining\b/.test(label)) return true;
+  if(/\b(tasting|small\s+plates|precision\s+plating)\b/.test(label)) return true;
+  return false;
+}
+function challengeTypeIsComfortReinvented(ctype){
+  const id=String((ctype&&ctype.id)||"");
+  const label=String((ctype&&ctype.label)||"").toLowerCase();
+  if(id==="comfort_reinvented") return true;
+  if(/\bcomfort\s+food\s+reinvented\b/.test(label)) return true;
+  if(/\b(nostalgia|reinvent|twist)\b/.test(label)&&/\bcomfort\b/.test(label)) return true;
+  return false;
+}
+function challengeTypeIsGlobalCuisine(ctype){
+  const id=String((ctype&&ctype.id)||"");
+  const label=String((ctype&&ctype.label)||"").toLowerCase();
+  if(id==="global_cuisine") return true;
+  if(/\bglobal\s+cuisine\b/.test(label)) return true;
+  if(/\b(italian|thai|mexican|japanese|korean|indian|vietnamese|french|regional)\b/.test(label)&&/\bauthentic|flavor|tradition|cuisine\b/.test(label)) return true;
+  return false;
+}
 
 /** Canonical dish pools for prompts — names users instantly recognize (not exhaustive). */
 const PW_RECOGNIZABLE_CLASSIC_EXAMPLES = `CANONICAL CLASSICS (this specificity — or another dish judges know equally well):
@@ -2464,6 +2509,19 @@ const PW_RECOGNIZABLE_CLASSIC_EXAMPLES = `CANONICAL CLASSICS (this specificity �
 • Global / street: classic street taco, Pad Thai, Fried Rice, Ramen (humble bowl), Pho, Shawarma, Falafel, Gyro
 • Breakfast: Eggs Benedict, French Toast, Pancakes, Omelette, Huevos Rancheros
 • Dessert (when course is dessert): Crème Brûlée, Chocolate Mousse, Cheesecake, Tiramisu, Apple Pie, Lemon Tart, Bread Pudding`;
+
+/** Named sweet/tart fruits — if a recipe names one in a sauce/reduction, it must be in REQUIRED or allowed PANTRY (stops plum → strawberry drift). */
+const PW_NAMED_FRUIT_FOR_SAUCE_CHECK = ["plum","strawberry","cherry","raspberry","blueberry","blackberry","apricot","peach","mango","fig","date","cranberry","apple","pear","grape","watermelon","pineapple"];
+
+/** Injected after CHALLENGE INTENT — compact DNA so models don’t collapse “classic” into vague vibes. */
+const PW_CHALLENGE_SOUL_APPENDIX = `CHALLENGE SOUL — DNA CHEAT SHEET (honor when the named classic / course matches; do not contradict):
+• MILANESE COTOLETTA / BREADED CUTLET (veal/chicken/pork Milanese, Wiener schnitzel): crisp crumb (breadcrumbs/panko) = nutty crunch; cook in butter and/or oil; salt-forward; LEMON is essential (wedge/juice/zest) — cuts fat; optional bitter green (arugula/parsley). Parmesan can add umami. Identity is NOT saucy, not spicy-dominant, not dessert-sweet — precision and balance, thin cutlets, golden crust.
+• RISOTTO MILANESE (if that is the named classic, NOT the cutlet): saffron + gradual absorption + stock + finish — do not confuse with breaded Milanese cutlet.
+• DINER / BLUE-PLATE: one honest protein + gravy or brown-sauce lane + veg + starch (mash, fries, toast); counter-serve energy — not tasting-menu layers unless the challenge demands refinement.
+• DINER CLASSIC / STREET FOOD / FINE DINING / COMFORT REINVENTED / GLOBAL: when the builder selects those challenge types, follow the CHALLENGE INTENT + ROLE HIERARCHY blocks — they override generic "entree" defaults.
+• DESSERT COURSE: sweet structure leads (cake, custard, tart shell, mousse, fruit compote, chocolate) — odd savory basket items stay accent or micro, not the flavor headline.
+• ELEVATE A CHEAP MEAL: already locked — the humble dish stays visible; see CHALLENGE INTENT.
+`;
 
 const PW_CHEAP_EVERYDAY_MEAL_EXAMPLES = `CANONICAL CHEAP / EVERYDAY BASELINES (instantly recognizable — or a peer-level humble meal):
 • Instant / packaged: instant ramen, cup noodles, boxed mac and cheese, instant mashed potatoes, canned soup, frozen pizza, frozen TV-style dinners
@@ -2530,6 +2588,72 @@ REQUIRED IN OUTPUT:
 FAIL THE BRIEF IF:
 - The plan centers a full fillet/steak/breast portion, wide sauce pools, and multiple upscale components like a main course — that fails snack regardless of basket use.\n`;
   }
+  if(challengeTypeIsDinerClassic(ctype)){
+    return `CHALLENGE INTENT (mandatory): DINER CLASSIC — counter culture comfort, not tasting-menu architecture.
+
+WHAT COUNTS:
+- Burgers, patty melts, griddled sandwiches, crisp fries / hash / diner potatoes, milkshakes or malt-adjacent drinks (if rules allow), blue-plate specials — execution and craveability beat clever fusion.
+- Skill = comfort food execution: sear/juice on patties, real melt on cheese, crisp-edged bread, fries that read intentional (double-fry, soak, starch — as clock allows).
+
+REQUIRED IN OUTPUT:
+- title OR tagline must name the diner format (burger, melt, patty melt, fries + …, shake, etc.) — not a vague "composed plate."
+- balance.basket: one sentence on how this still reads as diner energy (pickup, griddle, counter plate) vs fine-dining.
+
+FAIL THE BRIEF IF:
+- The plan reads as tweezer plating or six-component tasting while claiming diner — missed brief.\n`;
+  }
+  if(challengeTypeIsStreetFood(ctype)){
+    return `CHALLENGE INTENT (mandatory): STREET FOOD — bold flavor + portability.
+
+WHAT COUNTS:
+- Tacos, skewers, handheld wraps, bao, arepas, stall-style bowls eaten standing — food that travels; loud seasoning (acid, chile, char, smoke) as appropriate.
+
+REQUIRED IN OUTPUT:
+- title OR tagline must signal handheld / cart / skewer / taco-scale format.
+- balance.basket: name portability (wrapped, skewered, cupped) and the bold flavor hook.
+
+FAIL THE BRIEF IF:
+- Full seated entree with knife-and-fork ceremony and sauce moats — that reads restaurant, not street.\n`;
+  }
+  if(challengeTypeIsFineDining(ctype)){
+    return `CHALLENGE INTENT (mandatory): FINE DINING — small plates, precision, refinement + presentation.
+
+WHAT COUNTS:
+- Fewer elements, more intent; clean lines; controlled sauces; garnish with purpose; one focal — not maximalist pile-on.
+
+REQUIRED IN OUTPUT:
+- balance.basket must state component budget (e.g. 3 elements) and the focal technique.
+- balance.flavor: name refinement move (emulsion, consommé clarity, torch finish, micro herb with purpose).
+
+FAIL THE BRIEF IF:
+- Sloppy diner mess or sloppy joe energy — missed brief.\n`;
+  }
+  if(challengeTypeIsComfortReinvented(ctype)){
+    return `CHALLENGE INTENT (mandatory): COMFORT FOOD REINVENTED — nostalgia + clear twist.
+
+WHAT COUNTS:
+- Mac & cheese, pot pie, shepherd's pie, casserole, baked pasta — dishes that trigger "home," then you justify a smart twist (technique, ingredient, texture) without erasing the dish.
+
+REQUIRED IN OUTPUT:
+- title OR tagline must name the comfort baseline (e.g. "pot pie," "mac and cheese") and the twist in plain words.
+- balance.basket sentence 1: "Comfort baseline: [dish] — twist: …" and one line on why it still feels like that comfort food.
+
+FAIL THE BRIEF IF:
+- Baseline disappears into a random fine-dining plate with no recognizable comfort anchor — that is replacement, not reinvention.\n`;
+  }
+  if(challengeTypeIsGlobalCuisine(ctype)){
+    return `CHALLENGE INTENT (mandatory): GLOBAL CUISINE — flavor authenticity + honest technique markers.
+
+WHAT COUNTS:
+- Pick ONE lane (Italian, Thai, Mexican, Japanese, Korean, Vietnamese, regional Indian, etc.) and honor its flavor grammar (soffrito, curry paste, chiles, tare, miso, herbs, spice order).
+
+REQUIRED IN OUTPUT:
+- balance.basket must name the cuisine lane + one concrete technique or flavor backbone you are following (not "Asian-inspired" alone).
+- title OR tagline should signal that lane clearly.
+
+FAIL THE BRIEF IF:
+- Vague "fusion" with no named tradition, or random mix without mapping basket to that cuisine's roles.\n`;
+  }
   return "";
 }
 
@@ -2577,6 +2701,36 @@ CHALLENGE TYPE — ELEVATE A CHEAP MEAL:
 CHALLENGE TYPE — SNACK:
 - Penalize either side if the dish reads as a composed entrée, tasting-menu plate, or full protein portion (whole fillet, steak service, breast centerpiece) instead of handheld or ~1–3 bites.
 - Reward bite-scale execution and casual pickup; flavor logic alone does not excuse main-course format. Factor snack fit into creativity/challenge execution and presentation.`;
+  }
+  if(challengeTypeIsDinerClassic(ctype)){
+    return `
+CHALLENGE TYPE — DINER CLASSIC:
+- Penalize tweezer or tasting-menu architecture when the brief asks for diner; reward griddle energy, melt, crisp fries, honest shake/story when allowed.
+- Factor execution credibility (sear, crust, cheese pull) into challenge execution.`;
+  }
+  if(challengeTypeIsStreetFood(ctype)){
+    return `
+CHALLENGE TYPE — STREET FOOD:
+- Penalize seated entree ceremony and timid seasoning; reward portability, bold flavor, and stall-appropriate format.
+- Factor whether a judge would eat this standing or from a paper tray — presentation should match.`;
+  }
+  if(challengeTypeIsFineDining(ctype)){
+    return `
+CHALLENGE TYPE — FINE DINING:
+- Penalize sloppy plating and excess components; reward precision, restraint, and clear focal technique.
+- Weight refinement and presentation heavily in challenge execution and presentation scores.`;
+  }
+  if(challengeTypeIsComfortReinvented(ctype)){
+    return `
+CHALLENGE TYPE — COMFORT FOOD REINVENTED:
+- Penalize if no named comfort baseline (mac, pot pie, etc.) or if the twist erases recognition.
+- Reward nostalgia + twist that still reads as "that dish, evolved."`;
+  }
+  if(challengeTypeIsGlobalCuisine(ctype)){
+    return `
+CHALLENGE TYPE — GLOBAL CUISINE:
+- Penalize vague fusion with no named cuisine lane or technique markers.
+- Reward flavor authenticity and honest use of tradition-appropriate steps (even if adapted to the clock).`;
   }
   return "";
 }
@@ -2650,7 +2804,8 @@ PHYSICS & CLOCK REALISM (apply to BOTH competitors' plans):
 /** Competition TV beat: contrast, transformation depth, not default restaurant trio. Appetizer + entree only. */
 function competitionEdgePromptBlock(ch, _sig){
   const id=String((ch&&ch.ctype&&ch.ctype.id)||"");
-  if(id!=="appetizer"&&id!=="entree") return "";
+  const edgeIds=new Set(["appetizer","entree","diner_classic","street_food","fine_dining","comfort_reinvented","global_cuisine"]);
+  if(!edgeIds.has(id)) return "";
   return `COMPETITION EDGE (judges punish "polite restaurant" — you need tension):
 - A default **protein + one smooth purée + toasted seeds/nuts on top** reads competent and **loses** on creativity unless you add a clear **palate hook**: name in **balance.flavor** (rival JSON) or **flavorBalance** (contest plan JSON) how you deliver **acid** (citrus, vinegar, pickle brine, fermented tang), **heat/spice**, and/or **bitter/char** — not only soft + sweet + butterfat.
 - **Multi-form veg/legumes:** If you purée a required veg or pea, also use a **second form** (blistered, charred, whole, smashed) OR justify one form with an unusually bold technique — not "pea purée only" as the only pea story.
@@ -2827,6 +2982,31 @@ function courseEnforcementBlock(ch, sig) {
 - SANDWICH BREAD: List real bread (slice, roll, bun) — never loose AP flour as "slices."
 - TIMELINE: Step minutes must reflect real active work or stated parallel tasks — not filler rests to pad the clock.\n`;
   }
+  if(challengeTypeIsDinerClassic(ch.ctype)){
+    return `COURSE LOCK — DINER CLASSIC:
+- Griddle / counter / blue-plate energy — burgers, melts, fries, shakes (when rules allow). Craveable sear, real melt, intentional crisp — not tweezers or tasting-menu scaffolding.
+- balance.complete: one phrase naming diner execution (griddle crust, cheese pull, fry crisp).\n`;
+  }
+  if(challengeTypeIsStreetFood(ch.ctype)){
+    return `COURSE LOCK — STREET FOOD:
+- Portable format (wrap, skewer, taco-scale, cup) + bold seasoning. Judges should imagine eating from a stall or standing — not a white-tablecloth pass.
+- Avoid entree ceremony: wide moats, multiple quenelles, or full fillet centerpiece — shrink to street scale unless the basket is clearly a big-format share.\n`;
+  }
+  if(challengeTypeIsFineDining(ch.ctype)){
+    return `COURSE LOCK — FINE DINING:
+- Restraint: fewer components, more precision; one focal; sauces placed with intent — not maximalist piles.
+- balance.texture + balance.visual must justify each element (no orphan dots).\n`;
+  }
+  if(challengeTypeIsComfortReinvented(ch.ctype)){
+    return `COURSE LOCK — COMFORT FOOD REINVENTED:
+- NAMED comfort baseline first (mac & cheese, pot pie, baked pasta, casserole) — then one clear twist. Still recognizable comfort; not a new genre.
+- balance.basket must lead with "Comfort baseline: … — twist: …"\n`;
+  }
+  if(challengeTypeIsGlobalCuisine(ch.ctype)){
+    return `COURSE LOCK — GLOBAL CUISINE:
+- ONE cuisine lane (e.g. Italian, Thai, Mexican) + honest flavor grammar (aromatics, spice order, technique markers). No "fusion" without naming the tradition you are cooking from.
+- balance.basket sentence 1 must name the lane + one backbone technique or flavor system.\n`;
+  }
   return "";
 }
 
@@ -2838,6 +3018,11 @@ function basketFlavorLeadershipBlock(ch){
   const isDessert=id==="dessert"||/\bdessert\b/.test(labelLow);
   const isElevate=challengeTypeIsElevateCheap(ch.ctype);
   const isRecreate=challengeTypeIsRecreateClassic(ch.ctype);
+  const isDiner=challengeTypeIsDinerClassic(ch.ctype);
+  const isStreet=challengeTypeIsStreetFood(ch.ctype);
+  const isFine=challengeTypeIsFineDining(ch.ctype);
+  const isComfortRev=challengeTypeIsComfortReinvented(ch.ctype);
+  const isGlobal=challengeTypeIsGlobalCuisine(ch.ctype);
   let out=`CHEF PROCESS — FLAVOR & HIERARCHY FIRST (do this mentally before JSON):
 - Banned mindset: "How do I give every ingredient equal prominence?" Better: "What is the most believable flavor direction for this entire basket under ${lab}? What should lead; what should support; what is accent-only?"
 - Order: (1) Scan ALL required items together — what naturally pairs or clusters? (2) Name one clearest dish identity / flavor lane (what you'd pitch in one breath). (3) Pick ONE primary foundation. (4) Assign each REQUIRED to: PRIMARY FOUNDATION, SUPPORTING, ACCENT/GARNISH, or MINIMAL-USE — the last is for honest trace/chip/pinch when an item fights the lane, not co-equal billing.
@@ -2871,6 +3056,31 @@ function basketFlavorLeadershipBlock(ch){
   }
   if(challengeTypeIsSnack(ch.ctype)){
     out+=`SNACK — FLAVOR SERVES FORMAT: Valid basket pairings must be EXECUTED at bite scale. Same ingredients can win if shrunk to one pickup (toast square, mini tart, skewer): fish as flake not fillet, caramel as smear not pool, cream as micro not quenelle. Do not let good flavor logic excuse entree-weight or entree plating.
+
+`;
+  }
+  if(isDiner){
+    out+=`DINER CLASSIC — FLAVOR NORTH STAR: Craveable griddle + crisp + melt. Lead with burger/melt/fries/shake logic — acid from pickle/onion/mustard, not random gastrique unless basket forces it.
+
+`;
+  }
+  if(isStreet){
+    out+=`STREET FOOD — FLAVOR NORTH STAR: Loud, portable, honest char/chile/acid. One handheld story — not a composed entree with fork-and-knife energy.
+
+`;
+  }
+  if(isFine){
+    out+=`FINE DINING — FLAVOR NORTH STAR: Restraint + clarity. One focal flavor, precise sauce, intentional garnish — fewer ideas, better execution.
+
+`;
+  }
+  if(isComfortRev){
+    out+=`COMFORT REINVENTED — FLAVOR NORTH STAR: Name the home dish first (mac, pot pie, etc.), then the twist. Judges must still taste "that" dish — not a new restaurant genre.
+
+`;
+  }
+  if(isGlobal){
+    out+=`GLOBAL CUISINE — FLAVOR NORTH STAR: Pick ONE tradition and honor its grammar (aromatics, heat, acid, herbs). Basket maps into that lane — not vague "international flavors."
 
 `;
   }
@@ -2924,6 +3134,36 @@ function courseRoleHierarchyBlock(ch){
 - Sweet elements (chocolate, fruit, caramel) = pin-dot, smear, or thread — not dessert service beside a fish main.
 - SECONDARY layers: at most one sauce/accent visible on the bite; avoid tasting-menu moats + quenelles + shards scattered like a main.
 - balance.basket: name the pickup format first; then tag each REQUIRED as it fits the BITE (base / flake / smear / trace) — explicit that no full protein portion is the center.\n`;
+  }
+  if(challengeTypeIsDinerClassic(ctype)){
+    return `ROLE HIERARCHY — DINER CLASSIC:
+- PRIMARY = griddled sandwich / burger / melt OR crisp fries + anchor protein — diner legibility beats chef abstraction.
+- SUPPORT = cheese melt, pickle, onion, sauce that reads counter-service — not three unrelated sauces.
+- balance.basket: name griddle story + crisp story (fries or hash) in one breath.\n`;
+  }
+  if(challengeTypeIsStreetFood(ctype)){
+    return `ROLE HIERARCHY — STREET FOOD:
+- PRIMARY = handheld vehicle (tortilla, bao, skewer line, paper cup bowl) + bold flavor spine.
+- Protein = chopped / sliced for bite or skewer — not a standalone steak service.
+- balance.basket: portability first; then tag each REQUIRED to filling / salsa / pickle / crunch.\n`;
+  }
+  if(challengeTypeIsFineDining(ctype)){
+    return `ROLE HIERARCHY — FINE DINING:
+- PRIMARY = one focal (protein OR veg OR sauce architecture) — others SUPPORT with discipline.
+- ACCENT = micro garnish, dots, oils — not competing entrées on one plate.
+- balance.basket: state focal + supporting in one sentence; cap visible elements.\n`;
+  }
+  if(challengeTypeIsComfortReinvented(ctype)){
+    return `ROLE HIERARCHY — COMFORT REINVENTED:
+- PRIMARY = the comfort dish identity (mac, pot pie shell + filling, baked pasta) — twist is technique or one basket swap, not a new dish name.
+- SUPPORT = pantry that reinforces creaminess, crust, or nostalgia — not unrelated starch bands.
+- balance.basket: "Comfort baseline: … — twist: …" then roles per REQUIRED.\n`;
+  }
+  if(challengeTypeIsGlobalCuisine(ctype)){
+    return `ROLE HIERARCHY — GLOBAL CUISINE:
+- PRIMARY = one tradition-appropriate anchor (noodle, curry, taco, braise, wok toss) matching the named lane.
+- Basket items map to roles THAT cuisine expects (acid, heat, herb, coconut, etc.) — state the mapping plainly.
+- balance.basket: cuisine lane + backbone technique first; then each REQUIRED tagged to classic roles in that cuisine.\n`;
   }
   return `ROLE HIERARCHY — ENTRÉE / SAVORY MAIN (& most non-dessert challenges):
 - PRIMARY is often protein when the basket supports it — but starch-forward (risotto, pasta, pie) or veg-forward mains are valid; do not force protein to headline if the haul points elsewhere.
@@ -3008,6 +3248,22 @@ ${classicArchetypeHardBlock()}`
 - title OR tagline MUST read as snack scale (crostini, bite, skewer, tartlet, handheld, 1–2 bites) — not "seared sea bass plate" or other entrée-headline energy.
 - balance.complete MUST echo snack format in one short phrase (pickup / bite count / no knife-and-fork main).\n`
       :"";
+    let extendedChallengeJsonRule="";
+    if(challengeTypeIsDinerClassic(ch.ctype)) extendedChallengeJsonRule+=`DINER CLASSIC — JSON / BRIEF LOCK:
+- title OR tagline MUST name the diner format (burger, patty melt, fries + …, milkshake if allowed).
+- balance.basket clause 1: griddle/counter story + one execution highlight (sear, melt, crisp).\n`;
+    if(challengeTypeIsStreetFood(ch.ctype)) extendedChallengeJsonRule+=`STREET FOOD — JSON / BRIEF LOCK:
+- balance.basket MUST state portable format (taco, skewer, wrap, cup) in the first two sentences.
+- title OR tagline MUST signal bold flavor + handheld / stall energy — not seated entree plating.\n`;
+    if(challengeTypeIsFineDining(ch.ctype)) extendedChallengeJsonRule+=`FINE DINING — JSON / BRIEF LOCK:
+- balance.basket MUST name the focal element + max visible components (${Math.min(maxComponents,4)} or fewer on plate).
+- balance.complete MUST name one refinement move (sauce precision, emulsion, torch, quenelle-style placement — honest to the clock).\n`;
+    if(challengeTypeIsComfortReinvented(ch.ctype)) extendedChallengeJsonRule+=`COMFORT REINVENTED — JSON / BRIEF LOCK:
+- balance.basket MUST begin: "Comfort baseline: [specific dish — mac & cheese, pot pie, etc.] — twist: …"
+- title OR tagline MUST include both comfort anchor and twist in plain words.\n`;
+    if(challengeTypeIsGlobalCuisine(ch.ctype)) extendedChallengeJsonRule+=`GLOBAL CUISINE — JSON / BRIEF LOCK:
+- balance.basket sentence 1 MUST name the cuisine lane (Italian, Thai, Mexican, Japanese, etc.) + one backbone technique or flavor system (sofrito, curry paste, miso tare, corn tortilla service, etc.).
+- title OR tagline MUST echo that lane — not vague "international" only.\n`;
     const m=ch.totalTime;
     const techniquePolicy=m<=30
       ?`TECHNIQUE vs TIME (${m} min, tight): Nothing is "banned." Finicky work (foam/aeration, spherification, fluid gels, LN2, long-setting gels) may ONLY appear if your step times prove each stage fits inside Prep+Cook with a realistic buffer. If the math is doubtful, use a simpler method (crema, reduction, melted cheese, pan sauce, vinaigrette).`
@@ -3034,6 +3290,7 @@ ${savoryChocolateBlock}
 ${shelfSweetSavoryBlock}
 ${dessertAwkwardBlock}
 ${challengeIntentCoachBlock(ch.ctype)||""}
+${PW_CHALLENGE_SOUL_APPENDIX}
 ${flavorLeadershipBlock}
 ${roleHierarchyBlock}
 ${executionMode}
@@ -3067,6 +3324,7 @@ ${challengeTypeIsRecreateClassic(ch.ctype)?`- BRIEF LOCK (Recreate a Classic): T
 
 BASKET COVERAGE GATE (machine check — omission fails):
 - Every REQUIRED name must appear as plain text in ingredients[] (item/prep) and/or in steps what/how (title/tagline only if it clearly names the same SKU). Paraphrase only when unmistakable (e.g. "fire-roasted jarred peppers" for Roasted Red Peppers).
+- **No fruit laundering:** do not name a **different** fruit in a sauce/reduction/compote than the basket (e.g. REQUIRED Plum ⇒ forbid "strawberry reduction" unless Strawberry is also in REQUIRED or PANTRY). Use neutral "fruit reduction" or the actual basket fruit.
 - **Chocolate / spices / herbs in the basket:** if the list includes **Dark Chocolate**, **White Chocolate**, **cocoa**, **bay**, **whole spices**, they are not optional garnish — list them in **ingredients** and show one step (melt, shave, infuse, bloom) or the check fails.
 
 BASKET IDENTITY (no "laundering" ugly or processed items):
@@ -3098,10 +3356,10 @@ BALANCE (honest):
 - Let basket supply flavor/texture; no extra components just to sound cheffy.
 - Completeness from basket+allowed pantry — never "rescue protein."
 
-${recreateJsonRule}${elevateJsonRule}${snackJsonRule}
+${recreateJsonRule}${elevateJsonRule}${snackJsonRule}${extendedChallengeJsonRule}
 JSON keys (fill all):
 {"title":"","tagline":"","serves":"2","balance":{"flavor":"","basket":"","texture":"","richness":"","visual":"","complete":""},"ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"time":"0:00","dur":"","phase":"PREP","what":"","how":""}],"plating":"","tip":""}
-balance.basket: If RECREATE A CLASSIC rules apply, sentence 1 must name the classic. If ELEVATE A CHEAP MEAL rules apply, sentence 1 MUST be "Cheap baseline: … — …" and you MUST include how the plate still reads as that baseline (see elevate brief lock — "Still reads as: …"). If SNACK rules apply, include early the bite/handheld format and confirm protein is not a full portion. Otherwise sentence 1 = chosen flavor direction / dish lane (the “best dish” you committed to). Then — stars vs hides; for EACH required item tag PRIMARY FOUNDATION / SUPPORTING / ACCENT / MINIMAL-USE (or PRIMARY/ACCENT/SUPPORT per ROLE HIERARCHY), consistent with CHEF PROCESS above. If something is store-bought or messy, say you're using THAT item, not a posh substitute.
+balance.basket: If RECREATE A CLASSIC rules apply, sentence 1 must name the classic. If ELEVATE A CHEAP MEAL rules apply, sentence 1 MUST be "Cheap baseline: … — …" and you MUST include how the plate still reads as that baseline (see elevate brief lock — "Still reads as: …"). If SNACK rules apply, include early the bite/handheld format and confirm protein is not a full portion. If COMFORT REINVENTED rules apply, sentence 1 MUST be "Comfort baseline: … — twist: …". If GLOBAL CUISINE rules apply, sentence 1 MUST name the cuisine lane + backbone technique. If DINER CLASSIC / STREET FOOD / FINE DINING rules apply, follow the JSON / BRIEF LOCK blocks above. Otherwise sentence 1 = chosen flavor direction / dish lane (the “best dish” you committed to). Then — stars vs hides; for EACH required item tag PRIMARY FOUNDATION / SUPPORTING / ACCENT / MINIMAL-USE (or PRIMARY/ACCENT/SUPPORT per ROLE HIERARCHY), consistent with CHEF PROCESS above. If something is store-bought or messy, say you're using THAT item, not a posh substitute.
 ${challengeTypeIsRecreateClassic(ch.ctype)?"For RECREATE A CLASSIC, append 2-4 concise function-mapping clauses in balance.basket using this pattern: [classic component] -> [required function] -> [basket ingredient strategy] -> [why it still reads classic]. Avoid generic 'swap X for Y' phrasing.":""}
 balance.flavor: name sweet drivers (fruit, beer malt, honey, etc.) and confirm you did not stack them blindly — one clear sweet spine max unless you explain the counterweight.
 balance.complete: single starch/body choice (or explain minor vs major); component count vs ${maxComponents}; timing honesty for ${ch.totalTime} min; optional "purer plate" omission; flag dual-base or gumminess risks if you bent the rule.${challengeTypeIsElevateCheap(ch.ctype)?" For ELEVATE: add one short phrase on transformation (how the judge still sees the cheap baseline — not a new dish).":""}
@@ -3116,6 +3374,7 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     if((ch.required||[]).length) maxAttempts=Math.max(maxAttempts,3);
     if((ch.reqEquip||[]).length) maxAttempts=Math.max(maxAttempts,4);
     if(challengeTypeIsElevateCheap(ch.ctype)&&rSan.some(x=>normalizeRestrictionKey(x)==="No Gluten")) maxAttempts=Math.max(maxAttempts,5);
+    if(challengeTypeIsFineDining(ch.ctype)||challengeTypeIsGlobalCuisine(ch.ctype)) maxAttempts=Math.max(maxAttempts,3);
     let data=null;
     let regenNote="";
     state.recipeRestrictionWarnings=null;
@@ -3128,13 +3387,14 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
       const equipmentViol=getRecipeEquipmentViolations(data,ch);
       const timelineViol=getRecipeTimelineViolations(data,ch);
       const basketViol=getRequiredBasketCoverageViolations(data,ch);
+      const fruitDriftViol=getBasketFruitSauceDriftViolations(data,ch);
       const formatViol=getRecipeFormatHonestyViolations(data);
       const kitchenViol=getKitchenScienceHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
       const plantViol=getPlantProteinTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, formatViol, kitchenViol, classicViol, plantViol);
+      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, fruitDriftViol, formatViol, kitchenViol, classicViol, plantViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy with real acid, brisket/collagen realism, must-use equipment centrality especially Wok vs oven story, blender on filling when assigned, timeline, basket coverage for every REQUIRED name, seitan/tempeh transformation not garnish-only, appetizer vs dessert read, competition edge on appetizer/entree — acid/heat/char named in balance.flavor, savory dark chocolate integrated (not dessert drizzle on meat), marshmallow on savory = heat transformation not cold dairy fold, dessert awkward basket (snap peas need technique, tofu/quinoa/caramel need transformation — not parfait drizzle), format honesty, kitchen science, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy with real acid, brisket/collagen realism, must-use equipment centrality especially Wok vs oven story, blender on filling when assigned, timeline, basket coverage for every REQUIRED name, named fruit sauces only for fruits in REQUIRED or PANTRY (no strawberry reduction if only plum is in the haul), seitan/tempeh transformation not garnish-only, appetizer vs dessert read, competition edge on appetizer/entree — acid/heat/char named in balance.flavor, savory dark chocolate integrated (not dessert drizzle on meat), marshmallow on savory = heat transformation not cold dairy fold, dessert awkward basket (snap peas need technique, tofu/quinoa/caramel need transformation — not parfait drizzle), format honesty, kitchen science, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
       if(attempt===maxAttempts-1) state.recipeRestrictionWarnings=viol;
     }
     state.recipe=data;
@@ -3255,6 +3515,7 @@ ${savoryDarkChocolateBasketPromptBlock(ch)}
 ${shelfSweetWildcardSavoryPromptBlock(ch)}
 ${dessertAwkwardBasketPromptBlock(ch)}
 ${challengeIntentCoachBlock(ch.ctype)||""}
+${PW_CHALLENGE_SOUL_APPENDIX}
 ${basketFlavorLeadershipBlock(ch)}
 ${courseRoleHierarchyBlock(ch)}
 ${executionHonestyBlock(ch)}
@@ -3280,13 +3541,14 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
       const equipmentViol=getRecipeEquipmentViolations(data,ch);
       const timelineViol=getRecipeTimelineViolations(data,ch);
       const basketViol=getRequiredBasketCoverageViolations(data,ch);
+      const fruitDriftViol=getBasketFruitSauceDriftViolations(data,ch);
       const formatViol=getRecipeFormatHonestyViolations(data);
       const kitchenViol=getKitchenScienceHonestyViolations(data);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
       const plantViol=getPlantProteinTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, formatViol, kitchenViol, classicViol, plantViol);
+      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, fruitDriftViol, formatViol, kitchenViol, classicViol, plantViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (must-use equipment centrality, blender on filling when assigned, timeline, basket coverage for every MUST USE name, seitan/tempeh transformation not garnish-only, appetizer course fit, competition edge on appetizer/entree — acid/heat/char in flavorBalance, savory dark chocolate integrated when in basket (not dessert sauce on savory base), marshmallow on savory = heat move not cold ricotta fold, dessert snap/snow peas need blanch/sauté/char not raw garnish, format honesty, kitchen science — real emulsion names, bread not flour slices). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (must-use equipment centrality, blender on filling when assigned, timeline, basket coverage for every MUST USE name, named fruit sauces only for fruits in REQUIRED or PANTRY, seitan/tempeh transformation not garnish-only, appetizer course fit, competition edge on appetizer/entree — acid/heat/char in flavorBalance, savory dark chocolate integrated when in basket (not dessert sauce on savory base), marshmallow on savory = heat move not cold ricotta fold, dessert snap/snow peas need blanch/sauté/char not raw garnish, format honesty, kitchen science — real emulsion names, bread not flour slices). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
       if(att===maxAttempts-1) state.contestRecipeRestrictionWarnings=viol;
     }
     state.contestRecipe=data;
@@ -3569,11 +3831,22 @@ const MODAL_PROMPTS={
 "name": STANDARD ENGLISH pantry label (US grocery / competition basket), Title Case — e.g. Chicken, Chicken Breast, Boneless Skinless Chicken Breast. NEVER translate (no Poulet, Suprema de Pollo, etc.) unless the user's text was in that language. Match specificity: vague input → simple name (chicken → Chicken); specific cut → that cut in English.
 "notes": 1-2 sentence competition tip.
 "tags": array of flavor tags (salty, umami, etc.).`,
-  pantry_item:i=>`Culinary expert. User is stocking their home pantry for "${i}". Return ONLY compact JSON — no markdown, no extra text.
+  pantry_item:i=>`Culinary expert. User is stocking their home pantry for "${i}". Return ONLY compact JSON — no markdown, no extra text. Match the richness of built-in pantry data (same fields the app uses for prompts).
+
 "name": STANDARD ENGLISH pantry label (US grocery), Title Case — same rules as competition baskets.
-"category": ONE short shelf label, Title Case — choose the best fit from typical store sections (e.g. Proteins, Vegetables, Dairy, Canned & Jarred, Baking & Bases, Snacks, Spices & Herbs) or use "${CUSTOM_PANTRY_CAT}" if unsure.
+"category": ONE short shelf label, Title Case — best fit (e.g. Proteins, Vegetables, Dairy & Cheese, Canned & Jarred, Baking & Bases, Grains & Legumes, Oils & Vinegars, Spices & Herbs, Nuts & Seeds, Sweet Items) or "${CUSTOM_PANTRY_CAT}" if unsure.
+"flavor": array from: sweet, salty, sour, bitter, umami, savory, gamey, rich, briny, smoky, mild (1-4). You may also include "tags" with the same values if easier — app merges flavor from either.
+"texture": array from: crunchy, soft, creamy, juicy, firm, tender, flaky, silky, loose, chewy, snappy, dense, crispy, meaty, leafy, stringy (0-6 relevant ones).
+"richness": one of lean, medium, rich.
+"acidity": one of none, mild, high.
+"intensity": one of mild, medium, strong.
 "notes": 1-2 sentence competition tip for cooking with it.
-"tags": array of flavor tags from: sweet, salty, sour, bitter, umami, savory, gamey, rich, briny, smoky, mild (use 1-4 that fit).`,
+"cookSheet": one paragraph — typical prep/cook times, techniques, and comp-realistic notes (like catalog entries).
+"clockPlaybookAi": 2-4 sentences — honest competition-clock paths (fast vs slow methods; what fails on a short round; protein safety if relevant).
+"clockPlaybook": optional short multi-line block (emoji headers OK) — method grid vs clock if helpful; omit if redundant.
+"ingredientToolkitAi": one dense line — transform→result→use summary for AI prompts (starts with "Toolkit (${i}): ..." style OK).
+"ingredientToolkit": optional longer block — multi-line transform → result → use bullets like other pantry toolkits.
+"techniqueMatrix": ONLY if this is a protein/meat/fish/shellfish/tofu-style main — object with string values (typical minute ranges or "—"/"❌"): sear, sliceThin, grind, quickBraise, sousVide, slowCook. Omit for spices, dry goods, produce-only, etc.`,
   restriction:i=>`Culinary expert. "${i}" as a cooking restriction. Return ONLY JSON no markdown: {"label":"short name","description":"what it eliminates","tags":["affected"]}`,
   equipment: i=>`Culinary expert. "${i}" as kitchen equipment. Return ONLY JSON no markdown: {"label":"equipment name","description":"how it affects cooking","tags":["techniques"]}`,
 };
@@ -3603,6 +3876,57 @@ function openModal(type){
 
 function closeModal(){$("modal-overlay").classList.add("hidden");}
 
+/** Normalize AI JSON for custom pantry rows so they carry the same optional fields as FULL_PANTRY (cookSheet, clock playbooks, toolkits, technique matrix). */
+function normalizeCustomPantryFromAi(data){
+  const src=data&&typeof data==="object"?data:{};
+  const flavorSet=new Set(["sweet","salty","sour","bitter","umami","savory","gamey","rich","briny","smoky","mild"]);
+  const textureSet=new Set(["crunchy","soft","creamy","juicy","firm","tender","flaky","silky","loose","chewy","snappy","dense","crispy","meaty","leafy","stringy"]);
+  const richnessOk=new Set(["lean","medium","rich"]);
+  const acidityOk=new Set(["none","mild","high"]);
+  const intensityOk=new Set(["mild","medium","strong"]);
+  const tmKeys=["sear","sliceThin","grind","quickBraise","sousVide","slowCook"];
+  const flavorSrc=Array.isArray(src.flavor)?src.flavor:(Array.isArray(src.tags)?src.tags:[]);
+  const flavor=flavorSrc.map(x=>String(x).toLowerCase()).filter(x=>flavorSet.has(x));
+  const flavor2=flavor.length?flavor.slice(0,4):["mild"];
+  const texture=(Array.isArray(src.texture)?src.texture:[]).map(x=>String(x).toLowerCase()).filter(x=>textureSet.has(x)).slice(0,6);
+  let richness=String(src.richness||"lean").toLowerCase();
+  if(!richnessOk.has(richness)) richness="lean";
+  let acidity=String(src.acidity||"none").toLowerCase();
+  if(!acidityOk.has(acidity)) acidity="none";
+  let intensity=String(src.intensity||"mild").toLowerCase();
+  if(!intensityOk.has(intensity)) intensity="mild";
+  const cat=String(src.category||CUSTOM_PANTRY_CAT).trim()||CUSTOM_PANTRY_CAT;
+  const notesRaw=String(src.notes||"Added to your pantry.").trim();
+  const notes=notesRaw.length>500?notesRaw.slice(0,500):notesRaw;
+  const trimCap=(s,max)=>{const t=String(s||"").trim();return t.length>max?t.slice(0,max):t;};
+  const cookSheet=trimCap(src.cookSheet,800);
+  const clockPlaybookAi=trimCap(src.clockPlaybookAi,650);
+  const clockPlaybook=trimCap(src.clockPlaybook,1200);
+  const ingredientToolkitAi=trimCap(src.ingredientToolkitAi,450);
+  const ingredientToolkit=trimCap(src.ingredientToolkit,2000);
+  let techniqueMatrix=null;
+  if(src.techniqueMatrix&&typeof src.techniqueMatrix==="object"){
+    const o={};
+    let any=false;
+    for(const k of tmKeys){
+      const v=src.techniqueMatrix[k];
+      if(v!=null&&String(v).trim()){ any=true; o[k]=String(v).trim().slice(0,48); }
+    }
+    if(any){
+      techniqueMatrix={};
+      for(const k of tmKeys) techniqueMatrix[k]=o[k]!=null?o[k]:"—";
+    }
+  }
+  const row={cat,flavor:flavor2,texture,richness,acidity,intensity,notes,custom:true};
+  if(cookSheet) row.cookSheet=cookSheet;
+  if(clockPlaybookAi) row.clockPlaybookAi=clockPlaybookAi;
+  if(clockPlaybook) row.clockPlaybook=clockPlaybook;
+  if(ingredientToolkitAi) row.ingredientToolkitAi=ingredientToolkitAi;
+  if(ingredientToolkit) row.ingredientToolkit=ingredientToolkit;
+  if(techniqueMatrix) row.techniqueMatrix=techniqueMatrix;
+  return row;
+}
+
 async function doModalLookup(){
   const inp=$("modal-input");
   const val=inp?.value?.trim();
@@ -3612,16 +3936,31 @@ async function doModalLookup(){
   mb.innerHTML=`<div style="text-align:center;padding:14px 0;color:#6366f1;font-size:13px;font-weight:700">Looking up ${val}...<br><button onclick="document.getElementById('modal-body').innerHTML=''" style="background:#f1f5f9;border:2px solid #e2e8f0;border-radius:6px;padding:5px 12px;margin-top:8px;cursor:pointer;font-size:11px">Cancel</button></div>`;
   lb.disabled=true;lb.style.background="#94a3b8";
   try{
-    const data=await ai(MODAL_PROMPTS[state.modalType](val));
+    const modalTok=state.modalType==="pantry_item"?900:300;
+    const data=await ai(MODAL_PROMPTS[state.modalType](val),modalTok);
     lb.disabled=false;lb.style.background="#6366f1";
     window.__basketPendingModal = data;
     const name=data.label||data.name||val;
     const desc=data.description||data.notes||"";
-    const tags=(data.tags||[]).map(t=>`<span style="background:#eff6ff;border:1px solid #93c5fd;border-radius:5px;padding:2px 7px;font-size:11px;font-weight:700;color:#1d4ed8;margin:2px">${escapeHtml(t)}</span>`).join("");
+    const tagList=(state.modalType==="pantry_item"&&Array.isArray(data.flavor)&&data.flavor.length)?data.flavor:(data.tags||[]);
+    const tags=tagList.map(t=>`<span style="background:#eff6ff;border:1px solid #93c5fd;border-radius:5px;padding:2px 7px;font-size:11px;font-weight:700;color:#1d4ed8;margin:2px">${escapeHtml(t)}</span>`).join("");
+    let pantryExtra="";
+    if(state.modalType==="pantry_item"){
+      const bits=[];
+      const rai=[data.richness,data.acidity,data.intensity].filter(Boolean).map(String);
+      if(rai.length) bits.push(`<div style="font-size:11px;color:#64748b">${escapeHtml(rai.join(" · "))}</div>`);
+      if(Array.isArray(data.texture)&&data.texture.length) bits.push(`<div style="font-size:11px;color:#64748b">Texture: ${data.texture.slice(0,6).map(x=>escapeHtml(String(x))).join(", ")}</div>`);
+      const cs=String(data.cookSheet||"").trim();
+      if(cs) bits.push(`<div style="font-size:11px;color:#475569;line-height:1.45;margin-top:4px"><span style="font-weight:700;color:#334155">Cook sheet</span> — ${escapeHtml(cs.length>240?cs.slice(0,240)+"…":cs)}</div>`);
+      const clk=String(data.clockPlaybookAi||"").trim();
+      if(clk) bits.push(`<div style="font-size:11px;color:#475569;line-height:1.45;margin-top:4px"><span style="font-weight:700;color:#334155">Clock</span> — ${escapeHtml(clk.length>200?clk.slice(0,200)+"…":clk)}</div>`);
+      pantryExtra=bits.length?`<div style="margin-bottom:10px">${bits.join("")}</div>`:"";
+    }
     mb.innerHTML=`<div style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:10px;padding:12px">
       <div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:3px">${data.emoji||""} ${escapeHtml(String(name))}</div>
       ${desc?`<div style="font-size:12px;color:#475569;margin-bottom:8px;line-height:1.5">${escapeHtml(desc)}</div>`:""}
       ${tags?`<div style="margin-bottom:10px">${tags}</div>`:""}
+      ${pantryExtra}
       <button type="button" onclick="doModalAddFromPending()" style="width:100%;padding:9px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer">Add</button>
     </div>`;
   } catch(e){
@@ -3644,15 +3983,11 @@ function doModalAdd(data){
     if(!n){closeModal();refreshAfterModalAdd();return;}
     const low=n.toLowerCase();
     if(pantryCatalog().some(x=>x.name.toLowerCase()===low)){alert("That ingredient is already in the list (built-in or yours).");closeModal();refreshAfterModalAdd();return;}
-    const allowed=new Set(["sweet","salty","sour","bitter","umami","savory","gamey","rich","briny","smoky","mild"]);
-    const flavor=(data.tags||[]).map(x=>String(x).toLowerCase()).filter(x=>allowed.has(x));
-    const flavor2=flavor.length?flavor.slice(0,4):["mild"];
-    const cat=(data.category||CUSTOM_PANTRY_CAT).trim()||CUSTOM_PANTRY_CAT;
     const id="pc_"+Date.now();
-    state.customPantryItems.push({
-      id,name:n,cat,flavor:flavor2,texture:[],richness:"lean",acidity:"none",intensity:"mild",
-      notes:(data.notes||"Added to your pantry.").slice(0,500),custom:true
-    });
+    const base=normalizeCustomPantryFromAi(data);
+    base.id=id;
+    base.name=n;
+    state.customPantryItems.push(base);
     if(!state.pantryItems.includes(id))state.pantryItems.push(id);
   }
   else if(t==="restriction"){
@@ -4235,6 +4570,23 @@ function getRequiredBasketCoverageViolations(recipe, ch){
   return msgs;
 }
 
+/** Reject named fruit sauces/reductions for fruits not in REQUIRED or PANTRY (e.g. "strawberry reduction" when only Plum is in the haul). */
+function getBasketFruitSauceDriftViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const req=(ch.required||[]).map(s=>String(s).trim().toLowerCase()).filter(Boolean);
+  const pan=(ch.pantry||[]).map(s=>String(s).trim().toLowerCase()).filter(Boolean);
+  const allowed=new Set([...req,...pan]);
+  const blob=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  for(const fruit of PW_NAMED_FRUIT_FOR_SAUCE_CHECK){
+    if(allowed.has(fruit)) continue;
+    const re=new RegExp(`\\b${fruit}\\s+(reduction|gastrique|sauce|compote|coulis|glaze|purée|puree|jam|syrup)\\b`,"i");
+    if(re.test(blob))
+      msgs.push(`Basket fruit drift: "${fruit}" is named as a sauce/reduction/compote flavor but is not in REQUIRED or PANTRY — use a required fruit (or neutral "fruit reduction") instead; do not substitute strawberry for plum etc.`);
+  }
+  return msgs;
+}
+
 /**
  * Dish words that imply a physical format — require matching structure in method text.
  */
@@ -4573,6 +4925,23 @@ const PW_CLASSIC_ARCHETYPES=[
         msg:"Pad Thai needs sour/salty/sweet balance in the noodle story — not a single-track sweet sauce unless you explicitly map classic pad Thai functions."
       }
     ]
+  },
+  {
+    id:"milanese_cutlet",
+    label:"Milanese / schnitzel cutlet",
+    match:/\b((?:chicken|veal|pork)\s+milanese|cotoletta(?:\s+alla\s+milanese)?|wiener\s+schnitzel)\b/i,
+    checks:[
+      {
+        when:function(claim,low){
+          if(!/\b((?:chicken|veal|pork)\s+milanese|cotoletta(?:\s+alla\s+milanese)?|wiener\s+schnitzel)\b/i.test(claim)) return false;
+          const hasCrumb=/\b(breadcrumb|panko|bread\s*crumb|breaded|dredge|flour\s*[-–]\s*egg|schnitzel\s+crumb|crisp\s+crust)\b/i.test(low);
+          const hasLemon=/\b(lemon\s+wedge|lemon\s+zest|lemon\s+juice|squeeze\s+(of\s+)?lemon|lemon\s+finish)\b/i.test(low);
+          const fatOk=/\b(butter|brown\s+butter|clarified|shallow\s+fry|pan\s+fry|oil\s+fry|fry\s+until\s+golden)\b/i.test(low);
+          return !hasCrumb || !hasLemon || !fatOk;
+        },
+        msg:"Cotoletta/Milanese cutlet: needs crisp crumb (breadcrumbs/panko), honest shallow fry/butter, and lemon lift — not a saucy dessert-fruit reduction as the lead story."
+      }
+    ]
   }
 ];
 
@@ -4596,7 +4965,9 @@ function classicArchetypeHardBlock(){
 - Piccata: lemon/citrus-forward thin sharp sauce + briny caper lane (or stated substitutes for BOTH acid lift and briny snap). Do not make a sweet fruit gastrique the lead sauce profile.
 - Carbonara: pecorino/egg/pasta-water lineage — not cream unless explicitly a labeled non-classic riff.
 - Fish and chips: battered fried fish + fried chips/fries — both belong to the dish.
-- Pad Thai: tamarind/fish-sauce/sweet-salty-sour balance lane — not honey-forward dessert logic unless reframed with function mapping.\n`;
+- Pad Thai: tamarind/fish-sauce/sweet-salty-sour balance lane — not honey-forward dessert logic unless reframed with function mapping.
+- Milanese breaded cutlet (veal/chicken/pork Milanese, cotoletta, Wiener schnitzel): golden crisp crumb + butter/oil shallow fry + salt + mandatory lemon (not optional) + optional bitter green; NOT saucy-spicy-sweet fusion; NOT "strawberry reduction" as the acid story — lemon is the lift.
+- Risotto Milanese: if THAT is the named classic, it is saffron-absorption risotto — do not confuse with breaded Milanese cutlet.\n`;
 }
 
 /** Recreate-a-Classic quality gate: reject "swap-only" outputs that miss classic function mapping. */
@@ -4618,7 +4989,7 @@ function getRecreateClassicTransformationViolations(recipe, ch){
   const basketLow=basketEffective.toLowerCase();
 
   // Broad but practical classic dish-name detector.
-  const classicNameRx=/\b(fish and chips|chicken\s+piccata|veal\s+piccata|chicken parmesan|chicken parm(?:igiana)?|eggplant parmesan|eggplant parm(?:igiana)?|salisbury steak|meatloaf|beef stroganoff|shepherd'?s pie|cottage pie|coq au vin|beef bourguignon|steak frites|shrimp scampi|sole meuni[eè]re|lobster thermidor|cioppino|bouillabaisse|spaghetti (?:and )?meatballs|carbonara|cacio e pepe|lasagna|bolognese|alfredo|pasta primavera|risotto milanese|mac (?:and|&) cheese|fried chicken|chicken pot pie|biscuits and gravy|cheeseburger|club sandwich|pad thai|fried rice|ramen|pho|shawarma|falafel|gyro|eggs benedict|french toast|pancakes|omelette|huevos rancheros)\b/i;
+  const classicNameRx=/\b(fish and chips|chicken\s+piccata|veal\s+piccata|chicken parmesan|chicken parm(?:igiana)?|eggplant parmesan|eggplant parm(?:igiana)?|salisbury steak|meatloaf|beef stroganoff|shepherd'?s pie|cottage pie|coq au vin|beef bourguignon|steak frites|shrimp scampi|sole meuni[eè]re|lobster thermidor|cioppino|bouillabaisse|spaghetti (?:and )?meatballs|carbonara|cacio e pepe|lasagna|bolognese|alfredo|pasta primavera|risotto milanese|(?:chicken|veal|pork)\s+milanese|cotoletta|wiener schnitzel|mac (?:and|&) cheese|fried chicken|chicken pot pie|biscuits and gravy|cheeseburger|club sandwich|pad thai|fried rice|ramen|pho|shawarma|falafel|gyro|eggs benedict|french toast|pancakes|omelette|huevos rancheros)\b/i;
   const hasNamedClassic=classicNameRx.test(head)||classicNameRx.test(basketEffective);
   if(!hasNamedClassic){
     msgs.push(`Recreate brief: title/tagline/balance.basket must name one specific classic dish (menu-level name), not just style vibes.`);
