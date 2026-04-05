@@ -1235,6 +1235,109 @@ ${lines.join("\n")}
 `;
 }
 
+/** Classify must-use ingredient for constraint intersection (engine picks valid paths; model composes prose). */
+function classifyIngredientForEngine(name){
+  const n=String(name||"").toLowerCase();
+  if(/\b(brisket|beef short rib|short\s+rib|oxtail|beef\s+shank|shank|chuck\s+roast|beef\s+cheek)\b/.test(n))
+    return {cls:"COLLAGEN_CUT",hint:"Viable: **grind**, paper-thin sear/shave, **leftover/pre-cooked**, pressure **only if IP allowed**. Not: thick raw cubes → fork-tender in a few minutes."};
+  if(/\b(cod|salmon|halibut|trout|sea\s+bass|mahi|snapper|tuna\s+steak)\b/.test(n))
+    return {cls:"FISH",hint:"Hot sear / short cook; **wet dredge or fragile crumb on open grill grates = invalid** — use **cast-iron or plancha ON the grill** if Grill is must-use."};
+  if(/\b(shrimp|prawn|scallop)\b/.test(n))
+    return {cls:"SHELLFISH_FAST",hint:"~90s–4 min total; **C-curve not O-curve** — rubber if overcooked."};
+  if(/\b(tempeh|seitan)\b/.test(n))
+    return {cls:"PLANT_BLOCK",hint:"Sear, crumble, grind, quick braise — **worked into** the dish, not soft garnish-only."};
+  if(/\btofu\b/.test(n)&&/\bsilken\b/.test(n))
+    return {cls:"TOFU_SILKEN",hint:"Blend, simmer gently, set — **no dredge-fry block** (see transformation gates)."};
+  if(/\btofu\b/.test(n)&&/\bfirm\b/.test(n))
+    return {cls:"TOFU_FIRM",hint:"Press/dry; sear, cornstarch pan-fry, bake — not meat-grinder **ground beef** story."};
+  if(/\b(chicken|duck)\s+breast\b/.test(n)||/\bturkey\s+cutlet\b/.test(n))
+    return {cls:"LEAN_POULTRY",hint:"Thin slice, cutlet, butterfly — avoid thick whole roast on short clock."};
+  if(/\b(pork belly|belly slab)\b/.test(n))
+    return {cls:"FAT_CUT",hint:"Dice/render or pressure path — full crackling slab rarely fits short clock without honest time."};
+  return {cls:"GENERAL",hint:"Follow technique matrix + cook fundamentals; match method to clock."};
+}
+
+/** Equipment × technique intersection rules (hard bans on impossible combos). */
+function equipmentIntersectionLines(ch){
+  const req=(ch.reqEquip||[]).map(s=>String(s));
+  const forb=(ch.forbEquip||[]).map(s=>String(s));
+  const lines=[];
+  const R=req.map(s=>s.toLowerCase());
+  const F=forb.map(s=>s.toLowerCase());
+  if(R.some(x=>/\bgrill\b/.test(x))){
+    lines.push("• **Grill** must-use: open grates + **wet batter** or **fragile crumb crust** as the **main** fish/protein cook = **invalid** — use **cast-iron / griddle / plancha ON the grill** (flat + oil), OR grill foods suited to grates (veg planks, bone-in).");
+  }
+  if(R.some(x=>/cast|iron/i.test(x))){
+    lines.push("• **Cast iron** must-use: star the pan in a **primary** step (sear, shallow fry, gratin finish, covered bake) — not only a side wilt.");
+  }
+  if(F.some(x=>/food\s*processor|processor/i.test(x))){
+    lines.push("• **Food processor forbidden** — chop, grate, mortar, or immersion blender only; name the substitute.");
+  }
+  if(F.some(x=>/instant\s*pot/i.test(x))){
+    lines.push("• **Instant Pot forbidden** — no pressure / multicooker story.");
+  }
+  if(F.some(x=>/\bsous/i.test(x))){
+    lines.push("• **Sous vide forbidden** — no circulator / long water-bath.");
+  }
+  if(R.some(x=>/\bwok\b/.test(x))){
+    lines.push("• **Wok** must-use: starring stir-fry / toss / high-heat — not only wilting garnish while the oven carries the plate.");
+  }
+  return lines;
+}
+
+/** Compare basket vs pantry for missing flavor roles; suggest **only** pantry names (no invented ingredients). */
+function pantryRoleGapFillLines(ch){
+  const reqJoined=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
+  const pool=ch.pantry||[];
+  const gaps=[];
+  if(!/\b(vinegar|lemon|lime|citrus|pickle|kimchi|tomato|tamarind|sherry|yuzu|orange|grapefruit|caper)\b/i.test(reqJoined))
+    gaps.push({role:"acid",rx:/\b(lemon|lime|vinegar|pickle|shallot|mustard|caper|yuzu|orange|grapefruit|verjuice)\b/i});
+  if(!/\b(oil|butter|cream|mayo|avocado|sesame|tahini|lard|coconut\s+milk)\b/i.test(reqJoined))
+    gaps.push({role:"fat",rx:/\b(olive oil|vegetable oil|butter|sesame oil|mayo|cream|avocado|tahini|almond|coconut milk|ghee)\b/i});
+  if(!/\b(almond|walnut|pecan|cashew|seed|panko|cracker|fried|crisp|toasted)\b/i.test(reqJoined))
+    gaps.push({role:"crunch",rx:/\b(almond|walnut|pecan|cashew|pine nut|sesame|panko|cracker|chip|fried onion)\b/i});
+  if(!/\b(garlic|onion|shallot|ginger|scallion|leek|cilantro|parsley|basil|thyme|rosemary)\b/i.test(reqJoined))
+    gaps.push({role:"aromatic",rx:/\b(garlic|onion|shallot|ginger|scallion|leek|cilantro|parsley|basil|thyme|rosemary|oregano)\b/i});
+  if(!gaps.length)
+    return ["• Roles: basket may already cover acid/fat/crunch — still **name** balance (acid/heat/umami) in balance.flavor."];
+  const out=[];
+  for(const g of gaps){
+    const picks=pool.filter(p=>g.rx.test(String(p).toLowerCase())).slice(0,5);
+    if(picks.length) out.push(`• Missing **${g.role}** in basket — prefer from pantry: ${picks.join(", ")}.`);
+    else out.push(`• Missing **${g.role}** signal — pick a **pantry** item that fills it (do not invent new SKUs).`);
+  }
+  return out;
+}
+
+/**
+ * Matrix + constraint intersection + pantry gap fill — short authoritative brief.
+ * Model job: compose JSON + chef prose; **do not** invent techniques that violate these rows.
+ */
+function culinaryEngineBrief(ch){
+  if(!ch) return "";
+  const t=Math.max(1, Number(ch.totalTime)||30);
+  const lines=[];
+  lines.push("═══ CULINARY ENGINE (authoritative) ═══");
+  lines.push("Your job: **compose** title, steps, balance.*, and timing — the engine below already constrained **what is physically valid** for this haul.");
+  lines.push(`• **Clock:** ${t} min total — tough cuts → grind / thin / leftover / pressure(if allowed); fish → do not overcook.`);
+  lines.push("• **Intersection:** must-use + forbidden equipment + restrictions must **all** agree before you write.");
+  const eq=equipmentIntersectionLines(ch);
+  if(eq.length) lines.push(...eq);
+  else lines.push("• **Equipment:** follow must-use / forbidden exactly.");
+  lines.push("• **Required ingredients** — pick **one** path per line consistent with matrix + equipment:");
+  for(const name of (ch.required||[])){
+    const c=classifyIngredientForEngine(name);
+    const tm=techniqueMatrixForName(name);
+    const row=tm?` | ${compactTechniqueMatrixForAi(tm)}`:"";
+    lines.push(`  – **${name}** [${c.cls}] ${c.hint}${row}`);
+  }
+  lines.push("• **Pantry = role completion** (only if basket leaves a gap):");
+  lines.push(...pantryRoleGapFillLines(ch));
+  lines.push("• **End state:** one coherent dish that satisfies every row above + posted restrictions.");
+  lines.push("══════════════════════════════════════");
+  return lines.join("\n")+"\n\n";
+}
+
 /** Honest method vs competition clock — from pantry clockPlaybookAi (collagen cuts, etc.). */
 function basketClockPlaybookBlock(ch){
   const req=(ch&&ch.required)||[];
@@ -2795,11 +2898,14 @@ FAIL THE BRIEF IF:
 function restrictionsJudgeAddon(ch){
   const r=sanitizeRestrictionList((ch&&ch.restrictions)||[]);
   if(!r.length) return "";
+  const req=(ch&&ch.required)||[];
+  const veganKimchi=r.some(x=>normalizeRestrictionKey(x)==="Vegan")&&req.some(x=>/\bkimchi\b/i.test(String(x)));
   return `
 RESTRICTIONS — JUDGING LENS (non-negotiable):
 - Penalize HARD if either competitor's plan breaks a stated restriction (e.g. dairy under No Dairy, meat under Vegetarian). "Classic needs cheese" or "just a finish of cream" is still disqualifying-level bad in real comps.
 - Rule compliance outweighs delicious flavor: say so in summary when one side is tastier but illegal.
-- Reward honest substitutes that stay inside the rules while still respecting the challenge type.`;
+- Reward honest substitutes that stay inside the rules while still respecting the challenge type.${veganKimchi?`
+- VEGAN + KIMCHI IN HAUL: Default kimchi is often non-vegan (fish sauce, shrimp paste). Penalize "kimchi" with no **vegan/fish-free** labeling or honest DIY/no-seafood statement; reward explicit vegan product or scratch ferment with no seafood.`:""}`;
 }
 
 /** When No Salt is active: latent sodium vs letter of rule + compensation. */
@@ -2927,7 +3033,7 @@ RECREATE A CLASSIC — JUDGING LENS:
 - Reward basket-smart swaps that a judge still reads as "that's X with Y substituted," not a different dish.
 - Creativity points when it serves recognition of the named classic — not when it becomes an unrelated original.
 - Penalize "swap-only" logic: require clear functional mapping (what replaces gravy/body/umami/acid roles) so the dish tastes like the classic, not a sweet or random variation.
-- Penalize archetype drift: e.g. piccata must read lemon/briny; carbonara is not cream-forward; fish and chips needs chips/fries — substitutions must preserve that identity.
+- Penalize archetype drift: e.g. piccata must read lemon/briny; carbonara is not cream-forward; fish and chips needs **crisp chip energy + real batter or honest grill-pan shallow fry** — not grilled fish with soft veg “chips” unless the title says inspired-by and roles are mapped.
 - If restrictions forbid dairy/meat/etc., penalize heavily for smuggling forbidden ingredients — authenticity of the classic never overrides posted rules.
 - Penalize impossible physics on the clock: long-braise classics executed as if collagen broke down in a fraction of the time, "full" bourguignon/cassoulet with no honest time or pressure story. Reward time-honest pivots (inspired-by title, steak-cut + sauce, pressure when credible).`;
 }
@@ -3272,6 +3378,7 @@ function courseRoleHierarchyBlock(ch){
 - SUPPORTING / ACCENT = basket and pantry items mapped into the classic's usual architecture (cutlet + sauce + cheese for parm; battered fish + chips + acidic note for fish & chips; etc.). Do not dissolve the classic into a generic "composed" plate.
 - BANNED: treating the challenge as "original restaurant concept" while only nodding at a cuisine. Title head noun should signal the classic ("our fish and chips…", "chicken parm from the basket…").
 - TIME-HONEST NAMING: If you cannot deliver the classic's real technique on the clock, the title/tagline must signal the pivot ("bourguignon flavors on grilled short rib," "cassoulet-inspired bowl") — not "beef bourguignon" with a 25-minute pretend braise.
+- FRY-FORWARD CLASSICS + **Grill** must-use (e.g. fish and chips): treat the grill as heat for **cast-iron / plancha on the grates** with oil — fish should not be a fragile crumb **directly on open grates**; chips/subs need **crisp** (shallow fry, roast-to-crisp, twice-cook), not only soft grilled planks. **Batter** must be hydrated (flour + liquid) or a stated honest mapping (e.g. polenta + chocolate bloomed with fat for malt note) — not egg wash + dry dredge called “batter.”
 - balance.basket: sentence 1 MUST name the classic + one-line how the basket twists it without erasing the dish. Then tag each REQUIRED with how it maps to that classic's usual components.\n`;
   }
   if(challengeTypeIsElevateCheap(ctype)){
@@ -3449,12 +3556,13 @@ JSON SYNTAX (must be machine-parseable): Do not put unescaped " inside any strin
 CHALLENGE: ${ch.ctype.label} | DIFFICULTY: ${ch.diff} | TIME: ${ch.totalTime}min (Prep ${ch.prepTime}, Cook ${ch.cookTime})
 ${hardDiffBar}REQUIRED BASKET (each must CARRY the dish, not garnish-only): ${ch.required.join(", ")}
 PANTRY you may use (only these + basics like salt/oil/water): ${pantryLines}
-${basketCookFundamentalsBlock(ch)}${basketClockPlaybookBlock(ch)}${basketTechniqueMatrixBlock(ch)}${basketIngredientToolkitBlock(ch)}${basketTransformationPreflightBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${res}
+${culinaryEngineBrief(ch)}${basketCookFundamentalsBlock(ch)}${basketClockPlaybookBlock(ch)}${basketTechniqueMatrixBlock(ch)}${basketIngredientToolkitBlock(ch)}${basketTransformationPreflightBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${res}
 ${fe} ${re} ${bl}
 ${processEquipmentPromptBlock(ch)}
 
 ${restrictionHardPriorityBlock(ch)}
 ${equipmentHardPriorityBlock(ch)}
+${recreateClassicGrillFidelityBlock(ch)}
 ${courseBlock}
 ${competitionEdgeBlock}
 ${savoryChocolateBlock}
@@ -3548,6 +3656,7 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     if(challengeTypeIsElevateCheap(ch.ctype)&&rSan.some(x=>normalizeRestrictionKey(x)==="No Gluten")) maxAttempts=Math.max(maxAttempts,5);
     if(challengeTypeIsFineDining(ch.ctype)||challengeTypeIsGlobalCuisine(ch.ctype)) maxAttempts=Math.max(maxAttempts,3);
     if(challengeTypeIsSnack(ch.ctype)&&["hard","insane"].includes(String(ch.diff||"").toLowerCase())) maxAttempts=Math.max(maxAttempts,4);
+    maxAttempts=Math.min(maxAttempts,4);
     let data=null;
     let regenNote="";
     state.recipeRestrictionWarnings=null;
@@ -3681,8 +3790,9 @@ ${processEquipmentPromptBlock(ch)}
 COURSE: ${courseLabel} | ${totT} min (prep ${prepT}, cook ${cookT})
 PANTRY ADD-ONS: ${pantryLines}
 
-${basketCookFundamentalsBlock(ch)}${basketClockPlaybookBlock(ch)}${basketTechniqueMatrixBlock(ch)}${basketIngredientToolkitBlock(ch)}${basketTransformationPreflightBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${restrictionHardPriorityBlock(ch)}
+${culinaryEngineBrief(ch)}${basketCookFundamentalsBlock(ch)}${basketClockPlaybookBlock(ch)}${basketTechniqueMatrixBlock(ch)}${basketIngredientToolkitBlock(ch)}${basketTransformationPreflightBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${restrictionHardPriorityBlock(ch)}
 ${equipmentHardPriorityBlock(ch)}
+${recreateClassicGrillFidelityBlock(ch)}
 ${whiteChocolateHonestyBlock(ch.required)}
 ${elevateCheapContestCoachBlock(ch)}
 ${courseEnforcementBlock(ch, analyzeBasketForRecipe(ch.required||[]))}
@@ -3708,6 +3818,7 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
     if((ch.reqEquip||[]).length) maxAttempts=Math.max(maxAttempts,4);
     if((ch.forbEquip||[]).length) maxAttempts=Math.max(maxAttempts,3);
     if(challengeTypeIsElevateCheap(ch.ctype)&&rCoach.some(x=>normalizeRestrictionKey(x)==="No Gluten")) maxAttempts=Math.max(maxAttempts,5);
+    maxAttempts=Math.min(maxAttempts,4);
     let data=null, regenNote="";
     for(let att=0; att<maxAttempts; att++){
       const prompt=promptCore+(regenNote?`\n\nREGENERATION REQUIRED: ${regenNote}`:"");
@@ -3756,7 +3867,7 @@ function showRecipeData(r) {
   const ch=state.challenge;
   const rw=state.recipeRestrictionWarnings;
     const ruleWarnBanner=(rw&&rw.length)?`<div style="background:#450a0a;border:2px solid #dc2626;border-radius:12px;padding:12px 14px;margin-bottom:14px;color:#fecaca;font-size:12px;line-height:1.45">
-    <strong style="color:#fff">Rival plan check (app rules, not an API error):</strong> After auto-retries, the model output can still miss our Recreate / restriction gates:
+    <strong style="color:#fff">Rival plan check (app rules, not an API error):</strong> After auto-retries, the model output can still miss our challenge / restriction gates:
     <ul style="margin:8px 0 0 18px">${rw.map(w=>`<li>${escapeHtml(w)}</li>`).join("")}</ul>
     <span style="font-size:11px;color:#fca5a5">Verify every line before you cook or duel — treat as suspect. Regenerate or edit the plan if something looks off.</span>
   </div>`:"";
@@ -4345,7 +4456,7 @@ function textSuggestsButterFat(low){
 function textSuggestsAnimalFleshOrBroth(low){
   const l=String(low||"").toLowerCase();
   if(/\b(chicken|beef|pork|lamb|duck|turkey|goose|quail|venison|bison|veal|mutton|rabbit|bacon|pancetta|guanciale|prosciutto|salami|chorizo|andouille|kielbasa|sausage|mortadella|capicola|nduja|hot\s+dog|frankfurter|bratwurst|lard|tallow|suet|crackl(?:e|ing)s?|oxtail|brisket|short\s*rib|ribeye|offal|sweetbreads|foie|liver\b|ground\s+(beef|pork|lamb|turkey|chicken)|meatball|meat\s+loaf|carnitas|barbacoa)\b/i.test(l)) return true;
-  if(/\b(anchov|sardine|mackerel|salmon|tuna|cod|halibut|trout|bass|fish(?!\s+sauce)\b|fillet|sea\s+bass|shrimp|prawn|scallop|clam|mussel|oyster(?!\s+sauce)|crab|lobster|calamari|squid|octopus|eel|caviar|\broe\b|uni\b|surimi)\b/i.test(l)) return true;
+  if(/\b(anchov|sardine|mackerel|salmon|tuna|cod|halibut|trout|bass|fish(?!\s+sauce)\b|sea\s+bass|shrimp|prawn|scallop|clam|mussel|oyster(?!\s+sauce)|crab|lobster|calamari|squid|octopus|eel|caviar|\broe\b|uni\b|surimi)\b/i.test(l)) return true;
   if(/\b(chicken|beef|veal|fish|turkey|ham|shrimp|bone)\s+(stock|broth|broths|base|bases)\b/i.test(l)) return true;
   if(/\bbone\s+broth\b/i.test(l)) return true;
   if(/\b(fish|oyster)\s+sauce\b/i.test(l)) return true;
@@ -4369,6 +4480,19 @@ function scrubNegatedNonVeganPhrases(low){
   ];
   for(const re of reps) s=s.replace(re," ");
   return s;
+}
+
+/** Retail kimchi often contains fish sauce or shrimp paste — vegan rounds need an explicit vegan/fish-free product or DIY statement (use raw recipe text, not scrubbed). */
+function textVeganKimchiCompliant(fullText){
+  const L=String(fullText||"");
+  if(!/\bkimchi\b/i.test(L)) return true;
+  if(/\b(vegan|plant-based|fish-free)\s+kimchi\b|\bkimchi\s*\([^)]*\b(vegan|plant-based|fish-free)\b/i.test(L)) return true;
+  if(/\bvegan\s+[^\n.,;]{0,40}?\bkimchi\b/i.test(L)) return true;
+  if(/\bkimchi\s+brine\b/i.test(L)&&/\b(vegan|fish-free)\b/i.test(L)) return true;
+  if(/\bbrine\s+from\s+(the\s+)?(vegan|fish-free)\s+kimchi/i.test(L)) return true;
+  if(/\bkimchi\b[\s\S]{0,160}?\b(no|without|free\s+of)\s+[^.;]{0,55}?\b(fish\s*sauce|shrimp\s*paste|seafood|anchovy|fish\s*base)\b/i.test(L)) return true;
+  if(/\b(no|without|free\s+of)\s+[^.;]{0,55}?\b(fish\s*sauce|shrimp\s*paste|seafood)\b[\s\S]{0,160}?\bkimchi\b/i.test(L)) return true;
+  return false;
 }
 
 /** No Sugar: no granulated (white, brown, coconut, turbinado, demerara…) and no powdered/confectioners — honey, maple, caramel, etc. OK. */
@@ -4415,6 +4539,8 @@ function getRecipeRestrictionViolations(recipe, restrictions){
       const veganHit=textSuggestsAnimalDairy(lowV)||textSuggestsButterFat(lowV)||textSuggestsAnimalFleshOrBroth(lowV)
         ||/\b(honey|bee\s*honey)\b/i.test(lowV)||/\b(eggs?|egg\s+yolk|egg\s+white|mayo|mayonnaise)\b/i.test(lowV);
       if(veganHit) msgs.push(`${norm}: non-vegan wording detected (meat, seafood, dairy, egg, honey, animal stock/broth, fish sauce, gelatin, etc.)`);
+      if(/\bkimchi\b/i.test(low)&&!textVeganKimchiCompliant(low))
+        msgs.push(`${norm}: kimchi often contains fish sauce or shrimp paste — ingredients must name **vegan / fish-free kimchi** (or brine from that product), or clearly state homemade kimchi with no seafood, in the JSON.`);
     }
     else if(norm==="No Alcohol"&&/\b(wine|beer|rum|vodka|whiskey|whisky|bourbon|brandy|sake|liqueur|champagne|prosecco)\b/i.test(low)
       &&!/\b(alcohol-free|non-alcoholic|na beer)\b/i.test(low))
@@ -4787,15 +4913,24 @@ function getSnackFormatEnforcementViolations(recipe, ch){
   return msgs;
 }
 
+/** Strip negated/forbidden phrasing so "not gravy + marshmallow" / "do not drizzle marshmallow" does not false-flag. */
+function scrubComfortMarshmallowJudgeProse(low){
+  return String(low||"")
+    .replace(/\b(?:not|no|without|avoid|never|don'?t)\s+[^.;]{0,140}?\b(?:gravy|drizzle)\b[^.;]{0,180}?\bmarshmallow\b/gi," ")
+    .replace(/\b(?:not|no|without|avoid)\s+[^.;]{0,140}?\bmarshmallow\b[^.;]{0,120}?\b(?:gravy|drizzle)\b/gi," ")
+    .replace(/\bgravy\b\s*\+\s*marshmallow\b|\bmarshmallow\b\s*\+\s*gravy\b/gi," ")
+    .replace(/\b(?:not|never)\s+[^.;]{0,60}?\bdrizzle\b/gi," ");
+}
+
 /** Comfort Reinvented + marshmallow: ban "marshmallow gravy" / sweet sauce spine (eval: technique + cohesion, not dessert drizzle). */
 function getComfortReinventedMarshmallowViolations(recipe, ch){
   const msgs=[];
   if(!recipe||!ch||!challengeTypeIsComfortReinvented(ch.ctype)) return msgs;
   const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
   if(!/\bmarshmallow\b/.test(req)) return msgs;
-  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
-  const badGravy=/\bmarshmallow\s+gravy\b|\bgravy\b[\s\S]{0,160}?\bmarshmallow\b|\bmarshmallow\b[\s\S]{0,120}?\bgravy\b/i.test(low);
-  const sweetFinish=/\bdrizzle\b[\s\S]{0,140}?\bmarshmallow\b|\bmarshmallow\s+essence\b|\bessence\b[\s\S]{0,80}?\bmarshmallow\b/i.test(low);
+  const low=scrubComfortMarshmallowJudgeProse(recipeFlattenTextForCompliance(recipe)).toLowerCase();
+  const badGravy=/\bmarshmallow\s+gravy\b|\bmarshmallow[\s-]gravy\b|\bgravy\s+of\s+marshmallow\b|\bgravy\b[\s\S]{0,120}?\bmarshmallow\b|\bmarshmallow\b[\s\S]{0,100}?\bgravy\b/i.test(low);
+  const sweetFinish=/\bmarshmallow\s+essence\b|\b(?:drizzle|drizzled)\s+(?:the\s+)?marshmallow\b|\bmarshmallow\s+drizzle\b|\bessence\b[\s\S]{0,60}?\bmarshmallow\b/i.test(low);
   if(badGravy||sweetFinish)
     msgs.push(`Comfort reinvented + marshmallow: forbidden pattern — **marshmallow gravy**, **marshmallow essence drizzle**, or sweet sauce as the lead finish. Use marshmallow as **technique** (caramelize, torch, tiny salty-sweet glaze integrated into the filling, or crisp/toast) for **one cohesive savory bite**; balance.flavor must explain the **unified** story — not "pork + sweet sauce."`);
   return msgs;
@@ -5464,9 +5599,23 @@ const PW_CLASSIC_ARCHETYPES=[
       {
         when:function(claim,low){
           if(!/\bfish\s+and\s+chips\b/i.test(claim)) return false;
-          return !/\b(chips?|fries?|fried\s+potatoes|hand[-\s]?cut\s+fries|french\s+fries)\b/i.test(low);
+          const chipEnergy=/\b(?:deep|shallow|pan)[\s-]?(?:fry|fried)|\bfry\s+(?:until|the\s+)?(?:chip|squash|potato|batter|fish|cod)|\b(?:fried|frying)\s+(?:chip|potato|squash|batter|fish|cod)|\bair\s+fry\b|\b(?:squash|potato|parsnip|sweet\s+potato)[^.;]{0,160}?\b(?:twice[\s-]?cooked|chip[\s-]?shop|crisp\s+(?:edge|crust|exterior)|shallow\s+fry|roast\s+until\s+crisp)/i.test(low);
+          return !chipEnergy;
         },
-        msg:"Fish and chips requires fried chips/fries as part of the classic — not fish alone with an unrelated starch."
+        msg:"Fish and chips: the chip side must read **fried, crisp, or intentional chip-shop technique** (incl. air-fry / shallow roast-to-crisp for veg subs) — not only soft grilled planks."
+      },
+      {
+        when:function(claim,low){
+          if(!/\bfish\s+and\s+chips\b/i.test(claim)) return false;
+          const hasFry=/\b(?:deep|shallow|pan)[\s-]?(?:fry|fried)|\bfry\s+(?:until|in\b)|\b(?:fried|frying)\s+(?:fish|cod|batter)\b|\bhot\s+oil\b[^.;]{0,50}?\b(?:fry|fish|cod)\b/i.test(low);
+          if(hasFry) return false;
+          const grillFlat=/\b(?:cast[\s-]?iron|skillet|griddle|plancha|heavy\s+(?:frying\s+)?pan)\b[\s\S]{0,200}?\bgrill(?:ed)?\b|\bgrill(?:ed)?\b[\s\S]{0,200}?\b(?:cast[\s-]?iron|skillet|griddle|plancha)\b/i.test(low);
+          const hydratedBatter=/\b(?:beer|sparkling|club\s+soda|seltzer|soda\s+water)[\s\S]{0,70}?\b(?:flour|self[\s-]?raising|cornstarch|batter)|\b(?:flour|cornstarch)\s+and\s+(?:beer|water|soda|sparkling)|\bmix\s+(?:a\s+)?(?:pourable|wet)\s+batter\b|\bwet\s+batter\b|\btempura\b/i.test(low);
+          const polentaChocolatePivot=grillFlat&&/\b(?:polenta|cornmeal|corn\s+meal)\b[\s\S]{0,180}?\b(?:dark\s+)?chocolate\b|\b(?:dark\s+)?chocolate\b[\s\S]{0,180}?\b(?:polenta|cornmeal)\b/i.test(low)&&/\b(?:bloom|melt|into|fat|oil|toast|coat)\b/i.test(low);
+          if(grillFlat&&(hydratedBatter||polentaChocolatePivot)) return false;
+          return true;
+        },
+        msg:"Fish and chips without deep-fry: use **wet batter** (flour + beer/soda or tempura) **or** **polenta + dark chocolate bloomed with fat** as the malt/crust story, on a **cast-iron / plancha on the grill** — not egg wash + dry crumb on open grates alone."
       }
     ]
   },
@@ -5524,7 +5673,7 @@ function classicArchetypeHardBlock(){
   return `CLASSIC ARCHETYPE LOCK (examples — if the named dish matches, honor judge identity, not only ingredients):
 - Piccata: lemon/citrus-forward thin sharp sauce + briny caper lane (or stated substitutes for BOTH acid lift and briny snap). Do not make a sweet fruit gastrique the lead sauce profile.
 - Carbonara: pecorino/egg/pasta-water lineage — not cream unless explicitly a labeled non-classic riff.
-- Fish and chips: battered fried fish + fried chips/fries — both belong to the dish.
+- Fish and chips: battered fried fish + fried/crisp chips — both belong to the dish. **Grill must-use:** shallow-fry or crisp chips in **oil on a flat surface** (cast-iron on grates) counts; soft grilled planks alone do not. **Batter** = hydrated flour/beer/tempura mix or honest basket mapping (e.g. polenta + chocolate bloomed with fat) — not egg wash + dry crumb mislabeled “batter.”
 - Pad Thai: tamarind/fish-sauce/sweet-salty-sour balance lane — not honey-forward dessert logic unless reframed with function mapping.
 - Milanese breaded cutlet (veal/chicken/pork Milanese, cotoletta, Wiener schnitzel): golden crisp crumb + butter/oil shallow fry + salt + mandatory lemon (not optional) + optional bitter green; NOT saucy-spicy-sweet fusion; NOT "strawberry reduction" as the acid story — lemon is the lift.
 - Risotto Milanese: if THAT is the named classic, it is saffron-absorption risotto — do not confuse with breaded Milanese cutlet.\n`;
@@ -5602,7 +5751,8 @@ ACTIVE RESTRICTIONS (fail closed):
     else if(norm==="Vegetarian")
       s+=` — BANNED: meat, poultry, fish, shellfish, gelatin, fish/oyster sauce, Worcestershire (fish-based), lard, chicken/beef/fish stock and bone broth — use vegetable stock, mushroom broth, or kombu.\n`;
     else if(norm==="Vegan")
-      s+=` — BANNED: all animal products (meat, poultry, fish, shellfish, dairy, eggs, honey, gelatin, rennet, butter, milk chocolate, bonito, dashi with fish). NO chicken/beef/fish stock or bone broth — only veg stock, mushroom broth, kombu/dried mushroom, or water + aromatics. NO fish sauce, oyster sauce, Worcestershire (fish-based) unless you state an approved vegan brand and the brief allows that sauce. Do not “borrow” animal depth.\n`;
+      s+=` — BANNED: all animal products (meat, poultry, fish, shellfish, dairy, eggs, honey, gelatin, rennet, butter, milk chocolate, bonito, dashi with fish). NO chicken/beef/fish stock or bone broth — only veg stock, mushroom broth, kombu/dried mushroom, or water + aromatics. NO fish sauce, oyster sauce, Worcestershire (fish-based) unless you state an approved vegan brand and the brief allows that sauce. Do not “borrow” animal depth.
+ KIMCHI: Many commercial kimchis are NOT vegan (fish sauce, shrimp paste, brine from non-vegan batches). If the basket includes kimchi OR you use kimchi: ingredients[] must say **vegan kimchi** / **fish-free kimchi** (or brine reserved from that product), OR describe scratch napa/cabbage ferment with no seafood — not generic "kimchi" alone.\n`;
     else if(norm==="No Gluten")
       s+=` — BANNED: wheat flour, standard pasta/bread, barley, rye, typical soy sauce unless gluten-free stated — use GF pasta/flour/tamari when needed. **Elevate + noodles:** default instant ramen / wheat noodles are NOT gluten-free — ingredients must say **gluten-free** or use rice vermicelli / glass noodles / shirataki named honestly.\n`;
     else if(norm==="No Alcohol")
@@ -5620,7 +5770,21 @@ ACTIVE RESTRICTIONS (fail closed):
     else s+=` — treat as strict; do not violate in any field.\n`;
   }
   s+=`SELF-CHECK: Output JSON must be restriction-clean on first save. Judges eliminate on rule breaks.\n`;
+  const req=(ch&&ch.required)||[];
+  if(r.some(x=>normalizeRestrictionKey(x)==="Vegan")&&req.some(x=>/\bkimchi\b/i.test(String(x)))){
+    s+=`
+BASKET — KIMCHI + VEGAN (mandatory): Kimchi is in the required haul AND Vegan is active. Name **vegan / fish-free kimchi** on the ingredient line (real product wording) or an explicit scratch ferment with no fish sauce/shrimp paste. "Kimchi" without that clarification fails compliance — same for kimchi brine unless sourced from the vegan product you named.\n`;
+  }
   return s;
+}
+
+/** Recreate-a-Classic + Grill must-use: steer fry-forward classics away from crumb-on-grates when the dish soul is chip-shop fry. */
+function recreateClassicGrillFidelityBlock(ch){
+  if(!ch||!challengeTypeIsRecreateClassic(ch.ctype)) return "";
+  const req=(ch.reqEquip||[]).map(s=>String(s).toLowerCase());
+  if(!req.some(r=>r.includes("grill"))) return "";
+  return `
+RECREATE A CLASSIC + GRILL (must-use): Frying is the default soul for **fish and chips** and other fry-forward classics. Use the grill as **radiant heat** for **cast-iron skillet, plancha, or heavy griddle on the grates** (flat surface + oil) — NOT a fragile polenta/crumb crust **directly on open grates** as the main fish cook. **Chips** must read **crisp** (shallow fry, high-heat crisp, twice-cook, air-fry) — not only soft grilled planks. **Batter** = hydrated flour/beer/tempura **or** honest basket mapping (e.g. polenta + dark chocolate bloomed with fat for a malt note) paired with the flat-on-grill method — not egg wash + dry dredge mislabeled “batter.” If you cannot hit the classic, use **inspired-by** in title/tagline and map fry + crisp roles in balance.basket.\n`;
 }
 
 function equipmentHardPriorityBlock(ch){
