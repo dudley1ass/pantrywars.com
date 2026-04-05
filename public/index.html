@@ -2647,6 +2647,85 @@ PHYSICS & CLOCK REALISM (apply to BOTH competitors' plans):
 - Reward plans that match technique to time; downscore fantasy timing even if flavor ideas sound clever.`;
 }
 
+/** Competition TV beat: contrast, transformation depth, not default restaurant trio. Appetizer + entree only. */
+function competitionEdgePromptBlock(ch, _sig){
+  const id=String((ch&&ch.ctype&&ch.ctype.id)||"");
+  if(id!=="appetizer"&&id!=="entree") return "";
+  return `COMPETITION EDGE (judges punish "polite restaurant" — you need tension):
+- A default **protein + one smooth purée + toasted seeds/nuts on top** reads competent and **loses** on creativity unless you add a clear **palate hook**: name in **balance.flavor** (rival JSON) or **flavorBalance** (contest plan JSON) how you deliver **acid** (citrus, vinegar, pickle brine, fermented tang), **heat/spice**, and/or **bitter/char** — not only soft + sweet + butterfat.
+- **Multi-form veg/legumes:** If you purée a required veg or pea, also use a **second form** (blistered, charred, whole, smashed) OR justify one form with an unusually bold technique — not "pea purée only" as the only pea story.
+- **Seeds / nuts in the basket:** "Toast and sprinkle" alone is weak — push toward **spiced crumble, brittle, crust on protein, worked into sauce, or dukkah-style** — still honest to the clock.
+- **Risk move:** **balance.complete** (rival) or **atThePass** / **lastMinuteTip** (contest) must include **one short phrase** naming the **risk move** (the non-default choice: two-way peas, seed brittle, blackened edge, acid-forward purée, spice-crusted fish, etc.).
+`;
+}
+
+/** When dark chocolate (or cocoa) is required on a savory course — forbid dessert-sauce collision; require one flavor system. */
+function savoryDarkChocolateBasketPromptBlock(ch){
+  const id=String((ch&&ch.ctype&&ch.ctype.id)||"");
+  if(id!=="appetizer"&&id!=="entree") return "";
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
+  if(!/\bdark\s+chocolate\b|\bcocoa\s+nibs\b|\bunsweetened\s+cocoa\b/.test(req)) return "";
+  const hard=["hard","insane"].includes(String(ch.diff||"").toLowerCase());
+  return `SAVORY DARK CHOCOLATE — CONCEPT LOCK (judges torch "dessert on meat"):
+- **Banned default:** savory hash / bowl / crumble + **separate** ganache or **cream chocolate sauce** poured or **drizzled on top** — reads as two dishes colliding, not one idea.
+- **Required:** chocolate must **dissolve into the same system** as smoke/spice/protein — e.g. **mole- or adobo-adjacent** (chile, tomato, spices), **bloom paprika or chile in fat then whisk in chopped chocolate**, **bitter cocoa in a reduced stock/chile/coffee glaze** with acid/salt — NOT "melt chocolate + heavy cream" as the only sauce story.
+- **balance.flavor** (rival) or **flavorBalance** (contest) must name the **one unifying sauce story** (e.g. "smoky paprika–cocoa pan glaze") — not parallel tracks of "smoky turkey" + "sweet chocolate."
+${hard?`- HARD / INSANE: show real **transformation** (integrated sauce, two-way veg, formed protein) — not crumble + steam + dessert drizzle.\n`:""}`;
+}
+
+/** Marshmallow / shelf candy on appetizer+entree: must read as technique, not cold dessert fold. */
+function shelfSweetWildcardSavoryPromptBlock(ch){
+  const id=String((ch&&ch.ctype&&ch.ctype.id)||"");
+  if(id!=="appetizer"&&id!=="entree") return "";
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
+  if(!/\b(marshmallow|marshmallow\s+fluff|candy\s+bar)\b/.test(req)) return "";
+  const hard=["hard","insane"].includes(String(ch.diff||"").toLowerCase());
+  const hasPom=/\bpomegranate\b/.test(req);
+  return `SHELF-SWEET WILDCARD — SAVORY PLATE (${hard?"HARD: wildcards must transform, not sit raw.":""}):
+- **Marshmallow / candy on meat or savory compose:** make it a **tool** — **melt** into glaze or pan sauce, **caramelize** or **torch/brûlée**, **dissolve** into a reduction, **toast/brown** in dry pan, or **crisp** as intentional garnish — NOT a cold **stir-into-ricotta/cream** or fluffy **dollop** that reads "steak + dessert blob."
+- **Ricotta + marshmallow:** forbidden as "fold together gently" as the only story — tie marshmallow in with **heat** or **one sauce system** so the finish reads one bite, not two cuisines.
+${hasPom?`- **Pomegranate (or any fruit juice glaze):** **reduce** juice to syrupy with **salt/acid** balance — not thin juice + honey alone.\n`:""}`;
+}
+
+/** Dessert + awkward savory/shelf items: judges punish "parfait + drizzle" with no technique story. */
+function dessertAwkwardBasketPromptBlock(ch){
+  const id=String((ch&&ch.ctype&&ch.ctype.id)||"");
+  const label=String((ch&&ch.ctype&&ch.ctype.label)||"").toLowerCase();
+  if(id!=="dessert"&&!/\bdessert\b/.test(label)) return "";
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
+  if(!/\b(tofu|quinoa|snap\s*pea|snow\s*pea|sugar\s*snap|green\s*beans?|caramel|honey|maple)\b/.test(req)) return "";
+  const hard=["hard","insane"].includes(String(ch.diff||"").toLowerCase());
+  let s=`DESSERT — AWKWARD BASKET (${hard?"HARD: pick one winning transformation; safe breakfast-parfait layers lose.":""}):
+- **Not a yogurt parfait with syrup:** the plate must still read as a **composed dessert** (texture contrast, sugar cook, clear roles) — not soft → soft → drizzle → random green.
+`;
+  if(/\b(snap\s*pea|snow\s*pea|sugar\s*snap|green\s*beans?)\b/.test(req))
+    s+=`- **Snap/snow peas or green beans (savory bias):** **banned** as **raw chopped garnish only** — give a **sweet role**: quick **blanch**, **sauté** with sugar/fat, **char**, **candied** thin strip, **pickle in syrup**, or **glaze** — so judges taste *why* the veg belongs on dessert.
+`;
+  if(/\btofu\b/.test(req))
+    s+=`- **Tofu (sweet structure):** "blend only" reads **diet mousse** — add **luxury**: **strain** silky, **set** (panna-style), **aerate**, **torch** a surface, **chill** firm, fold with **white chocolate / coconut cream** — one move beyond plain purée.
+`;
+  if(/\bquinoa\b/.test(req))
+    s+=`- **Quinoa:** choose **one** texture story — **fully crisp** (dry, bake/toast to granola) **or** soft/pudding — avoid clunky **boil → vague toast** with uneven soft+cunch unless you **explain** the split as intentional.
+`;
+  if(/\b(caramel|honey|maple)\b/.test(req))
+    s+=`- **Caramel / honey / maple:** not inert **drizzle on top** — **warm**, **reduce** to body, **salt** or **layer inside** the dessert so sugar has **presence**, not decoration.
+`;
+  return s;
+}
+
+/** Contest coach JSON: elevate brief + GF noodle discipline (rival has full elevateJsonRule). */
+function elevateCheapContestCoachBlock(ch){
+  if(!challengeTypeIsElevateCheap(ch.ctype)) return "";
+  const r=sanitizeRestrictionList((ch&&ch.restrictions)||[]);
+  const ng=r.some(x=>normalizeRestrictionKey(x)==="No Gluten");
+  let s=`ELEVATE A CHEAP MEAL — COACH LOCK:
+- Title / tagline / atThePass must name the **humble baseline** in plain words (cup noodles, boxed mac, instant noodle bowl, etc.).
+- Every MUST USE must appear in **ingredients** and **steps** (including **Dark Chocolate**, bay, spices, bacon, fruit) — one missing line fails validation.
+`;
+  if(ng) s+=`- NO GLUTEN: **Wheat** ramen / udon / unlabeled instant noodles / standard **soy sauce** = fail. List **GF instant noodles**, **rice vermicelli**, **glass noodles**, or **tamari / gluten-free soy** by name.\n`;
+  return s;
+}
+
 /** Prompt block: enforce challenge course identity (esp. dessert vs savory hybrid failures). */
 function courseEnforcementBlock(ch, sig) {
   const id = String((ch.ctype && ch.ctype.id) || "");
@@ -2888,9 +2967,13 @@ JAR-SAUCE / SPAGHETTI NIGHT: If that is the baseline, give judges a tomato or "c
 SNACK OVERRIDE — BITE FORMAT: One pickup vehicle only (crostini, mini tart, puff square, skewer, small slider). Scale every REQUIRED item to that bite — flake not fillet, smear not sauce pool, micro dairy not quenelle service. Cap composed elements on the bite to what a real snack allows (${Math.min(3,simplicityGoal)} effective layers max); not a composed entrée or tasting plate.`;
     }
     const productSweetNote=sig.processedSweet
-      ?` PROCESSED SWEET ALERT: At least one required item is shelf-sweet. It must read as that product in use (squeeze, scoop, from bottle) — not re-labeled as artisan chocolate. Keep it a supporting player unless dessert.`
+      ?` PROCESSED SWEET ALERT: At least one required item is shelf-sweet. It must read as that product in use (squeeze, scoop, from bottle) — not re-labeled as artisan chocolate. On **appetizer/entree**, marshmallow/candy must **transform with heat** (melt, caramelize, torch) — not a cold fold into dairy; keep it a supporting player unless dessert.`
       :"";
     const courseBlock=courseEnforcementBlock(ch,sig);
+    const competitionEdgeBlock=competitionEdgePromptBlock(ch,sig);
+    const savoryChocolateBlock=savoryDarkChocolateBasketPromptBlock(ch);
+    const shelfSweetSavoryBlock=shelfSweetWildcardSavoryPromptBlock(ch);
+    const dessertAwkwardBlock=dessertAwkwardBasketPromptBlock(ch);
     const flavorLeadershipBlock=basketFlavorLeadershipBlock(ch);
     const roleHierarchyBlock=courseRoleHierarchyBlock(ch);
     const recreateJsonRule=challengeTypeIsRecreateClassic(ch.ctype)
@@ -2915,7 +2998,9 @@ ${classicArchetypeHardBlock()}`
 - SANDWICH / TOAST FORMATS: ingredients must list baked bread or wrap — never flour by the slice.
 - BOXED MAC / CHEESE-SAUCE DISHES: still reads as mac — better sauce, cheese behavior, optional crust/broil finish, acid bump — not only "stir in brisket/protein" with bland cream. If the basket has dry spices, toast/bloom or integrate into the sauce — not garnish-only dust.
 - BANNED without explicit baseline tie: new foundations like quinoa/farro pilaf, "grain bowl" reboot, or center-plate protein + separate starch when baseline was sandwich/salad/ramen bowl/etc.
-- If REQUIRED items do not obviously imply one cheap dish, you MUST still commit to one plausible recognizable baseline — NOT a silent jump to restaurant risotto or luxury templates without naming the budget analogue.\n`
+- If REQUIRED items do not obviously imply one cheap dish, you MUST still commit to one plausible recognizable baseline — NOT a silent jump to restaurant risotto or luxury templates without naming the budget analogue.
+- NO GLUTEN + NOODLE / RAMEN BASELINE: default **wheat** ramen / udon / egg noodles / unlabeled instant noodles **violate** No Gluten. Ingredients must name **gluten-free** product (e.g. "GF instant rice noodles," "certified GF ramen," rice vermicelli) or naturally GF noodles (rice sticks, glass, mung bean, shirataki) — and use **tamari or gluten-free soy**, not standard soy sauce unless labeled GF.
+- REQUIRED BASKET (every line): each MUST appear in **ingredients[]** (honest store name) **and** at least one **step** — including **Dark Chocolate**, spices, bay, bacon, plum — omission fails validation.\n`
       :"";
     const snackJsonRule=challengeTypeIsSnack(ch.ctype)
       ?`SNACK — JSON / BRIEF LOCK:
@@ -2944,6 +3029,10 @@ ${fe} ${re} ${bl}
 ${restrictionHardPriorityBlock(ch)}
 ${equipmentHardPriorityBlock(ch)}
 ${courseBlock}
+${competitionEdgeBlock}
+${savoryChocolateBlock}
+${shelfSweetSavoryBlock}
+${dessertAwkwardBlock}
 ${challengeIntentCoachBlock(ch.ctype)||""}
 ${flavorLeadershipBlock}
 ${roleHierarchyBlock}
@@ -2974,10 +3063,11 @@ ${challengeTypeIsSnack(ch.ctype)?`- SNACK — NAME THE BITE: Plain name must rea
 ${challengeTypeIsElevateCheap(ch.ctype)?`- ELEVATE — SAME DISH, BETTER: Plain name / pitch must still be the baseline dish ("elevated tuna salad — …," "boxed mac, …") — NOT a new entrée that abandoned the baseline (e.g. quinoa pilaf + fillet when baseline was tuna salad). If a judge asks "where's the [baseline]?" your steps and plating must make that obvious.\n`:""}
 ${challengeTypeIsRecreateClassic(ch.ctype)?`- BRIEF LOCK (Recreate a Classic): That plain name MUST include the classic reference ("our tonkatsu build," "cassoulet logic from the basket") — not ONLY a cute original title with no named tradition.\n`:""}
 - SWEET LAYERING: dried fruit (prunes, raisins), malty beer, honey/maple/brown sugar are cumulative — do not add extra concentrated sweetness without trimming elsewhere. Default: if prunes anchor the sauce, skip added honey/syrup unless balance.flavor explains the bitter/acid/salt hammer you are using and why it stays savory.
-- SWEET + SAVORY + CHOCOLATE: if chocolate and a savory centerpiece (meat, fish, sharp veg) share the plate, balance.flavor must name one bridge (acid, smoke, spice, bitterness, fat, umami) — forbid random drizzle with no logic.
+- SWEET + SAVORY + CHOCOLATE: if chocolate and a savory centerpiece (meat, fish, sharp veg) share the plate, balance.flavor must name **one unified sauce system** (mole/adobo-style, spiced cocoa glaze, paprika-fat bloom + chocolate dissolved in) — **forbid** dessert-style **chocolate sauce / ganache / cream ganache** finished as a **separate drizzle** on a savory base.
 
 BASKET COVERAGE GATE (machine check — omission fails):
 - Every REQUIRED name must appear as plain text in ingredients[] (item/prep) and/or in steps what/how (title/tagline only if it clearly names the same SKU). Paraphrase only when unmistakable (e.g. "fire-roasted jarred peppers" for Roasted Red Peppers).
+- **Chocolate / spices / herbs in the basket:** if the list includes **Dark Chocolate**, **White Chocolate**, **cocoa**, **bay**, **whole spices**, they are not optional garnish — list them in **ingredients** and show one step (melt, shave, infuse, bloom) or the check fails.
 
 BASKET IDENTITY (no "laundering" ugly or processed items):
 - Do not silently upgrade a required item into a fancier product. If the basket says chocolate frosting, canned soup, neon candy, etc., the ingredients list and at least one step must name that real starter. You may transform it — but a judge must see you used what was in the basket, not conceptually swapped it for couverture or demi-glace.
@@ -3024,6 +3114,8 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     if(challengeTypeIsElevateCheap(ch.ctype)) maxAttempts=Math.max(maxAttempts,3);
     if(rSan.some(x=>normalizeRestrictionKey(x)==="No Salt")) maxAttempts=Math.max(maxAttempts,3);
     if((ch.required||[]).length) maxAttempts=Math.max(maxAttempts,3);
+    if((ch.reqEquip||[]).length) maxAttempts=Math.max(maxAttempts,4);
+    if(challengeTypeIsElevateCheap(ch.ctype)&&rSan.some(x=>normalizeRestrictionKey(x)==="No Gluten")) maxAttempts=Math.max(maxAttempts,5);
     let data=null;
     let regenNote="";
     state.recipeRestrictionWarnings=null;
@@ -3042,7 +3134,7 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
       const plantViol=getPlantProteinTransformationViolations(data,ch);
       const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, formatViol, kitchenViol, classicViol, plantViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy with real acid, brisket/collagen realism, must-use equipment centrality especially Wok vs oven story, blender on filling when assigned, timeline, basket coverage for every REQUIRED name, seitan/tempeh transformation not garnish-only, appetizer vs dessert read, format honesty, kitchen science, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy with real acid, brisket/collagen realism, must-use equipment centrality especially Wok vs oven story, blender on filling when assigned, timeline, basket coverage for every REQUIRED name, seitan/tempeh transformation not garnish-only, appetizer vs dessert read, competition edge on appetizer/entree — acid/heat/char named in balance.flavor, savory dark chocolate integrated (not dessert drizzle on meat), marshmallow on savory = heat transformation not cold dairy fold, dessert awkward basket (snap peas need technique, tofu/quinoa/caramel need transformation — not parfait drizzle), format honesty, kitchen science, restrictions). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
       if(attempt===maxAttempts-1) state.recipeRestrictionWarnings=viol;
     }
     state.recipe=data;
@@ -3156,7 +3248,12 @@ PANTRY ADD-ONS: ${pantryLines}
 ${basketCookFundamentalsBlock(ch)}${basketClockPlaybookBlock(ch)}${basketTechniqueMatrixBlock(ch)}${basketIngredientToolkitBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${restrictionHardPriorityBlock(ch)}
 ${equipmentHardPriorityBlock(ch)}
 ${whiteChocolateHonestyBlock(ch.required)}
+${elevateCheapContestCoachBlock(ch)}
 ${courseEnforcementBlock(ch, analyzeBasketForRecipe(ch.required||[]))}
+${competitionEdgePromptBlock(ch, analyzeBasketForRecipe(ch.required||[]))}
+${savoryDarkChocolateBasketPromptBlock(ch)}
+${shelfSweetWildcardSavoryPromptBlock(ch)}
+${dessertAwkwardBasketPromptBlock(ch)}
 ${challengeIntentCoachBlock(ch.ctype)||""}
 ${basketFlavorLeadershipBlock(ch)}
 ${courseRoleHierarchyBlock(ch)}
@@ -3171,6 +3268,8 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
     if(challengeTypeIsElevateCheap(ch.ctype)) maxAttempts=Math.max(maxAttempts,3);
     if(rCoach.some(x=>normalizeRestrictionKey(x)==="No Salt")) maxAttempts=Math.max(maxAttempts,3);
     if((ch.required||[]).length) maxAttempts=Math.max(maxAttempts,3);
+    if((ch.reqEquip||[]).length) maxAttempts=Math.max(maxAttempts,4);
+    if(challengeTypeIsElevateCheap(ch.ctype)&&rCoach.some(x=>normalizeRestrictionKey(x)==="No Gluten")) maxAttempts=Math.max(maxAttempts,5);
     let data=null, regenNote="";
     for(let att=0; att<maxAttempts; att++){
       const prompt=promptCore+(regenNote?`\n\nREGENERATION REQUIRED: ${regenNote}`:"");
@@ -3187,7 +3286,7 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
       const plantViol=getPlantProteinTransformationViolations(data,ch);
       const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, formatViol, kitchenViol, classicViol, plantViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (must-use equipment centrality, blender on filling when assigned, timeline, basket coverage for every MUST USE name, seitan/tempeh transformation not garnish-only, appetizer course fit, format honesty, kitchen science — real emulsion names, bread not flour slices). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (must-use equipment centrality, blender on filling when assigned, timeline, basket coverage for every MUST USE name, seitan/tempeh transformation not garnish-only, appetizer course fit, competition edge on appetizer/entree — acid/heat/char in flavorBalance, savory dark chocolate integrated when in basket (not dessert sauce on savory base), marshmallow on savory = heat move not cold ricotta fold, dessert snap/snow peas need blanch/sauté/char not raw garnish, format honesty, kitchen science — real emulsion names, bread not flour slices). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
       if(att===maxAttempts-1) state.contestRecipeRestrictionWarnings=viol;
     }
     state.contestRecipe=data;
@@ -3587,9 +3686,19 @@ function ingredientConflictsWithRestriction(ingName, restriction){
     return false;
   }
   if(restriction==="No Gluten"){
-    if(/\b(flour|wheat|pasta|spaghetti|bread|couscous|barley|rye|semolina|udon|ramen|noodle|farro|bulgur)\b/i.test(n)) return true;
-    if(/\ball[\s-]?purpose\b/i.test(n)) return true;
-    if(/\bsoy sauce\b/i.test(n)) return true;
+    const nl=String(n||"").toLowerCase();
+    if(/\b(gluten[\s-]?free|certified\s+gf|\bg[\s/.]*f[\s/.]*)\b/i.test(nl)) return false;
+    if(/\b(rice\s+noodles?|brown\s+rice\s+noodles?|rice\s+vermicelli|glass\s+noodles?|mung\s+bean|bean\s+thread|konjac|shirataki|sweet\s+potato\s+noodles?)\b/i.test(nl)) return false;
+    if(/\b(flour|wheat|pasta|spaghetti|bread|couscous|barley|rye|semolina|udon|ramen|farro|bulgur)\b/i.test(nl)) return true;
+    if(/\ball[\s-]?purpose\b/i.test(nl)) return true;
+    if(/\bsoy sauce\b/i.test(nl)&&!/\b(gluten[\s-]?free|tamari)\b/i.test(nl)) return true;
+    if(/\binstant\s+noodles?\b/i.test(nl)) return !/\b(gluten[\s-]?free|gf|rice|mung|buckwheat)\b/i.test(nl);
+    if(/\begg\s+noodles?\b/i.test(nl)||/\bwheat\s+noodles?\b/i.test(nl)) return true;
+    if(/\bnoodles?\b/i.test(nl)){
+      if(/\b(rice|glass|mung|bean|sweet\s+potato|konjac|shirataki|brown\s+rice)\b/i.test(nl)) return false;
+      if(/\b(gluten[\s-]?free|gf)\b/i.test(nl)) return false;
+      return true;
+    }
     return false;
   }
   if(restriction==="No Sugar"){
@@ -3757,6 +3866,10 @@ function getRecipeRestrictionViolations(recipe, restrictions){
     else if(norm==="No Nuts"&&/\b(almond|cashew|pistachio|pecan|walnut|hazelnut|pine\s*nut|pesto|peanut)\b/i.test(low))
       msgs.push(`${norm}: mentions nuts or peanut`);
   }
+  if(rlist.some(x=>normalizeRestrictionKey(x)==="No Gluten")&&!msgs.some(m=>/^No Gluten:\s+conflicts/i.test(m))){
+    if(/\bramen\b/i.test(low)&&!/\b(gluten[\s-]?free|certified\s+gf|\bg[\s/.]*f[\s/.]*|rice\s+noodles?|rice\s+vermicelli|glass\s+noodles?|mung\s+bean|bean\s+thread|konjac|shirataki)\b/i.test(low))
+      msgs.push(`No Gluten: title or steps still imply **wheat ramen** — use certified GF noodles or rice/glass noodles and name them in ingredients; tamari or GF-labeled soy, not generic soy sauce.`);
+  }
   return msgs;
 }
 
@@ -3776,21 +3889,45 @@ function getNoSaltCompensationViolations(recipe, restrictions){
   return msgs;
 }
 
-/** Brisket on competition clocks: forbid fantasy quick-cook from raw. */
+/** Collagen-heavy cuts: forbid fantasy quick-braise / "tender in 15 min" on short clocks. */
 function getBrisketPhysicsViolations(recipe, ch){
   const msgs=[];
   if(!recipe||!ch) return msgs;
   const req=(ch.required||[]).map(s=>String(s).toLowerCase());
-  if(!req.some(r=>/\bbrisket\b/.test(r))) return msgs;
   const total=Math.max(1, Number(ch.totalTime)||30);
-  if(total>90) return msgs;
   const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
-  const legit=/\b(pressure|instant\s*pot|pre[\s-]?cooked|leftover|smoked|already\s+tender|brais(ed|e)|hours|low\s+and\s+slow|shredded|pulled|prepared|deli|corned|pastrami|sous\s*vide)\b/i.test(low);
-  if(legit) return msgs;
-  const rawCube=/\b(raw\s+)?brisket\s+(cubes?|dice|chunks?|pieces)\b|\b(cubes?|dice)\s+of\s+brisket\b/i.test(low);
-  const quickCook=/\b(sear|saut|simmer|cook|brown)\b[^.]{0,120}\bbrisket[^.]{0,140}?\b([1-9]|1[0-9]|20)\s*(?:min|minutes)\b/i.test(low)
-    ||/\bbrisket[^.]{0,140}?\b(sear|saut|simmer|cook|brown)\b[^.]{0,120}?\b([1-9]|1[0-9]|20)\s*(?:min|minutes)\b/i.test(low);
-  if(rawCube||quickCook) msgs.push(`Physics: brisket will not tenderize from raw in a few minutes on a ~${total} min clock — use pressure (if allowed), leftover/shredded/smoked brisket, or honest longer braise; not raw cubes + short sear.`);
+  const legit=/\b(pressure|instant\s*pot|pre[\s-]?cooked|pre[\s-]?braised|leftover|smoked|already\s+tender|brais(ed|e)\s+ahead|hours|low\s+and\s+slow|shredded|pulled|prepared|deli|corned|pastrami|sous\s*vide|\d+\s*h(?:ou)?rs?\b)\b/i.test(low);
+
+  if(req.some(r=>/\bbrisket\b/.test(r))&&total<=90){
+    if(!legit){
+      const rawCube=/\b(raw\s+)?brisket\s+(cubes?|dice|chunks?|pieces)\b|\b(cubes?|dice)\s+of\s+brisket\b/i.test(low);
+      const quickCook=/\b(sear|saut|simmer|cook|brown)\b[^.]{0,120}\bbrisket[^.]{0,140}?\b([1-9]|1[0-9]|20)\s*(?:min|minutes)\b/i.test(low)
+        ||/\bbrisket[^.]{0,140}?\b(sear|saut|simmer|cook|brown)\b[^.]{0,120}?\b([1-9]|1[0-9]|20)\s*(?:min|minutes)\b/i.test(low);
+      if(rawCube||quickCook) msgs.push(`Physics: brisket will not tenderize from raw in a few minutes on a ~${total} min clock — use pressure (if allowed), leftover/shredded/smoked brisket, or honest longer braise; not raw cubes + short sear.`);
+    }
+  }
+
+  function pushCollagenFantasy(label, match){
+    if(!match) return;
+    const n=+(match[1]||match[2]);
+    if(n>=5&&n<=90)
+      msgs.push(`Physics: ${label} is collagen-heavy — it will not become fork-tender in ~${n} min open simmer/braise on a ~${total} min round — use pressure (if allowed), pre-braised/leftover meat, grind/shave/thin-sear for intentional texture, flavor-accent only, or an honest reformat — not "quick stew/chili tender in minutes."`);
+  }
+  if(total<=120&&!legit){
+    const oxtailRx=/\boxtail\b[\s\S]{0,520}?\b(?:simmer|braise|stew)\b[\s\S]{0,420}?\b(\d{1,3})\s*(?:min|minutes?)|\b(?:simmer|braise|stew)\b[\s\S]{0,420}?\boxtail\b[\s\S]{0,420}?\b(\d{1,3})\s*(?:min|minutes?)/i;
+    const shortRibRx=/\bshort\s*ribs?\b[\s\S]{0,520}?\b(?:simmer|braise|stew)\b[\s\S]{0,420}?\b(\d{1,3})\s*(?:min|minutes?)|\b(?:simmer|braise|stew)\b[\s\S]{0,420}?\bshort\s*ribs?\b[\s\S]{0,420}?\b(\d{1,3})\s*(?:min|minutes?)/i;
+    const shankRx=/\b(?:beef\s+)?shank\b[\s\S]{0,520}?\b(?:simmer|braise|stew)\b[\s\S]{0,420}?\b(\d{1,3})\s*(?:min|minutes?)|\b(?:simmer|braise|stew)\b[\s\S]{0,420}?\b(?:beef\s+)?shank\b[\s\S]{0,420}?\b(\d{1,3})\s*(?:min|minutes?)/i;
+    const chuckRx=/\bchuck\b[\s\S]{0,520}?\b(?:simmer|braise|stew)\b[\s\S]{0,420}?\b(\d{1,3})\s*(?:min|minutes?)|\b(?:simmer|braise|stew)\b[\s\S]{0,420}?\bchuck\b[\s\S]{0,420}?\b(\d{1,3})\s*(?:min|minutes?)/i;
+    if(req.some(r=>/\boxtail\b/.test(r))&&/\boxtail\b/.test(low))
+      pushCollagenFantasy("Oxtail", low.match(oxtailRx));
+    if(req.some(r=>/\bshort\s*ribs?\b/.test(r))&&/\bshort\s*ribs?\b/.test(low))
+      pushCollagenFantasy("Beef short rib", low.match(shortRibRx));
+    if(req.some(r=>/\b(beef\s+)?shank\b/.test(r))&&/\b(?:beef\s+)?shank\b/.test(low))
+      pushCollagenFantasy("Beef shank", low.match(shankRx));
+    if(req.some(r=>/\bchuck\b/.test(r))&&/\bchuck\b/.test(low))
+      pushCollagenFantasy("Chuck", low.match(chuckRx));
+  }
+
   return msgs;
 }
 
@@ -3810,11 +3947,33 @@ function mentionsEquipment(low, equipName){
   return rx.test(String(low||""));
 }
 
+/** Steps only — avoids balance.basket claiming "oven" without a real step. */
+function recipeStepsTextForEquipment(recipe){
+  if(!recipe||!Array.isArray(recipe.steps)) return "";
+  const parts=[];
+  for(const s of recipe.steps){
+    if(!s) continue;
+    parts.push(String(s.phase||""), String(s.what||""), String(s.how||""));
+  }
+  return parts.join(" ").toLowerCase();
+}
+
+/** Oven techniques that imply the oven (not stovetop-only). */
+function stepTextShowsOvenUse(stepBlobLower){
+  const b=String(stepBlobLower||"").toLowerCase();
+  if(/\b(no|without|skip|avoid)\s+.{0,24}\b(oven|bake|roast|broil)\b/i.test(b)) return false;
+  return /\b(oven|preheat(?:\s+the)?\s+oven|bake|baking|baked|bakes|roast|roasting|roasted|roasts|broil|broiling|broiled|gratin|gratin[eé]e|convection|bake\s+until|roast\s+until|under\s+(?:the\s+)?broiler|oven\s*-\s*finish)\b/i.test(b);
+}
+
 /** Must-use blender / food processor: tool name OR unmistakable blend/pulse technique in prose (models often say "purée" without repeating "blender"). */
-function mustUseEquipmentSatisfied(low, eq){
-  const L=String(low||"").toLowerCase();
-  if(mentionsEquipment(L, eq)) return true;
+function mustUseEquipmentSatisfied(recipe, eq){
+  const L=recipeFlattenTextForCompliance(recipe).toLowerCase();
   const en=String(eq||"").toLowerCase();
+  if(/^oven$/i.test(en.trim())){
+    const st=recipeStepsTextForEquipment(recipe);
+    return stepTextShowsOvenUse(st);
+  }
+  if(mentionsEquipment(L, eq)) return true;
   if(/\bblender\b/.test(en))
     return /\b(blend|blended|blending|puree|purée|pureed|pulse|pulsed|blitz|vitamix|liquif|smoothie)\b|immersion\s+blender/i.test(L);
   if(/food\s*processor/.test(en))
@@ -3916,7 +4075,99 @@ function getRecipeTimelineViolations(recipe, ch){
   msgs.push(...getProseTimelineViolations(low, total));
   msgs.push(...getShortClockHardKitchenLoadViolations(recipe,ch));
   msgs.push(...getAppetizerCourseFitViolations(recipe,ch));
+  msgs.push(...getCompetitionSavoryEdgeViolations(recipe,ch));
+  msgs.push(...getSavoryChocolateIntegrationViolations(recipe,ch));
+  msgs.push(...getMarshmallowSavoryTransformationViolations(recipe,ch));
+  msgs.push(...getDessertSnapPeaTransformationViolations(recipe,ch));
   return [...new Set(msgs)];
+}
+
+/** Dessert + snap/snow peas in basket: forbid raw chop-only garnish without heat/sugar technique. */
+function getDessertSnapPeaTransformationViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const id=String((ch.ctype&&ch.ctype.id)||"");
+  const label=String((ch&&ch.ctype&&ch.ctype.label)||"").toLowerCase();
+  if(id!=="dessert"&&!/\bdessert\b/.test(label)) return msgs;
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
+  if(!/\b(snap\s*pea|snow\s*pea|sugar\s*snap)\b/.test(req)) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const veg=/\b(snap\s*pea|snow\s*pea|sugar\s*snap)\b/i;
+  if(!veg.test(low)) return msgs;
+  const transform=/\b(blanch|blanched|saut[eé]|saute|char|charred|caramel|candied|pickle|compote|roast|roasted|grill|grilled|glaze|glazed|wilt|wilted|heat|quick[\s-]?cook|syrup|sugar\s+cook|brown\s+in\s+pan)\b/i.test(low);
+  const rawOnly=/\b(raw|chop|chopped|slice|sliced|thinly|dice|diced|mince|minced|garnish|garnished|sprinkle|sprinkled)\b/i.test(low)&&veg.test(low);
+  if(rawOnly&&!transform)
+    msgs.push(`Dessert + snap/snow peas: use a real technique (blanch, sauté, char, candied strip, syrup pickle) — not only raw chop or sprinkle garnish.`);
+  else if(!transform)
+    msgs.push(`Dessert + snap/snow peas: name a heat or sugar technique in steps or balance.flavor — not undressed veg on a sweet plate.`);
+  return msgs;
+}
+
+/** Marshmallow in basket + savory course: require documented heat work, not cold dairy fold. */
+function getMarshmallowSavoryTransformationViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const id=String((ch.ctype&&ch.ctype.id)||"");
+  if(id!=="appetizer"&&id!=="entree") return msgs;
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
+  if(!/\bmarshmallow\b/.test(req)) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const marshHeat=/marshmallow[\s\S]{0,220}?\b(melt|melted|melting|caramel|carameliz|torch|br[ûu]l[eé]|dissolv|toast|toasted|brown|broil|reduc|heated|hot\s+pan|pan[\s-]*melt|warm|simmer|grill|char|flame)|\b(melt|melted|caramel|torch|toast|dissolv|brown|broil|reduc|cook|simmer)[\s\S]{0,220}?marshmallow/i.test(low);
+  if(marshHeat) return msgs;
+  const lazyDairy=/\b(ricotta|mascarpone|cream\s+cheese|cottage\s+cheese)\b/i.test(low)&&/\bmarshmallow\b/i.test(low);
+  const lazyStir=/\b(combine|stir|fold|mix|whisk)\b[\s\S]{0,260}?\bmarshmallow|\bmarshmallow\b[\s\S]{0,260}?\b(combine|stir|fold|mix|gently)\b/i.test(low);
+  if(lazyDairy&&lazyStir)
+    msgs.push(`Marshmallow + dairy (savory course): use **heat** — melt into glaze/sauce, caramelize, torch/brûlée, or toast — not a cold stir-in with ricotta/cream that reads dessert-blob.`);
+  else
+    msgs.push(`Marshmallow (savory course): name a **heat transformation** (melt into glaze, caramelize, torch, dissolve into reduction, toast) — not marshmallow as an unheated mix-in.`);
+  return msgs;
+}
+
+/** Dark chocolate in basket + savory course: block dessert-style sauce/drizzle collision without fusion technique. */
+function getSavoryChocolateIntegrationViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const id=String((ch.ctype&&ch.ctype.id)||"");
+  if(id!=="appetizer"&&id!=="entree") return msgs;
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
+  if(!/\bdark\s+chocolate\b/.test(req)) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const fusion=
+    /\b(mole|mole[\s-]?style|mole[\s-]?adjacent|adobo|chipotle|ancho|guajillo)\b/.test(low)||
+    (/\bbloom(?:ed|ing)?\b/.test(low)&&/\b(paprika|chocolate|cocoa)\b/.test(low))||
+    /\bchocolate\s+into\s+(?:the\s+)?(?:roux|spiced|paprika|pan|fat|oil|butter)\b/i.test(low)||
+    /\b(savory|bitter)\s+(?:chocolate|glaze|reduction)\b/i.test(low)||
+    /\b(cocoa|chocolate|dark\s+chocolate)[\s\S]{0,140}?\b(tomato\s+paste|stock|chile|vinegar|coffee|espresso|chipotle)\b/i.test(low)||
+    /\b(tomato\s+paste|stock|chile|vinegar|coffee|espresso|chipotle)[\s\S]{0,140}?\b(cocoa|dark\s+chocolate)\b/i.test(low)||
+    /\b(red\s+wine|sherry|balsamic|espresso)\b[\s\S]{0,130}?\b(chocolate|cocoa)\b/i.test(low)||
+    /\b(chocolate|cocoa)\b[\s\S]{0,130}?\b(red\s+wine|sherry|balsamic|espresso)\b/i.test(low);
+  if(fusion) return msgs;
+  const dessertCollision=
+    (/\bchocolate\s+sauce\b/.test(low)&&!/\bsavory\s+chocolate\s+sauce\b/.test(low))||
+    /\bchocolate\s+ganache\b/.test(low)||
+    /\b(?:hot\s+fudge|dessert\s+sauce)\b/.test(low)||
+    /\b(drizzle|pooled?|pool)\b[\s\S]{0,70}?\b(chocolate|chocolate\s+sauce)\b/i.test(low)||
+    /\b(melt(?:ed|ing|s)?\s+(?:the\s+)?chocolate)\b[\s\S]{0,110}?\b(heavy\s+cream|whipping\s+cream)\b/i.test(low)||
+    /\b(heavy\s+cream|whipping\s+cream)\b[\s\S]{0,110}?\bmelt(?:ed|ing|s)?\s+(?:the\s+)?chocolate\b/i.test(low);
+  if(dessertCollision)
+    msgs.push(`Savory + dark chocolate: integrate into one system — not a separate dessert-style chocolate sauce or ganache (melt chocolate + cream alone) or drizzle on a savory base. Use mole/adobo-style depth, bloom paprika/chile in fat then dissolve chocolate, or bitter cocoa in reduced stock/coffee with acid/salt.`);
+  return msgs;
+}
+
+/** Appetizer/entree: require a named palate hook (acid, heat/spice, char, or punchy savory) — not only mild + sweet + butter. */
+function getCompetitionSavoryEdgeViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const id=String((ch.ctype&&ch.ctype.id)||"");
+  if(id!=="appetizer"&&id!=="entree") return msgs;
+  const low=recipeFlattenTextForCompliance(recipe);
+  const blobLower=low.toLowerCase();
+  const acid=/\b(lemon|lime|vinegar|verjuice|verjus|pickle|pickled|brine|caper|yuzu|gastrique|sherry\s+vinegar|champagne\s+vinegar|meyer|citrus\b|tangy|sour\s+note|acid\b|acidity|citric)\b/i.test(blobLower);
+  const heatSpice=/\b(chili|chile|chilli|hot\s+sauce|gochujang|sriracha|cayenne|harissa|aleppo|mustard|horseradish|wasabi|togarashi|red\s+pepper|spiced|spice[\s-]*crust|black\s+peppercorn|peppercorn|sichuan|calabrian|chile\s+oil|chili\s+oil|dukkah)\b/i.test(blobLower);
+  const charFerment=/\b(charred|blackened|blister|bitter\s+green|fermented|kimchi|sauerkraut|burnt\s+lemon|miso|anchovy|fish\s+sauce|soy\s+sauce|tamari)\b/i.test(blobLower);
+  if(acid||heatSpice||charFerment) return msgs;
+  msgs.push(`Competition edge (appetizer/entree): name a clear palate hook in balance.flavor or flavorBalance — acid (citrus, vinegar, pickle), heat/spice, char, or punchy savory (miso, anchovy) — not only soft + sweet + mild butterfat.`);
+  return msgs;
 }
 
 /** HARD/INSANE + ≤25 min: scratch dough + custard bake + separate veg/wok is usually fantasy. */
@@ -4023,6 +4274,8 @@ function getKitchenScienceHonestyViolations(recipe){
   const ingBlob=recipeIngredientLinesForCompliance(recipe);
   if(/\b\d+\s+slices?\s+(?:of\s+)?(?:all[\s-]?purpose\s+)?flour\b/i.test(ingBlob)||/\bslices?\s+of\s+(?:all[\s-]?purpose\s+)?flour\b/i.test(ingBlob)||/\bflour\s+slices?\b/i.test(ingBlob))
     msgs.push(`Format honesty: bread for a sandwich must be bread, roll, or tortilla — not loose flour listed as "slices".`);
+  if(/\bcornstarch\b/i.test(lowL)&&/\b(dumpling|dumplings|dough\s+ball)\b/i.test(lowL))
+    msgs.push(`Kitchen honesty: cornstarch is not a primary dumpling dough — use flour (or GF flour mix) for dumplings/wonton, or use cornstarch for slurry, crispy dredge, or sauce body — not cornstarch-only "dough."`);
   return msgs;
 }
 
@@ -4051,13 +4304,20 @@ function getRecipeEquipmentCentralityViolations(recipe, ch){
         }
         continue;
       }
+      if(/^oven$/i.test(en.trim())){
+        const primary=/^(COOK|SAUCE|ASSEMBLE|PREP)$/.test(ph);
+        if(primary&&stepTextShowsOvenUse(b)){
+          ok=true;
+          break;
+        }
+        continue;
+      }
       if(!hasTool) continue;
       if(/torch/i.test(en)) ok=/\b(brul|torch|melt|char\s+with)\b/i.test(blob)||/^PLATE$|^ASSEMBLE$/i.test(String(ph||"").trim());
       else if(/sous\s*vide/i.test(en)) ok=/\b(sous\s*vide|water\s*bath|\d+\s*°?f|\d+\s*°?c)\b/i.test(blob);
       else if(/microwave/i.test(en)) ok=/\b(microwave|nuke)\b/i.test(blob);
       else if(/air\s*fryer/i.test(en)) ok=/\bair\s*fryer\b/i.test(blob);
       else if(/instant\s*pot|pressure/i.test(en)) ok=/\b(instant\s*pot|pressure\s*cook)\b/i.test(blob);
-      else if(/^oven$/i.test(en)) ok=/\b(oven|bake|roast)\b/i.test(blob);
       else if(/sheet\s*pan/i.test(en)) ok=/COOK|SAUCE|PREP/.test(ph)&&/\b(sheet\s*pan|sheetpan|tray)\b/i.test(blob)&&/\b(roast|bake|sheet)\b/i.test(blob);
       else if(/cast\s*iron/i.test(en)){
         const fullSteps=steps.map(st=>String(st.what||"")+" "+String(st.how||"")).join(" ").toLowerCase();
@@ -4206,7 +4466,7 @@ function getRecipeEquipmentViolations(recipe, ch){
   for(const raw of (ch.reqEquip||[])){
     const eq=String(raw||"").trim();
     if(!eq) continue;
-    if(!mustUseEquipmentSatisfied(low, eq)){
+    if(!mustUseEquipmentSatisfied(recipe, eq)){
       msgs.push(`Must-use equipment missing: ${eq} is required but not clearly used in the written method.`);
     }
   }
@@ -4413,7 +4673,7 @@ ACTIVE RESTRICTIONS (fail closed):
     else if(norm==="Vegan")
       s+=` — BANNED: all animal products (meat, poultry, fish, shellfish, dairy, eggs, honey, gelatin, rennet, butter, milk chocolate, bonito, dashi with fish). NO chicken/beef/fish stock or bone broth — only veg stock, mushroom broth, kombu/dried mushroom, or water + aromatics. NO fish sauce, oyster sauce, Worcestershire (fish-based) unless you state an approved vegan brand and the brief allows that sauce. Do not “borrow” animal depth.\n`;
     else if(norm==="No Gluten")
-      s+=` — BANNED: wheat flour, standard pasta/bread, barley, rye, typical soy sauce unless gluten-free stated — use GF pasta/flour/tamari when needed.\n`;
+      s+=` — BANNED: wheat flour, standard pasta/bread, barley, rye, typical soy sauce unless gluten-free stated — use GF pasta/flour/tamari when needed. **Elevate + noodles:** default instant ramen / wheat noodles are NOT gluten-free — ingredients must say **gluten-free** or use rice vermicelli / glass noodles / shirataki named honestly.\n`;
     else if(norm==="No Alcohol")
       s+=` — BANNED: wine, beer, spirits in food; cooking wine counts.\n`;
     else if(norm==="No Nuts")
@@ -4451,6 +4711,8 @@ function equipmentHardPriorityBlock(ch){
   if(req.some(x=>/\bblender\b/i.test(String(x)))||req.some(x=>/food\s*processor/i.test(String(x))))
     s+=`- BLENDER / FOOD PROCESSOR: Put the tool name ("blender", "Vitamix", "immersion blender", or "food processor") in at least one step "how" line where you purée, blend, pulse, or process — not only in the ingredient list. If you describe puréeing without repeating the word "blender", still make the blend/pulse action unmistakable in that step.
 - On tarts/custards: use the blender for the filling or roast purée (silky base) — not only a small drizzle or plate garnish.\n`;
+  if(req.some(x=>/\boven\b/i.test(String(x))))
+    s+=`- OVEN (must-use): Put **dry oven heat** in at least one **step** (PREP preheat, COOK, SAUCE, or ASSEMBLE) — e.g. preheat oven, roast, bake, broil, gratin, bake until set. Saying "oven" only in balance text without a matching step **fails** validation. Stovetop-only (sear, boil, simmer, skillet) does **not** satisfy Oven.\n`;
   const st=req.some(x=>String(x).toLowerCase().includes("stovetop"));
   const noSv=forb.some(x=>/\bsous/i.test(String(x)));
   const ovenReq=req.some(x=>/\boven\b/i.test(String(x)));
