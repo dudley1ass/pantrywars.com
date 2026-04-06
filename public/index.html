@@ -267,7 +267,24 @@ const CTYPES = [
   {id:"comfort_reinvented",label:"Comfort Food Reinvented",emoji:"🥧"},
   {id:"global_cuisine",label:"Global Cuisine",emoji:"🌍"},
 ];
-const EQUIP=["Oven","Stovetop","Air Fryer","Grill","Microwave","Instant Pot","Blender","Food Processor","Cast Iron","Wok","Sous Vide","Torch","Sheet Pan"];
+const EQUIP=[
+  "Chef's Knife","Paring Knife","Bread Knife","Mandoline Slicer","Bench Scraper",
+  "Frying Pan","Cast Iron","Cast Iron Skillet","Carbon Steel Pan","Saute Pan","Saucepan","Stockpot","Dutch Oven","Braising Pan","Grill Pan","Wok","Roasting Pan","Double Boiler",
+  "Pressure Cooker","Slow Cooker","Rice Cooker","Multi-Cooker","Instant Pot","Sous Vide","Sous Vide Machine","Sous Vide Circulator","Deep Fryer","Air Fryer",
+  "Oven","Stovetop","Range (Gas/Electric)","Induction Cooktop","Electric Griddle","Hot Plate",
+  "Food Processor","Blender","Immersion Blender","Mortar and Pestle",
+  "Box Grater","Microplane","Peeler","Zester","Garlic Press","Potato Masher","Food Mill","Ricer","Spiralizer",
+  "Stand Mixer","Hand Mixer","Rolling Pin","Pastry Cutter",
+  "Sheet Pan","Baking Sheet","Muffin Tin","Cake Pan","Springform Pan","Loaf Pan","Pie Dish","Tart Pan","Pizza Stone",
+  "Meat Grinder","Meat Slicer","Pasta Maker",
+  "Tea Kettle","Electric Kettle",
+  "Ice Cream Maker","Dehydrator","Fermentation Crock","Smoker",
+  "Grill","Charcoal Grill","Gas Grill","Pellet Grill",
+  "Vacuum Sealer","Vacuum Chamber Sealer",
+  "Whipping Siphon","Torch","Culinary Torch","Heat Gun (Culinary)",
+  "Salamander Broiler","Flat-Top Griddle","Commercial Fryer","Steam Table",
+  "Juicer","Citrus Press","Microwave"
+];
 
 /** Map user/AI strings to canonical EQUIP label (empty if unknown). */
 function normalizeEquipmentCatalogName(s){
@@ -306,6 +323,18 @@ const EQUIPMENT_TECHNIQUE_SHEET={
   "Sous Vide":"Even edge-to-edge temp; finish with sear/torch — steps must match real time on the clock.",
   Torch:"**Pan-inaccessible finish** — brûlée sugar, caramelize **brine/pickle syrup/honey brush** into a lacquer (vinegar lifts; sugars brown), blister meringue/cheese tops, spot-melt fat. **Weak:** re-torching **already-seared meat slices** for edge char — cast iron already delivered Maillard; that reads cosmetic. Prefer flame that changes **flavor register**, not only color.",
   "Sheet Pan":"Tray roast, one-pan dinners, even browning for veg + protein together; aligns with oven timing.",
+  "Rice Cooker":"Hands-off rice/grain cooking with auto shutoff; reliable but not fast for short rounds.",
+  "Slow Cooker":"Low-and-slow braise/stew tool; usually too slow for competition clocks.",
+  "Pressure Cooker":"Rapid tenderizing for grains/collagen; account for pressurize + release time.",
+  "Multi-Cooker":"Pressure/saute/slow-cook combo; choose one mode that fits the round.",
+  "Sous Vide Machine":"Precise low-temp bath; best for long windows plus finishing sear.",
+  "Sous Vide Circulator":"Immersion bath control; quality tool but often clock-heavy.",
+  "Dehydrator":"Drying and crisping over long cycles; generally incompatible with short rounds.",
+  "Fermentation Crock":"Long fermentation vessel; not an in-round cook method.",
+  "Ice Cream Maker":"Churn/freeze dessert textures; usually needs pre-chilled base/time buffer.",
+  "Smoker":"Smoke layering over longer windows; hard to fit <45 min unless tiny components only.",
+  "Meat Grinder":"Fast texture pivot for tough cuts and fillings; minutes, not hours.",
+  "Pasta Maker":"Fresh noodle sheets/shapes; excellent texture but prep-heavy on short clocks.",
 };
 
 /**
@@ -326,6 +355,34 @@ const EQUIPMENT_COOK_TIME_HINTS={
   "Sous Vide":"Bath often **~45–90m+** for thick cuts + **sear finish ~3–8m** — must fit **total** round or forbidden.",
   Torch:"Finish only **~30s–4m** — brûlée, **brine/syrup caramel lacquer**, meringue/cheese blister; **not** primary protein cook **and not** fake “torch the sliced steak” after a full sear.",
   "Sheet Pan":"Tray roast **~20–45m** typical for veg+protein together — one oven story; aligns with **Oven** clock.",
+  "Rice Cooker":"Most rice cycles **~20–45m**; brown rice often longer — risky on short clocks unless pre-cooked.",
+  "Slow Cooker":"Typical cycle **2–8h** — not a 20–40 min competition method.",
+  "Pressure Cooker":"Pressure phase + build/release often **~18–45m** total for meaningful change; count hidden minutes.",
+  "Multi-Cooker":"Mode-dependent; pressure path often **~18–45m** total including build/release.",
+  "Sous Vide Machine":"Usually **~45–120m+** including heat and hold; finish sear extra.",
+  "Sous Vide Circulator":"Usually **~45–120m+** including heat and hold; finish sear extra.",
+  "Dehydrator":"Usually **1–8h+** — long-cycle tool, not short-round primary cook.",
+  "Fermentation Crock":"Fermentation is **hours–days**; not in-round transformation.",
+  "Ice Cream Maker":"Churn/freeze commonly **~20–40m** after base prep and chilling.",
+  "Smoker":"Meaningful smoke cook usually **~45m–many hours** depending cut.",
+  "Meat Grinder":"Texture conversion **~3–8m** active; then cook path still required.",
+  "Pasta Maker":"Dough + sheet/cut **~15–35m** before cooking; clock-heavy under 30 min.",
+};
+
+const EQUIPMENT_MIN_ROUND_MINUTES={
+  "Slow Cooker":120,
+  "Dehydrator":90,
+  "Fermentation Crock":180,
+  "Sous Vide":45,
+  "Sous Vide Machine":45,
+  "Sous Vide Circulator":45,
+  "Rice Cooker":20,
+  "Ice Cream Maker":30,
+  "Smoker":45,
+  "Pasta Maker":25,
+  "Pressure Cooker":20,
+  "Multi-Cooker":20,
+  "Instant Pot":20,
 };
 
 function equipmentCookTimeLine(name){
@@ -337,6 +394,17 @@ function equipmentCookTimeLine(name){
     if(k.toLowerCase()===low) return EQUIPMENT_COOK_TIME_HINTS[k];
   }
   return "";
+}
+
+function minRoundMinutesForEquipment(name){
+  const n=String(name||"").trim();
+  if(!n) return null;
+  if(EQUIPMENT_MIN_ROUND_MINUTES[n]!=null) return EQUIPMENT_MIN_ROUND_MINUTES[n];
+  const low=n.toLowerCase();
+  for(const k of Object.keys(EQUIPMENT_MIN_ROUND_MINUTES)){
+    if(k.toLowerCase()===low) return EQUIPMENT_MIN_ROUND_MINUTES[k];
+  }
+  return null;
 }
 
 function equipTechniqueSheetLine(name){
@@ -1431,7 +1499,9 @@ function basketEquipmentTechniquesBlock(ch){
   for(const name of req){
     const tip=equipTechniqueSheetLine(name)||fallback;
     const clk=equipmentCookTimeLine(name);
-    lines.push(`• ${name}: ${tip}${clk?" **Typical cook window:** "+clk:""}`);
+    const minEq=minRoundMinutesForEquipment(name);
+    const floor=(minEq&&t<minEq)?` **Clock floor:** ${name} usually needs ~${minEq}+ min round (or pre-cooked/setup) for meaningful use.`:"";
+    lines.push(`• ${name}: ${tip}${clk?" **Typical cook window:** "+clk:""}${floor}`);
   }
   if(!lines.length) return "";
   return `MUST-USE EQUIPMENT — TECHNIQUES (~${t} min round; **match protein/technique to gear time** — e.g. grill = open high heat + smoke/char, not baked tart; **torch = selective finish that does pan-inaccessible work** (brûlée, brine lacquer), not duplicate sear on sliced meat; blender = prep not sear):
@@ -3418,10 +3488,10 @@ function noSaltRestrictionJudgeAddon(ch){
   if(!r.some(x=>normalizeRestrictionKey(x)==="No Salt")) return "";
   return `
 NO SALT — JUDGING LENS:
-- Letter of rule: penalize explicit table salt, "salt to taste," or obvious salt-forward finishes. Stock, butter, cheese, soy, miso carry latent sodium — borderline acceptable if other rules allow; note risk if judges are strict.
+- Letter of rule: penalize explicit **granulated/added salt** only — table salt, kosher salt, finishing salt, seasoned salt, and "salt to taste." Salty ingredients (stock, butter, cheese, soy, miso, capers, caper brine, pickle brine, etc.) are allowed unless another restriction blocks them.
 - Penalize plans that ignore the brief: no clear answer to "how did you solve NO SALT?" (acid, umami, char, reduction, honest latent sodium) — only fat/cream richness.
 - Reward plans that compensate with acid (citrus, vinegar), tomato or char for depth, bitter char on veg, and aggressive reduction — especially when maple/honey/sweet items are in play — so the dish does not read flat or dessert-sweet.
-- Call out when a plan leans on commercial stock/butter without acknowledging sodium tradeoffs under a strict read.`;
+- Call out flat flavor plans that forget contrast (acid/bitter/char) — not because salty ingredients are illegal, but because they often still need brightness to avoid muddy richness.`;
 }
 
 function challengeIntentJudgeAddon(ctype){
@@ -4015,13 +4085,44 @@ const PW_RIVAL_WAIT_LINES=[
     sub:"Big requests take time, but so does losing. Stay sharp."
   }
 ];
+const PW_RIVAL_WAIT_CAPTIONS=[
+  "Stop reading this. You better be worried about your dish.",
+  "Clock's running. Your rival is stacking flavor while you stare.",
+  "If they plate first, judges stop listening to excuses.",
+  "They are cooking like they want the win. Are you?",
+  "Thirty seconds gone. That is one fewer chance to recover.",
+  "You can still win this — but not by freezing.",
+  "Stay sharp: one clean idea beats five messy ones.",
+  "Rival chef is making decisions. Make yours faster.",
+];
+let pwRivalCaptionTimer=null;
+
+function stopRivalWaitCaptionCycle(){
+  if(pwRivalCaptionTimer){
+    clearInterval(pwRivalCaptionTimer);
+    pwRivalCaptionTimer=null;
+  }
+}
+function startRivalWaitCaptionCycle(){
+  stopRivalWaitCaptionCycle();
+  const el=$("rival-wait-caption");
+  if(!el) return;
+  const pick=()=>PW_RIVAL_WAIT_CAPTIONS[randomIndex(PW_RIVAL_WAIT_CAPTIONS.length)];
+  el.textContent=pick();
+  pwRivalCaptionTimer=setInterval(()=>{
+    const node=$("rival-wait-caption");
+    if(!node){ stopRivalWaitCaptionCycle(); return; }
+    node.textContent=pick();
+  },30000);
+}
 
 function rivalChefLoadingPanelHtml(){
   const msg=PW_RIVAL_WAIT_LINES[randomIndex(PW_RIVAL_WAIT_LINES.length)];
   return `<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>
   <div class="pw-wait-pot" aria-hidden="true"><div class="pw-wait-pot-body"></div><div class="pw-wait-pot-rim"></div><div class="pw-wait-pot-handle"></div><div class="pw-wait-pot-steam"><i></i><i></i><i></i></div><div class="pw-wait-pot-spoon"></div></div>
   <div style="text-align:center;padding:0 14px 12px;color:#cbd5e1;font-size:15px;font-weight:800;line-height:1.5">${escapeHtml(msg.lead)}</div>
-  <div style="text-align:center;padding:0 14px 24px;color:#94a3b8;font-size:12px;line-height:1.5;max-width:460px;margin:0 auto">${escapeHtml(msg.sub)}</div>`;
+  <div style="text-align:center;padding:0 14px 8px;color:#94a3b8;font-size:12px;line-height:1.5;max-width:460px;margin:0 auto">${escapeHtml(msg.sub)}</div>
+  <div id="rival-wait-caption" style="text-align:center;padding:0 16px 24px;color:#cbd5e1;font-size:12px;line-height:1.45;font-weight:700;max-width:480px;margin:0 auto"></div>`;
 }
 
 async function generateRecipe() {
@@ -4029,7 +4130,7 @@ async function generateRecipe() {
   const apLoad=$("recipe-ai-panel");
   const footLoad=$("recipe-battle-footer");
   if(footLoad) footLoad.innerHTML="";
-  if(apLoad) apLoad.innerHTML=rivalChefLoadingPanelHtml();
+  if(apLoad){ apLoad.innerHTML=rivalChefLoadingPanelHtml(); startRivalWaitCaptionCycle(); }
   try {
     const res=ch.restrictions.length?`RESTRICTIONS (hard rules — the dish must comply; no cheating): ${ch.restrictions.join("; ")}.`:"RESTRICTIONS: none.";
     const fe=ch.forbEquip.length?`Forbidden: ${ch.forbEquip.join(", ")}.`:"";
@@ -4292,6 +4393,8 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     if(foot) foot.innerHTML="";
     if(ap) ap.innerHTML='<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>'+err;
     else $("recipe-body").innerHTML=err;
+  } finally {
+    stopRivalWaitCaptionCycle();
   }
 }
 
@@ -5308,11 +5411,48 @@ function getChickenWingPhysicsViolations(recipe, ch){
 
 function equipmentAliasRegex(name){
   const n=String(name||"").toLowerCase();
+  if(n==="chef's knife"||n==="paring knife"||n==="bread knife") return /\b(chef'?s\s+knife|paring\s+knife|bread\s+knife|knife)\b/i;
+  if(n==="cast iron skillet") return /\b(cast[\s-]?iron(?:\s+skillet)?|skillet)\b/i;
+  if(n==="carbon steel pan") return /\b(carbon\s+steel\s+pan|steel\s+pan)\b/i;
+  if(n==="saute pan") return /\b(saut[eé]\s+pan|frying\s+pan|saute)\b/i;
+  if(n==="range (gas/electric)") return /\b(range|gas\s+range|electric\s+range|stove)\b/i;
+  if(n==="induction cooktop") return /\b(induction\s+cooktop|induction)\b/i;
+  if(n==="electric griddle"||n==="flat-top griddle") return /\b(electric\s+griddle|flat[\s-]?top\s+griddle|griddle)\b/i;
+  if(n==="hot plate") return /\bhot\s+plate\b/i;
+  if(n==="immersion blender") return /\b(immersion\s+blender|stick\s+blender)\b/i;
+  if(n==="mortar and pestle") return /\b(mortar\s+and\s+pestle|mortar)\b/i;
+  if(n==="baking sheet") return /\b(baking\s+sheet|sheet\s+pan)\b/i;
+  if(n==="culinary torch") return /\b(torch|culinary\s+torch|blow-?\s*torch|kitchen\s*torch)\b/i;
+  if(n==="heat gun (culinary)") return /\b(heat\s+gun|culinary\s+heat\s+gun)\b/i;
+  if(n==="commercial fryer") return /\b(commercial\s+fryer|deep\s+fryer|fryer)\b/i;
+  if(n==="charcoal grill") return /\b(charcoal\s+grill|grill)\b/i;
+  if(n==="gas grill") return /\b(gas\s+grill|grill)\b/i;
+  if(n==="pellet grill") return /\b(pellet\s+grill|grill)\b/i;
+  if(n==="vacuum chamber sealer") return /\b(vacuum\s+chamber\s+sealer|chamber\s+sealer)\b/i;
+  if(n==="citrus press") return /\b(citrus\s+press|lemon\s+squeezer|lime\s+press)\b/i;
   if(n==="stovetop") return /\b(stovetop|range|burner|hob|cooktop|on\s+the\s+stove|over\s+medium\s+heat|over\s+high\s+heat|saut[eé]|skillet\s+over)\b/i;
   if(n==="blender") return /\b(blender|immersion\s+blender|stick\s+blender|vitamix|nutribullet|high[\s-]*speed[\s-]*blender)\b/i;
   if(n==="food processor") return /\b(food\s*processor|processor\s+bowl)\b/i;
   if(n==="air fryer") return /\bair\s*fryer\b/i;
   if(n==="instant pot") return /\binstant\s*pot|pressure\s*cooker\b/i;
+  if(n==="pressure cooker") return /\b(pressure\s*cooker|instant\s*pot|multi[\s-]?cooker)\b/i;
+  if(n==="multi-cooker") return /\b(multi[\s-]?cooker|instant\s*pot|pressure\s*cooker)\b/i;
+  if(n==="rice cooker") return /\b(rice\s+cooker)\b/i;
+  if(n==="slow cooker") return /\b(slow\s+cooker|crock[\s-]?pot)\b/i;
+  if(n==="sous vide machine"||n==="sous vide circulator") return /\b(sous\s*-?\s*vide|immersion\s+circulator)\b/i;
+  if(n==="deep fryer") return /\b(deep\s+fryer|deep[\s-]?fry|fryer)\b/i;
+  if(n==="meat grinder") return /\b(meat\s+grinder|grind(?:er|ing)\s+meat)\b/i;
+  if(n==="meat slicer") return /\b(meat\s+slicer|slicer)\b/i;
+  if(n==="pasta maker") return /\b(pasta\s+maker|roller|sheeted\s+pasta)\b/i;
+  if(n==="ice cream maker") return /\b(ice\s+cream\s+maker|churn)\b/i;
+  if(n==="dehydrator") return /\bdehydrator|dehydrate\b/i;
+  if(n==="fermentation crock") return /\b(fermentation\s+crock|ferment)\b/i;
+  if(n==="smoker") return /\bsmoker|smoke\b/i;
+  if(n==="vacuum sealer") return /\b(vacuum\s+sealer|vacuum\s+seal)\b/i;
+  if(n==="whipping siphon") return /\b(whipping\s+siphon|isi\s+siphon|siphon)\b/i;
+  if(n==="salamander broiler") return /\b(salamander\s+broiler|salamander|broiler)\b/i;
+  if(n==="steam table") return /\bsteam\s+table\b/i;
+  if(n==="juicer") return /\bjuicer|juice\b/i;
   if(n==="sheet pan") return /\bsheet\s*pan\b/i;
   if(n==="torch") return /\b(torch|torched|torching|blow-?\s*torch|kitchen\s*torch|butane\s*torch|propane\s*torch)\b/i;
   return new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s*")}\\b`,"i");
@@ -5764,6 +5904,54 @@ function getGrainMinClockViolations(recipe, ch){
 }
 
 /**
+ * Detect overloaded active-active overlaps (e.g., sear + glaze + reduction all at once).
+ * We allow one passive overlap lane, but flag dense simultaneous attention sinks.
+ */
+function getActiveAttentionOverlapViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const steps=Array.isArray(recipe.steps)?recipe.steps:[];
+  if(steps.length<2) return msgs;
+  const total=Math.max(1, Number(ch.totalTime)||30);
+  const toMin=(t)=>{
+    const m=String(t||"").match(/^\s*(\d{1,2})\s*:\s*(\d{2})\s*$/);
+    if(!m) return null;
+    return (+m[1])*60+(+m[2]);
+  };
+  const activeCue=/\b(sear|saut[eé]|stir|stir-fry|fry|shallow[\s-]?fry|deep[\s-]?fry|reduce|deglaze|caramel|caramelize|emulsif|whisk|mount|temper|flip|baste|press|torch|broil|grill|char|watch|monitor)\b/i;
+  const passiveCue=/\b(boil|simmer|roast|bake|pressure|instant\s*pot|air\s*fry|steam|rest|hold|warm|chill|set)\b/i;
+  const windows=[];
+  for(const s of steps){
+    const st=toMin(s&&s.time);
+    const d=minutesFromStepDur(s&&s.dur);
+    if(st==null||d<=0) continue;
+    const blob=(String(s&&s.phase||"")+" "+String(s&&s.what||"")+" "+String(s&&s.how||"")).toLowerCase();
+    const isActive=activeCue.test(blob) || (/^(COOK|SAUCE|ASSEMBLE)$/.test(String(s&&s.phase||"").toUpperCase())&&!passiveCue.test(blob));
+    windows.push({
+      start:st,
+      end:st+d,
+      active:isActive
+    });
+  }
+  if(windows.length<2) return msgs;
+  let worstPair=null;
+  for(let i=0;i<windows.length;i++){
+    for(let j=i+1;j<windows.length;j++){
+      const a=windows[i], b=windows[j];
+      const overlap=Math.max(0, Math.min(a.end,b.end)-Math.max(a.start,b.start));
+      if(overlap<=0) continue;
+      if(!(a.active&&b.active)) continue;
+      if(!worstPair||overlap>worstPair.overlap) worstPair={overlap};
+    }
+  }
+  if(!worstPair) return msgs;
+  const severe=worstPair.overlap>=Math.max(5, Math.round(total*0.15));
+  const level=severe?"HIGH":"LOW";
+  msgs.push(`Sequence collision (${level}): timeline overlaps **active + active** work for ~${worstPair.overlap} min (attention sinks competing at once). Re-sequence so one lane is passive (roast/simmer/hold) while the other is active, or shorten one stage.`);
+  return msgs;
+}
+
+/**
  * Rough timeline check: summed step durations vs challenge clock.
  * Catches "20 min braise + rest in 25 min" style fantasy.
  */
@@ -5789,6 +5977,7 @@ function getRecipeTimelineViolations(recipe, ch){
   msgs.push(...getProseTimelineViolations(low, total));
   msgs.push(...getProteinMinClockViolations(recipe,ch));
   msgs.push(...getGrainMinClockViolations(recipe,ch));
+  msgs.push(...getActiveAttentionOverlapViolations(recipe,ch));
   msgs.push(...getShortClockRoastCaramelRiskViolations(recipe,ch));
   msgs.push(...getRecipeTextureContrastViolations(recipe,ch));
   msgs.push(...getFlavorDominanceBalanceViolations(recipe,ch));
@@ -5797,6 +5986,7 @@ function getRecipeTimelineViolations(recipe, ch){
   msgs.push(...getComfortWingMacChipViolations(recipe,ch));
   msgs.push(...getShortClockHardKitchenLoadViolations(recipe,ch));
   msgs.push(...getAppetizerCourseFitViolations(recipe,ch));
+  msgs.push(...getAppetizerPortionSanityViolations(recipe,ch));
   msgs.push(...getAppetizerStarterArchitectureViolations(recipe,ch));
   msgs.push(...getBalsamicBasketIntegrationViolations(recipe,ch));
   msgs.push(...getOkraMucilagePureeViolations(recipe,ch));
@@ -6032,6 +6222,38 @@ function getRequiredBasketCoverageViolations(recipe, ch){
     if(basketRequiredNameCovered(name, blobLower)) continue;
     msgs.push(`Basket coverage: REQUIRED "${name}" must appear clearly in ingredients and/or steps (list it or describe using it — paraphrase only if unmistakably the same product).`);
   }
+  msgs.push(...getRequiredBasketIntegrationDepthViolations(recipe, ch));
+  return msgs;
+}
+
+/**
+ * HARD/INSANE: penalize finish-only token usage for required basket items.
+ * Presence alone passes coverage, but finish-only should lose depth points.
+ */
+function getRequiredBasketIntegrationDepthViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const diff=String(ch.diff||"").toLowerCase();
+  if(diff!=="hard"&&diff!=="insane") return msgs;
+  const req=(ch.required||[]).map(s=>String(s).trim()).filter(Boolean);
+  if(!req.length) return msgs;
+  const ingredientBlob=recipeIngredientLinesForCompliance(recipe).toLowerCase();
+  const stepsBlob=recipeStepLinesForCompliance(recipe).toLowerCase();
+  const finishCue=/\b(finish|at\s+the\s+pass|garnish|sprinkle|dust|zest|microplane|grate\s+over|drizzle|top\s+with|optional)\b/i;
+  const processCue=/\b(sear|saut[eé]|fry|toast|char|braise|simmer|reduce|deglaze|blend|puree|purée|fold|bind|caramel|emulsif|roast|bake|pressure|marinate|pickle|glaze|stew|broil)\b/i;
+  const splitTokens=(s)=>String(s).toLowerCase().split(/[^a-z0-9]+/).filter(x=>x.length>=3);
+  for(const name of req){
+    const tokens=splitTokens(name);
+    const tokenRe=tokens.length?new RegExp(`\\b(?:${tokens.map(escapeRegExpBasketToken).join("|")})\\b`,"i"):new RegExp(`\\b${escapeRegExpBasketToken(String(name).toLowerCase())}\\b`,"i");
+    const inIngredients=tokenRe.test(ingredientBlob);
+    const inSteps=tokenRe.test(stepsBlob);
+    if(!inIngredients&&!inSteps) continue;
+    const finishOnly=tokenRe.test(stepsBlob)&&finishCue.test(stepsBlob)&&!processCue.test(stepsBlob);
+    const garnishHeavy=(/\b(garnish|sprinkle|dust|zest|drizzle)\b/i.test(stepsBlob)&&tokenRe.test(stepsBlob)&&!processCue.test(stepsBlob));
+    if((finishOnly||garnishHeavy)&&!challengeTypeIsSnack(ch.ctype)){
+      msgs.push(`Integration depth (${diff.toUpperCase()}): REQUIRED "${name}" reads **finish-only** (grate/sprinkle/drizzle) with no clear transformation step. Keep it load-bearing: name one process move (sear/blend/reduce/fold/bind/etc.), not only a pass garnish.`);
+    }
+  }
   return msgs;
 }
 
@@ -6222,6 +6444,40 @@ function getAppetizerCourseFitViolations(recipe, ch){
   const savoryBridge=/\b(lemon|lime|vinegar|verjuice|pickle|brine|mustard|fish\s+sauce|soy|charred|bitter|umami|chili|hot\s+sauce|gochujang|miso|anchovy|caper|salt\s+forward|acid\s+hit)\b/.test(low);
   if(sweetLean&&!savoryBridge)
     msgs.push(`Course fit (appetizer): cream/chocolate/custard reads dessert-heavy — name a savory bridge in balance.flavor (acid, bitter, umami, pickle, char) so judges read a starter, not dessert.`);
+  return msgs;
+}
+
+/** Appetizer portions should read first-course scale, not entree mass. */
+function getAppetizerPortionSanityViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  if(String((ch.ctype&&ch.ctype.id)||"")!=="appetizer") return msgs;
+  const serves=Math.max(1, Number(recipe&&recipe.serves)||2);
+  const ing=Array.isArray(recipe.ingredients)?recipe.ingredients:[];
+  const toNum=(s)=>{
+    const m=String(s||"").match(/(\d+(?:\.\d+)?)/);
+    return m?Number(m[1]):null;
+  };
+  let proteinOz=0;
+  for(const row of ing){
+    const item=String(row&&row.item||"").toLowerCase();
+    const amount=String(row&&row.amount||"").toLowerCase();
+    if(!/\b(chicken|beef|pork|lamb|duck|turkey|salmon|tuna|cod|halibut|shrimp|scallop|sausage|steak|breast|fillet|filet|wings?)\b/.test(item)) continue;
+    const n=toNum(amount);
+    if(n==null) continue;
+    if(/\boz\b/.test(amount)) proteinOz+=n;
+    else if(/\blb\b/.test(amount)) proteinOz+=n*16;
+    else if(/\bg\b/.test(amount)) proteinOz+=n/28.35;
+  }
+  if(proteinOz>0){
+    const per=proteinOz/serves;
+    if(per>=7){
+      msgs.push(`Course fit (appetizer): protein portion trends **~${per.toFixed(1)} oz per serving**, which reads entrée-scale. Downsize to starter portions (small bites/slices, shared plate logic) and shift weight to acid/crisp garnish or base.`);
+    }
+  }
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  if(/\b(full|whole)\s+(?:chicken\s+breast|steak|fillet|filet|pork\s+chop)\b/.test(low))
+    msgs.push(`Course fit (appetizer): "full/whole" center-cut protein language reads entrée. Reframe as sliced/shared first course or bite-format architecture.`);
   return msgs;
 }
 
@@ -6532,11 +6788,36 @@ function getRecipeEquipmentViolations(recipe, ch){
     }
   }
 
+  msgs.push(...getEquipmentClockFeasibilityViolations(recipe,ch));
+
   msgs.push(...getRecipeEquipmentCentralityViolations(recipe,ch));
   msgs.push(...getStovetopPrimaryHeatViolations(low,ch));
   msgs.push(...getMustUseGrillVsBakedFormatViolations(recipe,ch));
   msgs.push(...getRecipeProcessEquipmentForbiddenViolations(recipe,ch));
   msgs.push(...getRecipeProcessEquipmentDeclaredViolations(recipe,ch));
+  return msgs;
+}
+
+/** Must-use equipment vs round clock feasibility (e.g. slow cooker in 20 min). */
+function getEquipmentClockFeasibilityViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const total=Math.max(1, Number(ch.totalTime)||30);
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const steps=(recipe.steps||[]).map(s=>`${String(s&&s.what||"")} ${String(s&&s.how||"")} ${String(s&&s.dur||"")}`.toLowerCase()).join(" ");
+  const blob=(low+" "+steps).toLowerCase();
+  const prepAhead=/\b(pre[\s-]?cook|pre[\s-]?cooked|already\s+cooked|leftover|overnight|ahead\s+of\s+time|day[-\s]?old|store[\s-]?bought)\b/i.test(blob);
+  for(const raw of (ch.reqEquip||[])){
+    const eq=String(raw||"").trim();
+    if(!eq) continue;
+    const minM=minRoundMinutesForEquipment(eq);
+    if(!minM||total>=minM) continue;
+    const used=mentionsEquipment(blob, eq);
+    // If must-use is declared but round is too short for meaningful in-round effect, force explicit pre-cook/setup story.
+    if(used&&!prepAhead){
+      msgs.push(`Equipment clock: **${eq}** is usually not meaningful on a ${total} min round (typical floor ~${minM}+ min) unless you state a pre-cooked/setup path. Use a faster must-use tool or explicitly pre-stage.`);
+    }
+  }
   return msgs;
 }
 
@@ -6787,7 +7068,7 @@ ACTIVE RESTRICTIONS (fail closed):
       s+=` — BANNED: **granulated sugar** in any common dry form — white, brown, **coconut sugar**, **turbinado**, **demerara**, **caster/superfine**, **powdered / confectioners / icing**. **OK:** honey, maple, caramel, molasses (as syrup), agave, fruit, date paste, chocolate, marshmallow, liquid syrups — not dry crystalline baking sugars. Do not list those granulated products or powdered sugar in ingredients or steps.\n`;
     else if(norm==="No Salt")
       s+=` — BANNED: table salt, kosher salt, finishing salt, seasoned salt, explicit "season with salt" / "salt to taste" in steps. MSG-as-salt is off unless you label an allowed exception (usually avoid).
-- Latent sodium is real: commercial stock, butter, cheese, soy sauce, miso, fish sauce, bacon, ham, brined pickles, many condiments — still allowed if your other rules permit them; name the source honestly. Prefer unsalted butter / low-sodium stock wording when the story allows so strict judges see intent.
+- No Salt means **no added granulated salt** only. Salty ingredients are allowed (caper brine, pickle brine, soy, miso, fish sauce, cheese, stock, etc.) if other restrictions permit them; name these sources honestly in flavor balance.
 - Flavor architecture without added salt: push acid (citrus, vinegar), bitter (charred veg, greens), tomato paste or charred tomato for "red sauce" memory, aggressive reduction, herbs — especially when the basket has maple/honey/sweet; finish with extra acid so the plate stays savory, not dessert-leaning.
 - MANDATORY in balance.basket or balance.flavor: one explicit sentence on how you solve "no added salt" for judges — acid/umami/char/reduction/latent sodium tradeoffs — not only "cream and butter for richness."
 - If maple, honey, or brown sugar AND cream/butter appear: you MUST also name citrus, vinegar, or pickle brine in steps or balance.flavor — sweet + fat alone is not a no-salt strategy.\n`;
