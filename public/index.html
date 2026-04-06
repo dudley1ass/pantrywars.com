@@ -58,6 +58,13 @@
   @keyframes rndSpin{0%{opacity:.35;transform:translateY(6px) scale(.98)}100%{opacity:1;transform:translateY(0) scale(1)}}
   @keyframes rndShine{0%{background-position:0% 50%}100%{background-position:200% 50%}}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes pwBookFlip{0%{transform:rotateY(0deg);opacity:.96}50%{transform:rotateY(-165deg);opacity:.5}100%{transform:rotateY(-360deg);opacity:.96}}
+  .pw-wait-book{position:relative;width:74px;height:52px;margin:0 auto 12px;perspective:500px}
+  .pw-wait-book-cover{position:absolute;inset:0;border:2px solid #64748b;border-radius:6px;background:linear-gradient(160deg,#334155,#1e293b)}
+  .pw-wait-book-spine{position:absolute;left:6px;top:2px;bottom:2px;width:2px;background:#94a3b8;border-radius:2px;opacity:.65}
+  .pw-wait-book-page{position:absolute;left:10px;top:6px;bottom:6px;width:56px;background:linear-gradient(180deg,#f8fafc,#e2e8f0);border-radius:3px;transform-origin:left center;animation:pwBookFlip 1.15s ease-in-out infinite;box-shadow:0 1px 4px rgba(15,23,42,.22)}
+  .pw-wait-book-page.p2{left:12px;opacity:.75;animation-delay:.18s}
+  .pw-wait-book-page.p3{left:14px;opacity:.58;animation-delay:.36s}
   #spin-host .basket-spin-wrap{max-width:100%;background:#fff;border:2px solid #f59e0b;border-radius:14px;padding:14px 12px;margin-bottom:12px;box-shadow:0 8px 24px rgba(15,23,42,.08);animation:fadeIn .2s ease}
   #spin-host .basket-spin-h{font-size:13px;font-weight:900;color:#0f172a;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
   #spin-host .basket-spin-slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;overflow:visible}
@@ -1599,6 +1606,7 @@ function truncateStr(s,max){
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let state = {
   pantryItems: [],   // ids of items in user's pantry
+  activePantryPreset: "custom",
   customPantryItems: [], // same core fields as FULL_PANTRY; optional cookSheet, clockPlaybookAi, clockPlaybook, ingredientToolkit*, techniqueMatrix
   pantrySearch: "",
   pantryCategory: "All",
@@ -1625,6 +1633,64 @@ function pantryCategories() {
   return ["All", ...Array.from(s).sort()];
 }
 
+const PANTRY_PRESETS={
+  chopped:{
+    label:"Chopped Pantry",
+    include:[
+      /\bchicken\b/i,/\bground\s+beef\b/i,/\bground\s+pork\b/i,/\bpork\b/i,/\beggs?\b/i,/\btofu\b/i,
+      /\b(chickpeas?|black beans?|kidney beans?|lentils?)\b/i,
+      /\bbutter\b/i,/\bmilk\b/i,/\bheavy cream\b/i,/\byogurt\b/i,
+      /\b(cheddar|mozzarella|parmesan|goat cheese)\b/i,
+      /\brice\b/i,/\bpasta|spaghetti|linguine|fettuccine|penne|macaroni\b/i,/\ball-purpose flour|flour\b/i,/\bpotato(es)?\b/i,/\bbreadcrumbs?\b/i,/\bquinoa\b/i,/\bcouscous\b/i,
+      /\bonion|shallot\b/i,/\bgarlic\b/i,/\bcarrots?\b/i,/\bcelery\b/i,/\bbell peppers?\b/i,/\bspinach|greens?\b/i,/\bmushrooms?\b/i,/\bzucchini\b/i,
+      /\blemons?\b/i,/\blimes?\b/i,/\bapples?\b/i,/\boranges?\b/i,/\bbananas?\b/i,/\bberries?\b/i,
+      /\bolive oil|vegetable oil\b/i,/\bvinegar|balsamic\b/i,/\bsoy sauce\b/i,/\bmustard\b/i,/\bhoney\b/i,/\bsugar\b/i,/\bhot sauce\b/i,
+      /\bsalt\b/i,/\bblack pepper\b/i,/\bpaprika\b/i,/\bcumin\b/i,/\bchili powder\b/i,/\boregano\b/i,/\bthyme\b/i,/\bparsley|cilantro|basil\b/i,
+      /\bcanned tomatoes?|tomato paste\b/i,/\bchicken stock|vegetable stock|stock\b/i,/\bcoconut milk\b/i,/\bjarred sauce|marinara|pesto\b/i,
+      /\bbaking powder\b/i,/\bbaking soda\b/i,/\bvanilla\b/i,/\bchocolate chips?\b/i
+    ]
+  },
+  masterchef:{
+    label:"MasterChef Pantry",
+    include:[/.*/]
+  },
+  ggg:{
+    label:"GGG Pantry",
+    include:[
+      /\bkosher salt|salt\b/i,/\bblack pepper\b/i,/\bgarlic powder\b/i,/\bonion powder\b/i,/\bpaprika\b/i,
+      /\bolive oil\b/i,/\bvegetable oil\b/i,/\bcooking spray\b/i,/\bbutter\b/i,
+      /\ball-purpose flour\b/i,/\bcornstarch\b/i,/\bbaking powder\b/i,/\bbaking soda\b/i,/\bsugar\b/i,/\bbrown sugar\b/i,
+      /\bchicken stock|vegetable stock|stock\b/i,/\bvinegar\b/i,/\bsoy sauce\b/i,
+      /\beggs?\b/i,/\bmilk\b/i,
+      /\bketchup\b/i,/\bmustard\b/i,/\bmayonnaise|mayo\b/i
+    ]
+  }
+};
+function pantryPresetIds(presetId){
+  const p=PANTRY_PRESETS[presetId];
+  if(!p) return [];
+  const rows=pantryCatalog();
+  const out=[];
+  for(const it of rows){
+    const name=String(it&&it.name||"");
+    if(!name) continue;
+    if((p.include||[]).some(re=>re.test(name))) out.push(it.id);
+  }
+  return [...new Set(out)];
+}
+function applyPantryPreset(presetId){
+  const ids=pantryPresetIds(presetId);
+  if(!ids.length){
+    alert("No pantry items matched that preset in your current catalog.");
+    return;
+  }
+  state.pantryItems=ids.slice();
+  state.activePantryPreset=presetId;
+  state.pantryCategory="All";
+  state.pantrySearch="";
+  renderPantry();
+}
+
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 /** Uniform integer in [0, max) — uses crypto when available. */
 function randomIndex(max){
@@ -1645,6 +1711,34 @@ function randomUnit(){
     return buf[0]/4294967296;
   }
   return Math.random();
+}
+const PW_REQUIRED_USAGE_KEY="pw_required_usage_v1";
+function getRequiredUsageMap(){
+  try{
+    const raw=sessionStorage.getItem(PW_REQUIRED_USAGE_KEY);
+    const j=raw?JSON.parse(raw):{};
+    return (j&&typeof j==="object"&&!Array.isArray(j))?j:{};
+  }catch(_e){ return {}; }
+}
+function setRequiredUsageMap(map){
+  try{ sessionStorage.setItem(PW_REQUIRED_USAGE_KEY, JSON.stringify(map||{})); }catch(_e){}
+}
+function pickUsageBalanced(candidates){
+  if(!Array.isArray(candidates)||!candidates.length) return null;
+  const usage=getRequiredUsageMap();
+  const min=Math.min(...candidates.map(n=>Number(usage[n]||0)));
+  const nearMin=candidates.filter(n=>Number(usage[n]||0)<=min+1);
+  const pool=nearMin.length?nearMin:candidates;
+  return pool[randomIndex(pool.length)];
+}
+function recordRequiredUsage(req){
+  if(!Array.isArray(req)||!req.length) return;
+  const usage=getRequiredUsageMap();
+  for(const n of req){
+    if(!n) continue;
+    usage[n]=Number(usage[n]||0)+1;
+  }
+  setRequiredUsageMap(usage);
 }
 function shuffleArray(arr){
   const a=(arr||[]).slice();
@@ -2130,7 +2224,9 @@ async function ai(prompt, tokens=300, opts) {
     else timeoutMs = 90000;
   }
   const runXhr = (forceServerKeyOnly) => new Promise((resolve, reject) => {
-    const keyToSend=forceServerKeyOnly?"":apiKey;
+    // On hosted deployments with a configured server key, ignore per-browser keys.
+    // This prevents one device's stale/invalid key from breaking while others work.
+    const keyToSend=(forceServerKeyOnly||_serverAnthropicConfigured)?"":apiKey;
     const xhr = new XMLHttpRequest();
     const sec = Math.round(timeoutMs / 1000);
     const timer = setTimeout(() => {
@@ -2207,7 +2303,45 @@ function renderPantry() {
   const nCustom = state.customPantryItems.length;
   htxt.innerHTML = `<div style="font-size:16px;font-weight:800;color:#f8fafc">⚔️ PANTRY WARS</div><div style="font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:3px;text-transform:uppercase;margin-top:2px">Step 1 — Build your pantry</div><div style="font-size:11px;color:#475569;margin-top:4px">${pantryCatalog().length} ingredients${nCustom?` · <span style="color:#a5b4fc">${nCustom} yours</span>`:""} · choose what can land in your mystery basket</div>`;
   const hbtns = document.createElement("div");
-  hbtns.style.cssText = "display:flex;gap:8px;";
+  hbtns.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;";
+  const presetWrap=div({style:{display:"flex",gap:"6px",width:"100%",justifyContent:"flex-end",flexWrap:"wrap"}});
+  const presetHint=el("span",{style:{fontSize:"10px",fontWeight:"800",letterSpacing:"1px",textTransform:"uppercase",color:"#94a3b8",alignSelf:"center"}});
+  presetHint.textContent="Pantry sets";
+  presetWrap.appendChild(presetHint);
+  [
+    {id:"chopped",label:"Chopped"},
+    {id:"masterchef",label:"MasterChef"},
+    {id:"ggg",label:"GGG"},
+  ].forEach(p=>{
+    const on=state.activePantryPreset===p.id;
+    const b=el("button",{style:{
+      background:on?"#ede9fe":"#f8fafc",
+      color:on?"#5b21b6":"#475569",
+      border:on?"2px solid #a78bfa":"2px solid #e2e8f0",
+      borderRadius:"8px",
+      padding:"6px 10px",
+      fontWeight:"800",
+      fontSize:"11px",
+      cursor:"pointer"
+    }});
+    b.textContent=p.label;
+    b.onclick=()=>applyPantryPreset(p.id);
+    presetWrap.appendChild(b);
+  });
+  const customBtn=el("button",{style:{
+    background:state.activePantryPreset==="custom"?"#f0fdf4":"#f8fafc",
+    color:state.activePantryPreset==="custom"?"#15803d":"#475569",
+    border:state.activePantryPreset==="custom"?"2px solid #86efac":"2px solid #e2e8f0",
+    borderRadius:"8px",
+    padding:"6px 10px",
+    fontWeight:"800",
+    fontSize:"11px",
+    cursor:"pointer"
+  }});
+  customBtn.textContent="Custom";
+  customBtn.onclick=()=>{state.activePantryPreset="custom";renderPantry();};
+  presetWrap.appendChild(customBtn);
+  hbtns.appendChild(presetWrap);
   const selAllBtn = document.createElement("button");
   const allFiltered = pantryCatalog().filter(i => (state.pantryCategory === "All" || i.cat === state.pantryCategory) && (!state.pantrySearch || i.name.toLowerCase().includes(state.pantrySearch.toLowerCase()) || i.flavor.some(f=>f.includes(state.pantrySearch.toLowerCase())) || (i.notes&&i.notes.toLowerCase().includes(state.pantrySearch.toLowerCase()))));
   const allSel = allFiltered.length > 0 && allFiltered.every(i => inPantry(i.id));
@@ -2217,6 +2351,7 @@ function renderPantry() {
     const ids = allFiltered.map(i=>i.id);
     if (allSel) state.pantryItems = state.pantryItems.filter(id=>!ids.includes(id));
     else state.pantryItems = [...new Set([...state.pantryItems,...ids])];
+    state.activePantryPreset = "custom";
     renderPantry();
   };
   const goBtn = document.createElement("button");
@@ -2249,7 +2384,7 @@ function renderPantry() {
 
   const step1 = document.createElement("div");
   step1.style.cssText = "background:#eff6ff;border-bottom:2px solid #bfdbfe;padding:12px 16px;font-size:13px;color:#1e3a8a;line-height:1.55;max-width:900px;margin:0 auto;box-sizing:border-box";
-  step1.innerHTML = `<strong style="color:#1e40af">Step 1 — Pantry.</strong> Tap <strong>+</strong> on each ingredient you want in play (your “kitchen”). For a <strong>quick full starter pantry</strong>: set <strong>Category → All</strong>, clear the search box, then tap <strong>+ Select All</strong> (that grabs every ingredient in the current list). When you’re ready, tap <strong>Step 2: Build battle →</strong>.`;
+  step1.innerHTML = `<strong style="color:#1e40af">Step 1 — Pantry.</strong> Use <strong>Pantry sets</strong> for fast presets (<strong>Chopped</strong>, <strong>MasterChef</strong>, <strong>GGG</strong>) or tap <strong>+</strong> to build your own. For a <strong>quick full starter pantry</strong>: set <strong>Category → All</strong>, clear search, then tap <strong>+ Select All</strong>. When you’re ready, tap <strong>Step 2: Build battle →</strong>.`;
   sc.appendChild(step1);
 
   // Search + filter bar
@@ -2306,6 +2441,7 @@ function renderPantry() {
     addBtn.onclick = () => {
       if (on) state.pantryItems = state.pantryItems.filter(id=>id!==item.id);
       else state.pantryItems.push(item.id);
+      state.activePantryPreset = "custom";
       renderPantry();
     };
     row.append(info, tags, addBtn);
@@ -2353,6 +2489,7 @@ function showItemDetail(item) {
 function toggleFromModal(id) {
   if (state.pantryItems.includes(id)) state.pantryItems = state.pantryItems.filter(x=>x!==id);
   else state.pantryItems.push(id);
+  state.activePantryPreset = "custom";
   const item = $("modal-overlay")._currentItem;
   if (item) showItemDetail(item);
   renderPantry();
@@ -2556,6 +2693,7 @@ function renderBuild() {
       const cd={spinSerial:serial, hot};
       state.req=pickRequiredPattern(p,cfg.req,state.res,cd);
       state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,p,state.res,pwChaosOrInsane(),cd);
+      recordRequiredUsage(state.req);
       finalizeMysterySpinSelection(serial, hot, {req:state.req,res:state.res,forbEq:state.forbEq,reqEq:state.reqEq});
       renderBuild();
     }));
@@ -3778,12 +3916,43 @@ function courseRoleHierarchyBlock(ch){
 - balance.basket: for each REQUIRED, state PRIMARY / ACCENT / SUPPORT in plain language so judges see hierarchy — avoid "everything co-equal important."\n`;
 }
 
+const PW_RIVAL_WAIT_LINES=[
+  {
+    lead:"😈 Your rival chef is already cooking up something nasty.",
+    sub:"These full runs take a minute or two… hope you are ready. Tick tock — they are coming for the win."
+  },
+  {
+    lead:"⚔️ Your rival chef is locked in and searching hard right now.",
+    sub:"Big recipe builds take time… but they are using every second. If you blink, you lose."
+  },
+  {
+    lead:"🎤 \"And in the other kitchen…\" your rival chef is racing through recipes!",
+    sub:"Large builds take a little time — but so does genius. Will you beat them to the plate?"
+  },
+  {
+    lead:"🍳 Your rival chef is scrambling through recipes as we speak!",
+    sub:"These big builds can take a couple minutes… plenty of time for them to get ahead."
+  },
+  {
+    lead:"Rival Chef is digging through recipes right now…",
+    sub:"Big requests take time, but so does losing. Stay sharp."
+  }
+];
+
+function rivalChefLoadingPanelHtml(){
+  const msg=PW_RIVAL_WAIT_LINES[randomIndex(PW_RIVAL_WAIT_LINES.length)];
+  return `<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>
+  <div class="pw-wait-book" aria-hidden="true"><div class="pw-wait-book-cover"></div><div class="pw-wait-book-spine"></div><div class="pw-wait-book-page p1"></div><div class="pw-wait-book-page p2"></div><div class="pw-wait-book-page p3"></div></div>
+  <div style="text-align:center;padding:0 14px 12px;color:#cbd5e1;font-size:15px;font-weight:800;line-height:1.5">${escapeHtml(msg.lead)}</div>
+  <div style="text-align:center;padding:0 14px 24px;color:#94a3b8;font-size:12px;line-height:1.5;max-width:460px;margin:0 auto">${escapeHtml(msg.sub)}</div>`;
+}
+
 async function generateRecipe() {
   const ch=state.challenge;
   const apLoad=$("recipe-ai-panel");
   const footLoad=$("recipe-battle-footer");
   if(footLoad) footLoad.innerHTML="";
-  if(apLoad) apLoad.innerHTML='<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div><div style="text-align:center;padding:28px 14px;color:#cbd5e1;font-size:14px;font-weight:700;line-height:1.55">Contacting AI…</div><div style="text-align:center;padding:0 14px 24px;color:#94a3b8;font-size:12px;line-height:1.5;max-width:420px;margin:0 auto">Full <strong>rival chef</strong> runs send a very long prompt and ask for a large JSON recipe — this often takes <strong>1–3 minutes</strong>, sometimes longer if the API is busy. Please wait; a short wait is normal.</div>';
+  if(apLoad) apLoad.innerHTML=rivalChefLoadingPanelHtml();
   try {
     const res=ch.restrictions.length?`RESTRICTIONS (hard rules — the dish must comply; no cheating): ${ch.restrictions.join("; ")}.`:"RESTRICTIONS: none.";
     const fe=ch.forbEquip.length?`Forbidden: ${ch.forbEquip.join(", ")}.`:"";
@@ -3974,6 +4143,8 @@ ${executionHonestyBlock(ch)}
 ${physicsRealismBlock(ch)}
 ${shortClockTechniqueRiskBlock(ch)}
 ${textureMemorabilityDominanceBlock(ch)}
+${couscousMalangaSeitanTechniqueBlock(ch)}
+${streetFoodOkraMarjoramLaneBlock(ch)}
 REAL COOK / TIME-FIRST (judges hate fantasy timing, not ambition):
 ${techniquePolicy}
 - COMPONENT BUDGET: at most ${maxComponents} on-plate elements for this clock — PREFER FEWER when the story still works. Each element must earn its place (see CLEAN PLATE).
@@ -4037,7 +4208,7 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     console.error("Recipe generation failed:", e);
     const timedOut=/timed out|timeout/i.test(String(e.message||""));
     const errExtra=timedOut?`<br><br><small style="color:#94a3b8">Timeouts are now up to <strong>4 minutes</strong> for large recipe requests. If this still timed out, Anthropic may be overloaded — wait a minute and tap <strong>Try Again</strong>, or try again with fewer required ingredients.</small>`:"";
-    const err=`<div style="text-align:center;padding:32px 16px;color:#f87171">Failed: ${escapeHtml(e.message)}${errExtra}<br><br><small style="color:#94a3b8">Use <code>npm start</code> or your deployed URL (not <code>file://</code>). <strong>HTTP 401</strong> = bad API key. <strong>HTTP 404</strong> on <code>model:</code> = that model name is not available — deploy the latest app or set <code>CLAUDE_MODEL</code> / <code>PW_CLAUDE_MODEL</code> to a current ID from Anthropic’s docs. On a hosted site, a browser-stored key overrides the server — clear: <code style="font-size:11px">localStorage.removeItem(&quot;basket_anthropic_key_v1&quot;)</code> then reload.</small><br><br><button type="button" onclick="generateRecipe()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:700">Try Again</button></div>`;
+    const err=`<div style="text-align:center;padding:32px 16px;color:#f87171">Failed: ${escapeHtml(e.message)}${errExtra}<br><br><small style="color:#94a3b8">Use <code>npm start</code> or your deployed URL (not <code>file://</code>). <strong>HTTP 401</strong> = bad API key. <strong>HTTP 404</strong> on <code>model:</code> = that model name is not available — deploy the latest app or set <code>CLAUDE_MODEL</code> / <code>PW_CLAUDE_MODEL</code> to a current ID from Anthropic’s docs. On hosted deployments with a server key, browser-saved keys are ignored for consistency across devices.</small><br><br><button type="button" onclick="generateRecipe()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:700">Try Again</button></div>`;
     const ap=$("recipe-ai-panel");
     const foot=$("recipe-battle-footer");
     if(foot) foot.innerHTML="";
@@ -4163,6 +4334,8 @@ ${executionHonestyBlock(ch)}
 ${physicsRealismBlock(ch)}
 ${shortClockTechniqueRiskBlock(ch)}
 ${textureMemorabilityDominanceBlock(ch)}
+${couscousMalangaSeitanTechniqueBlock(ch)}
+${streetFoodOkraMarjoramLaneBlock(ch)}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
 {"title":"","tagline":"","processEquipment":["Oven"],"atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":"","dur":"optional e.g. 5 min"}],"lastMinuteTip":"one sentence"}
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts. Self-check every ingredient and step before returning.`;
@@ -4642,6 +4815,7 @@ function doModalAdd(data){
     base.name=n;
     state.customPantryItems.push(base);
     if(!state.pantryItems.includes(id))state.pantryItems.push(id);
+    state.activePantryPreset = "custom";
   }
   else if(t==="restriction"){
     const n=normalizeRestrictionKey(data.label);
@@ -5239,6 +5413,82 @@ function getFlavorDominanceBalanceViolations(recipe, ch){
   return msgs;
 }
 
+/**
+ * Specific basket trap: couscous + malanga + seitan often gets mashed into one soft fritter.
+ * Enforce technique separation: toasted couscous crunch, dried malanga base, seitan texture visible.
+ */
+function getCouscousMalangaSeitanViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const basket=[...(ch.required||[]),...(ch.pantry||[])].map(s=>String(s).toLowerCase()).join(" | ");
+  const hasCouscous=/\bcouscous\b/.test(basket);
+  const hasMalanga=/\bmalanga\b/.test(basket);
+  const hasSeitan=/\bseitan\b/.test(basket);
+  if(!(hasCouscous||hasMalanga||hasSeitan)) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+
+  // 1) Raw couscous crust over wet binder tends to steam/gum instead of crisp.
+  if(hasCouscous){
+    const crustUse=/\bcouscous\b[\s\S]{0,220}?\b(crust|coat|coating|bread|crumb|dredge|press(?:ed)?\s+on|roll(?:ed)?\s+in|fritter|patty)\b/i.test(low);
+    const preToast=/\bcouscous\b[\s\S]{0,220}?\b(toast|toasted|dry[-\s]?toast|oven[-\s]?toast|nutty|golden)\b/i.test(low);
+    if(crustUse&&!preToast){
+      msgs.push(`Technique (couscous): raw couscous pressed onto a wet fritter/patty tends to **steam/gum**, not crisp — **dry-toast couscous first** (nutty/golden), then use as a crunchy coat or topper.`);
+    }
+  }
+
+  // 2) Malanga mash needs explicit moisture control before forming/binding.
+  if(hasMalanga){
+    const mashOrPatty=/\bmalanga\b[\s\S]{0,260}?\b(mash|mashed|fritter|patty|cake|bind|mixture)\b/i.test(low);
+    const dryStep=/\b(squeeze|press|wring|towel|cloth|steam[-\s]?dry|sheet[-\s]?dry|dry\s+off|evaporat)\b/i.test(low);
+    if(mashOrPatty&&!dryStep){
+      msgs.push(`Technique (malanga): if using mash/patty/fritter, add an explicit **drying step** (squeeze/wring/towel or brief steam-dry) before binding — malanga holds moisture and can blow crust adhesion.`);
+    }
+  }
+
+  // 3) Seitan should keep fibrous chew; buried crumble in mash hides its best quality.
+  if(hasSeitan){
+    const buried=/\b(seitan)\b[\s\S]{0,260}?\b(crumble|crumbled|fold(?:ed)?\s+into|mixed?\s+into|stir(?:red)?\s+into|buried|hidden)\b[\s\S]{0,220}?\b(mash|puree|purée|fritter|patty|dough)\b/i.test(low)
+      || /\b(mash|puree|purée|fritter|patty|dough)\b[\s\S]{0,260}?\b(seitan)\b[\s\S]{0,180}?\b(crumble|crumbled|fold(?:ed)?\s+in|mixed?\s+in)\b/i.test(low);
+    const featured=/\bseitan\b[\s\S]{0,260}?\b(strip|strips|baton|slice|slabs?|char|charred|edge|edges|roast(?:ed)?|sear(?:ed)?|crisp|crispy|featured|main)\b/i.test(low);
+    if(buried&&!featured){
+      msgs.push(`Texture role (seitan): avoid burying seitan as invisible crumble inside mash — keep a **featured chewy/crisp element** (strips/slices with charred edges) so its gluten-fiber texture is actually tasted.`);
+    }
+  }
+
+  return msgs;
+}
+
+/**
+ * Street-food trio trap: tempeh + okra + marjoram defaults to obvious taco lane with awkward geometry
+ * and muted herb usage. Encourage integrated okra shape and marjoram placement where it registers.
+ */
+function getStreetFoodOkraMarjoramTempehViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  if(!challengeTypeIsStreetFood(ch.ctype)) return msgs;
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" | ");
+  const hasOkra=/\bokra\b/.test(req);
+  const hasTempeh=/\btempeh\b/.test(req);
+  const hasMarjoram=/\bmarjoram\b/.test(req);
+  if(!(hasOkra&&hasTempeh&&hasMarjoram)) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+
+  const tacoLane=/\b(taco|tortilla|street taco)\b/i.test(low);
+  const wholeOkraPods=/\b(whole\s+okra|okra\s+pods?|pods?\s+of\s+okra)\b/i.test(low);
+  const okraIntegrated=/\b(sliced?\s+okra|chopped\s+okra|okra\s+stew|tomato[-\s]?okra|bhindi|bamya|okra\s+ragu|okra\s+sauce|okra\s+relish)\b/i.test(low);
+  if(tacoLane&&wholeOkraPods&&!okraIntegrated){
+    msgs.push(`Street-food geometry: **whole okra pods in taco format** are awkward to eat and read garnishy — slice/chop okra or run a quick **acidic okra-tomato stew/relish** so it integrates as real filling/sauce.`);
+  }
+
+  const marjoramInCrema=/\bmarjoram\b[\s\S]{0,240}?\b(avocado\s+crema|crema|aioli|mayo|mayonnaise|yogurt\s+sauce|blended)\b|\b(avocado\s+crema|crema|aioli|mayo|mayonnaise|yogurt\s+sauce|blended)\b[\s\S]{0,240}?\bmarjoram\b/i.test(low);
+  const marjoramFeatured=/\bmarjoram\b[\s\S]{0,220}?\b(bloom|bloomed|toast|toasted|rub|dry\s+rub|spice\s+mix|finish|fresh\s+leaf|sprinkle)\b/i.test(low);
+  if(marjoramInCrema&&!marjoramFeatured){
+    msgs.push(`Flavor placement: **marjoram blended into fat crema** can disappear — bloom it in a spice rub/oil or finish fresh so the herb actually registers.`);
+  }
+
+  return msgs;
+}
+
 /** Texture contrast + memorability + dominance — injected into rival + coach prompts (skipped for snack / easy). */
 function textureMemorabilityDominanceBlock(ch){
   if(!ch) return "";
@@ -5252,6 +5502,33 @@ function textureMemorabilityDominanceBlock(ch){
 - **Texture:** If the plate is **stew/braise/sauce/grain/noodle-heavy**, you still need **one intentional crisp/crackle/snap** (sear, char, fry, pickle, brittle, crackling) — **coherent** with the story, in **balance.texture** + steps — not a random extra crumb.
 - **Surprise:** After the dish is **correct**, add **one memorable beat** (temperature contrast, unexpected cut on a required item, one bitter/sharp note, or a technique flip) that a judge could name in one sentence — **not** random fusion.
 - **Dominance:** If **kimchi / gochujang / harissa / 'nduja** shares the haul with **yuzu / finger lime / delicate citrus**, spell **quantities + order of finish** so the loud ingredient doesn't erase the bright one.
+
+`;
+}
+
+/** Basket-specific primer for couscous + malanga + seitan execution. */
+function couscousMalangaSeitanTechniqueBlock(ch){
+  if(!ch) return "";
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" | ");
+  if(!/\bcouscous\b/.test(req) || !/\bmalanga\b/.test(req) || !/\bseitan\b/.test(req)) return "";
+  return `BASKET TECHNIQUE LOCK — COUSCOUS + MALANGA + SEITAN:
+- Do **not** treat raw couscous like panko on a wet mash. For crunch, **dry-toast couscous first** (oven or dry pan) until nutty/golden, then use as coat or finishing crunch.
+- If malanga becomes mash/fritter binder, write an explicit moisture-control step: **squeeze/wring/towel or brief steam-dry** before shaping.
+- Keep seitan's texture visible: prefer **strips/slices with charred edges** as a featured element. Avoid hiding all seitan as crumble folded into mash.
+- Strong architecture on this basket is separation of roles: malanga = base/vessel, seitan = protein texture lead, couscous = crisp contrast.
+
+`;
+}
+
+/** Street-food lane nudge for okra+tempeh+marjoram baskets. */
+function streetFoodOkraMarjoramLaneBlock(ch){
+  if(!ch||!challengeTypeIsStreetFood(ch.ctype)) return "";
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" | ");
+  if(!(/\bokra\b/.test(req)&&/\btempeh\b/.test(req)&&/\bmarjoram\b/.test(req))) return "";
+  return `STREET FOOD LANE NUDGE — OKRA + TEMPEH + MARJORAM:
+- Default taco lane is valid but **obvious**. Consider at least one less-default street format (e.g. arayes / flatbread pocket / wrap) if it better fits the herb profile.
+- If you stay taco, solve handheld geometry: avoid whole pods across the bite; use **sliced/chopped okra** or an **acidic tomato-okra relish/stew** so okra becomes integrated sauce/filling.
+- Put **marjoram where aroma survives**: bloom in dry spice mix or oil, or finish as fresh leaf; avoid hiding all marjoram inside rich blended crema.
 
 `;
 }
@@ -5302,6 +5579,8 @@ function getRecipeTimelineViolations(recipe, ch){
   msgs.push(...getShortClockRoastCaramelRiskViolations(recipe,ch));
   msgs.push(...getRecipeTextureContrastViolations(recipe,ch));
   msgs.push(...getFlavorDominanceBalanceViolations(recipe,ch));
+  msgs.push(...getCouscousMalangaSeitanViolations(recipe,ch));
+  msgs.push(...getStreetFoodOkraMarjoramTempehViolations(recipe,ch));
   msgs.push(...getShortClockHardKitchenLoadViolations(recipe,ch));
   msgs.push(...getAppetizerCourseFitViolations(recipe,ch));
   msgs.push(...getAppetizerStarterArchitectureViolations(recipe,ch));
@@ -6578,12 +6857,12 @@ function pickPlantProteinForBasketSlot(avail, restrictions, alreadyPicked){
   if(streak>=2&&nonTofu.length) pool=nonTofu;
   else if(nonTofu.length&&tofuOnly.length){
     if(randomUnit()*(nonTofu.length+1)<nonTofu.length)
-      return nonTofu[randomIndex(nonTofu.length)];
-    return tofuOnly[randomIndex(tofuOnly.length)];
+      return pickUsageBalanced(nonTofu);
+    return pickUsageBalanced(tofuOnly);
   }
   const nonTempeh=pool.filter(n=>!/\btempeh\b/i.test(String(n)));
-  if(vegan&&nonTempeh.length&&randomUnit()<0.82) return nonTempeh[randomIndex(nonTempeh.length)];
-  return pool[randomIndex(pool.length)];
+  if(vegan&&nonTempeh.length&&randomUnit()<0.82) return pickUsageBalanced(nonTempeh);
+  return pickUsageBalanced(pool);
 }
 
 function pickSavoryAnchorFromPool(candidates, restrictions, currentReq){
@@ -6682,11 +6961,11 @@ function pickRequiredPattern(pool,count,resList,cdOpt){
         return m&&/vegetables|fruits/i.test(String(m.cat||""));
       });
       const pickPool=vegFruit.length?vegFruit:avail;
-      out.push(pickPool[randomIndex(pickPool.length)]);
+      out.push(pickUsageBalanced(pickPool));
     } else if(k==="protein"){
       out.push(pickPlantProteinForBasketSlot(avail,r,out));
     } else {
-      out.push(avail[randomIndex(avail.length)]);
+      out.push(pickUsageBalanced(avail));
     }
   };
   ordered.forEach(k=>pickOne(k));
@@ -6702,12 +6981,15 @@ function pickRequiredPattern(pool,count,resList,cdOpt){
       }
       const nonTem=pool.filter(n=>!/\btempeh\b/i.test(String(n)));
       if(nonTem.length&&randomUnit()<0.75) pool=nonTem;
-      const pick=pool[randomIndex(pool.length)];
+      const pick=pickUsageBalanced(pool);
       const ix=leftovers.indexOf(pick);
       if(ix>=0) leftovers.splice(ix,1);
       out.push(pick);
     }else{
-      out.push(leftovers.splice(randomIndex(leftovers.length),1)[0]);
+      const pick=pickUsageBalanced(leftovers);
+      const ix=leftovers.indexOf(pick);
+      if(ix>=0) leftovers.splice(ix,1);
+      out.push(pick);
     }
   }
   return out.slice(0,count);
@@ -6944,6 +7226,7 @@ function doRandomize(){
   state.ctype=allTypes[randomIndex(allTypes.length)];
   state.req=pickRequiredPattern(pool,d.req,state.res,cd);
   state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,pool,state.res,pwChaosOrInsane(),cd);
+  recordRequiredUsage(state.req);
   const t=SPIN_AI_TIMES[randomIndex(SPIN_AI_TIMES.length)];
   state.total=t;state.prep=Math.round(t*0.35);state.cook=Math.round(t*0.65);
   pruneConflictingReq(d, cd);
