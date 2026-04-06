@@ -300,7 +300,7 @@ function normalizeEquipmentCatalogName(s){
 function processEquipmentPromptBlock(ch){
   const fe=(ch&&ch.forbEquip&&ch.forbEquip.length)?ch.forbEquip.join(", "):"none";
   const re=(ch&&ch.reqEquip&&ch.reqEquip.length)?ch.reqEquip.join(", "):"none";
-  return `PROCESS EQUIPMENT (JSON key **processEquipment**): array of strings using **exact** names from: ${EQUIP.join(", ")}.
+  return `PROCESS EQUIPMENT (JSON key **processEquipment**): array of strings for tools used.
 - List every tool the method **actually requires** for this dish (e.g. baked tart / quiche / roast protein ⇒ include **Oven**; stir-fry spine ⇒ **Wok** or **Stovetop** as honest; immersion blend ⇒ **Blender**).
 - **Must include** all must-use tools: ${re}.
 - **Must not include** any forbidden tool: ${fe}.
@@ -6736,21 +6736,21 @@ function getRecipeProcessEquipmentDeclaredViolations(recipe, ch){
   if(!recipe||!ch) return msgs;
   const pe=recipe.processEquipment;
   if(!Array.isArray(pe)||!pe.length) return msgs;
-  const forb=new Set((ch.forbEquip||[]).map(s=>normalizeEquipmentCatalogName(String(s).trim())).filter(Boolean));
-  const reqNeed=(ch.reqEquip||[]).map(s=>normalizeEquipmentCatalogName(String(s).trim())).filter(Boolean);
+  const forb=(ch.forbEquip||[]).map(s=>String(s).trim()).filter(Boolean);
+  const reqNeed=(ch.reqEquip||[]).map(s=>String(s).trim()).filter(Boolean);
 
   for(const raw of pe){
-    const canon=normalizeEquipmentCatalogName(String(raw||"").trim());
-    if(!canon){
-      const t=String(raw||"").trim();
-      if(t) msgs.push(`processEquipment: unknown entry "${t.slice(0,48)}" — use exact names: ${EQUIP.join(", ")}.`);
-      continue;
+    const tool=String(raw||"").trim();
+    if(!tool) continue;
+    for(const f of forb){
+      if(mentionsEquipment(tool.toLowerCase(), f)){
+        msgs.push(`processEquipment lists **${tool}** but it matches forbidden **${f}** — remove it and pivot the method.`);
+        break;
+      }
     }
-    if(forb.has(canon))
-      msgs.push(`processEquipment lists **${canon}** but it is **forbidden** — remove it and pivot the method.`);
   }
   for(const r of reqNeed){
-    const ok=pe.some(x=>normalizeEquipmentCatalogName(String(x||"").trim())===r);
+    const ok=pe.some(x=>mentionsEquipment(String(x||"").toLowerCase(), r));
     if(!ok) msgs.push(`processEquipment must include must-use **${r}** (declare every required tool).`);
   }
   return msgs;
