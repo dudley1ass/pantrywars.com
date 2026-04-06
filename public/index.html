@@ -1771,6 +1771,7 @@ let state = {
   duelAutoSummary:"",
   timerRem:0, timerRunning:false, timerInterval:null,
   modalType:null,
+  leaderboard:null,
 };
 
 function pantryCatalog() { return FULL_PANTRY.concat(state.customPantryItems); }
@@ -1778,6 +1779,25 @@ function pantryCategories() {
   const s = new Set(FULL_PANTRY.map(i => i.cat));
   state.customPantryItems.forEach(i => s.add(i.cat));
   return ["All", ...Array.from(s).sort()];
+}
+
+const PW_LEADERBOARD_PROFILE_KEY="pw_leaderboard_profile_v1";
+function getLeaderboardProfile(){
+  try{
+    const j=JSON.parse(localStorage.getItem(PW_LEADERBOARD_PROFILE_KEY)||"{}");
+    return {
+      username:String(j.username||"").trim(),
+      email:String(j.email||"").trim()
+    };
+  }catch(_e){ return {username:"",email:""}; }
+}
+function setLeaderboardProfile(p){
+  try{
+    localStorage.setItem(PW_LEADERBOARD_PROFILE_KEY, JSON.stringify({
+      username:String((p&&p.username)||"").trim(),
+      email:String((p&&p.email)||"").trim()
+    }));
+  }catch(_e){}
 }
 
 const PANTRY_PRESETS={
@@ -2435,6 +2455,30 @@ async function ai(prompt, tokens=300, opts) {
     xhr.send(JSON.stringify({ api_key: keyToSend, payload }));
   });
   return runXhr(false);
+}
+
+async function leaderboardFetch(username){
+  const u=String(username||"").trim();
+  const qs=u?`?username=${encodeURIComponent(u)}`:"";
+  const r=await fetch(`/api/leaderboard${qs}`,{method:"GET"});
+  if(!r.ok) throw new Error(`Leaderboard HTTP ${r.status}`);
+  return r.json();
+}
+
+async function leaderboardSubmit(payload){
+  const r=await fetch("/api/leaderboard/submit",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload||{})
+  });
+  const text=await r.text();
+  let data={};
+  try{ data=JSON.parse(text||"{}"); }catch(_e){}
+  if(!r.ok){
+    const msg=(data&&data.error&&data.error.message)||`Leaderboard HTTP ${r.status}`;
+    throw new Error(msg);
+  }
+  return data;
 }
 
 // ── PANTRY SCREEN ────────────────────────────────────────────────────────────
@@ -4782,6 +4826,55 @@ function updateDuelScore(side,k,v){
 }
 function calcTotal(s){return Math.round(s.taste*3.5+s.creativity*2.5+s.presentation*2+s.difficulty*2);}
 function gradeTotal(t){return {g:t>=90?"A+":t>=80?"A":t>=70?"B":t>=60?"C":"D",gc:t>=80?"#22c55e":t>=60?"#f59e0b":"#ef4444"};}
+function leaderboardTierLabel(wins){
+  const w=Number(wins)||0;
+  if(w>=51) return "Platinum";
+  if(w>=26) return "Gold";
+  if(w>=11) return "Silver";
+  return "Bronze";
+}
+function leaderboardRowsHtml(rows, meName){
+  const me=String(meName||"").toLowerCase();
+  return (rows||[]).map(r=>{
+    const isMe=String(r.username||"").toLowerCase()===me;
+    return `<div style="display:grid;grid-template-columns:38px 1fr 74px 58px;gap:8px;align-items:center;padding:6px 8px;border-radius:8px;background:${isMe?"#eef2ff":"#fff"};border:1px solid ${isMe?"#a5b4fc":"#e2e8f0"}">
+      <div style="font-size:11px;font-weight:900;color:${isMe?"#4338ca":"#64748b"}">#${Number(r.rank)||0}</div>
+      <div style="font-size:12px;font-weight:800;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(String(r.username||"—"))}${isMe?` <span style="font-size:10px;color:#4f46e5">(you)</span>`:""}</div>
+      <div style="font-size:11px;color:#334155;text-align:right">${Number(r.points||0).toFixed(2)} pts</div>
+      <div style="font-size:11px;color:#334155;text-align:right">${Number(r.wins||0)} W</div>
+    </div>`;
+  }).join("");
+}
+function leaderboardPanelHtml(lb, meName){
+  if(!lb||!lb.cycle) return "";
+  const me=lb.me||null;
+  const cycleStart=new Date(lb.cycle.startIso);
+  const cycleEnd=new Date(lb.cycle.nextResetIso);
+  const cycleLabel=`${cycleStart.toLocaleDateString()} → ${cycleEnd.toLocaleDateString()}`;
+  const meTier=me?leaderboardTierLabel(me.wins):"Bronze";
+  const tierRows=(lb.tiers&&lb.tiers[meTier])||[];
+  return `<div style="background:#ecfeff;border:2px solid #67e8f9;border-radius:12px;padding:12px;margin-top:14px">
+    <div style="font-size:10px;font-weight:900;color:#0e7490;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px">Leaderboard · Weekly cycle</div>
+    <div style="font-size:12px;color:#164e63;margin-bottom:10px">${escapeHtml(cycleLabel)} · resets Mon/Thu</div>
+    ${me?`<div style="font-size:12px;font-weight:800;color:#0f172a;margin-bottom:10px">Your rank: #${me.rank} · ${Number(me.points||0).toFixed(2)} pts · ${me.wins||0} wins · ${meTier}</div>`:"<div style=\"font-size:12px;color:#334155;margin-bottom:10px\">Save a result to appear in the board.</div>"}
+    <div class="duel-score-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="background:#fff;border:1px solid #bae6fd;border-radius:10px;padding:10px">
+        <div style="font-size:11px;font-weight:900;color:#0369a1;margin-bottom:8px">Top 50</div>
+        <div style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto">${leaderboardRowsHtml(lb.top50||[], meName)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="background:#fff;border:1px solid #bae6fd;border-radius:10px;padding:10px">
+          <div style="font-size:11px;font-weight:900;color:#0369a1;margin-bottom:8px">Players Near You</div>
+          <div style="display:flex;flex-direction:column;gap:6px;max-height:120px;overflow:auto">${leaderboardRowsHtml(lb.near||[], meName)}</div>
+        </div>
+        <div style="background:#fff;border:1px solid #bae6fd;border-radius:10px;padding:10px">
+          <div style="font-size:11px;font-weight:900;color:#0369a1;margin-bottom:8px">${escapeHtml(meTier)} Tier</div>
+          <div style="display:flex;flex-direction:column;gap:6px;max-height:120px;overflow:auto">${leaderboardRowsHtml(tierRows, meName)}</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
 function updateScoreDisplay(){
   const ty=calcTotal(state.scoresYou),ta=calcTotal(state.scoresAI);
   const gy=gradeTotal(ty),ga=gradeTotal(ta);
@@ -4789,7 +4882,37 @@ function updateScoreDisplay(){
   if(sdy) sdy.innerHTML=`<div><div style="font-size:9px;color:#94a3b8;font-weight:800;letter-spacing:1px">YOU</div><div style="font-size:22px;font-weight:900;color:${gy.gc}">${ty}/100</div></div><div style="font-size:36px;font-weight:900;color:${gy.gc}">${gy.g}</div>`;
   if(sda) sda.innerHTML=`<div><div style="font-size:9px;color:#94a3b8;font-weight:800;letter-spacing:1px">RIVAL</div><div style="font-size:22px;font-weight:900;color:${ga.gc}">${ta}/100</div></div><div style="font-size:36px;font-weight:900;color:${ga.gc}">${ga.g}</div>`;
 }
-function submitScore(){
+async function saveLeaderboardFromResults(){
+  const ty=calcTotal(state.scoresYou),ta=calcTotal(state.scoresAI);
+  const p=getLeaderboardProfile();
+  const uname=String($("lb-username")?.value||p.username||"").trim();
+  const email=String($("lb-email")?.value||p.email||"").trim();
+  const status=$("lb-status");
+  const mount=$("leaderboard-mount");
+  if(!uname){
+    if(status) status.textContent="Enter a username to save your score.";
+    return;
+  }
+  setLeaderboardProfile({username:uname,email});
+  if(status) status.textContent="Saving to leaderboard...";
+  try{
+    const lb=await leaderboardSubmit({
+      username:uname,
+      email,
+      won:ty>ta,
+      difficulty:String((state.challenge&&state.challenge.diff)||"easy"),
+      challengeType:String((state.challenge&&state.challenge.ctype&&state.challenge.ctype.id)||""),
+      scoreYou:ty,
+      scoreAi:ta
+    });
+    state.leaderboard=lb;
+    if(status) status.textContent=lb.me?`Saved. You are #${lb.me.rank} this cycle.`:"Saved.";
+    if(mount) mount.innerHTML=leaderboardPanelHtml(lb, uname);
+  }catch(e){
+    if(status) status.textContent=`Could not save leaderboard: ${e.message}`;
+  }
+}
+async function submitScore(){
   const ty=calcTotal(state.scoresYou),ta=calcTotal(state.scoresAI);
   const gy=gradeTotal(ty),ga=gradeTotal(ta);
   const notes=$("judge-notes")?.value||"";
@@ -4798,6 +4921,7 @@ function submitScore(){
   if(ty>ta){verdict="You take this round.";vb="#d97706";}
   else if(ta>ty){verdict="Rival chef takes this round.";vb="#4f46e5";}
   else{verdict="Dead heat — split decision.";vb="#64748b";}
+  const prof=getLeaderboardProfile();
   $("screen-score").innerHTML=`
     <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#f1f5f9">
       <div style="background:#fff;border:2px solid #e2e8f0;border-radius:16px;padding:28px 24px;max-width:520px;width:100%;text-align:center">
@@ -4824,10 +4948,28 @@ function submitScore(){
         </div>
         <div style="font-size:12px;color:#94a3b8;margin-bottom:12px">${(state.challenge.ctype&&state.challenge.ctype.emoji)?state.challenge.ctype.emoji+" ":""}${escapeHtml((state.challenge.ctype&&state.challenge.ctype.label)||"—")} · ${escapeHtml(String(state.challenge.diff||"").toUpperCase())} · ${Number(state.challenge.totalTime)||0} min</div>
         ${notes?`<div style="background:#f8fafc;border-radius:8px;padding:10px;font-size:12px;color:#334155;text-align:left;margin-bottom:14px">${escapeHtml(notes)}</div>`:""}
+        <div style="background:#f8fafc;border:2px solid #cbd5e1;border-radius:12px;padding:12px;text-align:left;margin-bottom:12px">
+          <div style="font-size:11px;font-weight:900;color:#475569;text-transform:uppercase;margin-bottom:8px">Save this cycle score</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <input id="lb-username" placeholder="Username" value="${escapeHtml(prof.username)}" style="background:#fff;border:2px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:12px;color:#0f172a">
+            <input id="lb-email" placeholder="Email (optional)" value="${escapeHtml(prof.email)}" style="background:#fff;border:2px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:12px;color:#0f172a">
+          </div>
+          <button onclick="saveLeaderboardFromResults()" style="margin-top:8px;width:100%;padding:10px;border-radius:8px;background:#0ea5e9;color:#fff;font-weight:800;border:none">Save & view leaderboard</button>
+          <div id="lb-status" style="font-size:11px;color:#475569;margin-top:8px"></div>
+          <div id="leaderboard-mount"></div>
+        </div>
         <button onclick="onPlayAgain();resetDuelScores();showScreen('screen-pantry');renderPantry();" style="width:100%;padding:12px;font-size:13px;font-weight:800;border-radius:10px;background:#6366f1;color:#fff;border:none;cursor:pointer;margin-bottom:8px">Pantry Wars — Play again</button>
         <button onclick="resetDuelScores();renderLanding();" style="width:100%;padding:10px;font-size:12px;font-weight:700;border-radius:10px;background:#f1f5f9;color:#475569;border:2px solid #e2e8f0;cursor:pointer">Home</button>
       </div>
     </div>`;
+  try{
+    const pre=await leaderboardFetch(prof.username||"");
+    state.leaderboard=pre;
+    const mount=$("leaderboard-mount");
+    if(mount) mount.innerHTML=leaderboardPanelHtml(pre, prof.username||"");
+    const st=$("lb-status");
+    if(st&&pre&&pre.me) st.textContent=`You are currently #${pre.me.rank} this cycle.`;
+  }catch(_e){}
 }
 
 // ── AI MODAL ──────────────────────────────────────────────────────────────────
@@ -5947,6 +6089,24 @@ function getActiveAttentionOverlapViolations(recipe, ch){
     });
   }
   if(windows.length<2) return msgs;
+  let timelineEnd=0;
+  for(const w of windows) timelineEnd=Math.max(timelineEnd, w.end||0);
+  const buffer=Math.max(0, total-timelineEnd);
+  const events=[];
+  for(const w of windows){
+    if(!w.active) continue;
+    events.push({t:w.start, d:+1});
+    events.push({t:w.end, d:-1});
+  }
+  events.sort((a,b)=>a.t===b.t?(b.d-a.d):(a.t-b.t));
+  let activeNow=0, maxActive=0;
+  for(const e of events){
+    activeNow+=e.d;
+    if(activeNow>maxActive) maxActive=activeNow;
+  }
+  if(buffer===0&&maxActive>=3){
+    msgs.push(`Execution risk: **timeline buffer is zero** with **${maxActive} concurrent active lanes** at peak. Re-sequence one lane as passive or create 1-2 min finish buffer.`);
+  }
   let worstPair=null;
   for(let i=0;i<windows.length;i++){
     for(let j=i+1;j<windows.length;j++){
