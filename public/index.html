@@ -3966,7 +3966,7 @@ function courseEnforcementBlock(ch, sig) {
 - CLASSIC SHAPE (avoid "reinterpretation" drift): Stay close to what diners recognize — e.g. eggplant or chicken Parm = breaded cutlet + marinara + melted cheese layer stack as the hero; pasta is optional side only, not a separate pasta-first entrée with guest cutlet. Extra chef swirls (tahini cream, white chocolate, many finisher sauces) only when the basket forces them — otherwise keep moves legible and few.
 - RESTRICTIONS TRUMP TWISTS: If Vegetarian / No Dairy / Vegan applies, every ingredient and technique must be legal — no heavy cream, no parmesan sneak, no "classic needs it" excuses. Use honest subs (cashew béchamel, vegan mozzarella, nutritional yeast) and name them.
 - SIMPLICITY: one classic, one clear read — avoid stacking unrelated techniques (extra custard, extra gastrique, extra sear story) unless each serves that single classic narrative.
-- PHYSICS & TIME: Do not pretend a 2–3 hour braise or full collagen melt happened in the minutes available. Tough cuts (short rib, chuck, brisket, shank, oxtail) need real time or pressure — or you must pivot title/technique (e.g. "bourguignon-inspired" on grilled steak-cut rib; pressure steps only if Instant Pot/pressure is allowed and written). Grill/live fire is not a stable oven; say so if you lean on it for low simmer.\n`;
+- PHYSICS & TIME: Do not pretend a 2–3 hour braise or full collagen melt happened in the minutes available. Tough cuts (short rib, chuck, brisket, shank, oxtail) need real time or pressure — or you must pivot title/technique (e.g. "bourguignon-inspired" on grilled steak-cut rib; pressure steps only if Instant Pot/pressure is allowed and written). **Grates are hot at go** for sear (show default), but **grill/live fire** is still not a stable oven for low simmer — say so if you lean on it for that.\n`;
   }
   if (challengeTypeIsElevateCheap(ch.ctype)) {
     return `CHALLENGE INTENT — ELEVATE A MEAL THAT IS ACTUALLY CHEAP / EVERYDAY:
@@ -4454,6 +4454,7 @@ PLAIN LANGUAGE (kitchen dock, not press release):
 - tagline, step labels ("what"), plating, and step "how" lines: short, direct, competitor voice — like you're calling it to the judges' table, not writing a press kit.
 
 TIMELINE REALISM:
+- Competition kitchen (default): **Station ovens**, **deep fryers**, **grills**, and **main pasta/blanch stockpots** are treated as **already hot / at temp / boiling** at clock start — budget **cook** time and true **parallel** work, not long cold-station ramps (full rules under PHYSICS; **pressure** and **sous vide** still need honest ramp minutes unless your text says the bath is at target).
 - The work in your steps must honestly fit ~${ch.totalTime} min total challenge time (your ${ch.prepTime} prep + ${ch.cookTime} cook narrative). If tasks run in parallel, say so. Do not compress a full entrée into an obviously too-short window unless timing is explained.
 - DUR SUM (machine-checked on every generation): Give every step a realistic "dur" string (e.g. "5 min", "12 min"). The **sum** of those minute values must fit the ${ch.totalTime} min round: without parallel work, keep total dur ≤ ${Math.max(1, Number(ch.totalTime)||30) + 6} min slack; if you truly run steps in parallel, you MUST say so in a step "how" or balance.complete (words like "parallel" / "simultaneous") and keep total dur ≤ ${Math.ceil(Math.max(1, Number(ch.totalTime)||30) * 1.35)} min. Do not output a timeline whose dur values add up to more than that — shorten steps, overlap honestly, or drop a stage.
 - Stacked oven work: long roast veg + scratch dough + blind bake + filled tart/custard bake often exceeds a 45 min clock — prefer store crust, stovetop-set filling, shorter roasts, or one bake with credible parallel minutes.
@@ -5454,6 +5455,7 @@ function recipeFlattenTextForCompliance(r){
   push(r.atThePass);push(r.flavorBalance);push(r.lastMinuteTip);
   const b=r.balance;
   if(b&&typeof b==="object") for(const v of Object.values(b)) push(v);
+  if(Array.isArray(r.processEquipment)) push(r.processEquipment.join(" "));
   for(const i of r.ingredients||[]){
     if(!i) continue;
     const line=[i.item,i.prep,i.amount].filter(Boolean).join(" ").trim();
@@ -5926,7 +5928,7 @@ function getShortClockRoastCaramelRiskViolations(recipe, ch){
   if(ovenRoastHeavy&&sugarAmber)
     msgs.push(`Timeline (${total} min): **long oven roast + dry sugar cooked to amber caramel** stacks two **time/attention risks** — prefer **faster crisp** (air fry, broil, sauté, shallow-fry) for the veg/starch lid and a **lower-risk caramel** (maple/honey reduction, melted soft caramel, brown-butter sugar) for the required **caramel**; name **parallel** work and buffer, or simplify.`);
   else if(total<=30&&ovenRoastHeavy&&comfortPot)
-    msgs.push(`Timeline (${total} min): **comfort reinvention + 10+ min oven roast** — verify the full sequence fits ${total} min with **preheat + parallel** spelled out; otherwise shorten roast (broil/convection) or swap **pan-char / air-fry crisp** for the "lid."`);
+    msgs.push(`Timeline (${total} min): **comfort reinvention + 10+ min oven roast** — verify the full sequence fits ${total} min with **parallel** spelled out (**station oven is treated as already hot** — no fantasy **preheat** stack); otherwise shorten roast (broil/convection) or swap **pan-char / air-fry crisp** for the "lid."`);
   return msgs;
 }
 
@@ -5935,7 +5937,7 @@ function shortClockTechniqueRiskBlock(ch){
   const t=Math.max(1, Number((ch&&ch.totalTime)||30));
   if(t>35) return "";
   return `SHORT CLOCK (${t} min) — TECHNIQUE & RISK (read before choosing methods):
-- **Oven roast** at high temp (10–15+ min) **eats the round** when combined with polenta, multi-step sauces, and another finicky stage — prefer **air fry / broiler flash / hot skillet or sheet char** for "crispy lid" veg when equipment allows, or state **tight parallel** with oven **preheated** before the clock.
+- **Oven roast** at high temp (10–15+ min) **eats the round** when combined with polenta, multi-step sauces, and another finicky stage — prefer **air fry / broiler flash / hot skillet or sheet char** for "crispy lid" veg when equipment allows, or state **tight parallel** (station oven is **already hot** — count **roast minutes**, not a separate **preheat** eat).
 - **Dry sugar → amber caramel** (watch-pot, easy to burn): on **<~30 min** rounds, default to **safer caramel stories** for REQUIRED caramel — **maple or honey reduction**, **brown butter + sugar**, **melted soft caramel candy**, or **tiny batch** with explicit buffer — not a long sugar cook competing with a roast.
 - **Stack rule:** roast + polenta + caramel + rendered sausage = **too many attention sinks** unless steps prove overlap — one primary long cook max unless parallel is explicit.
 
@@ -6237,7 +6239,10 @@ function sousVidePreheatLanguagePresent(low){
     || /\b(?:hot|warm)\s+water\b|\bkettle\b|\b(?:boil|boiling)\s+water\b/.test(L)
     || /\b\d{1,2}\s*min(?:utes)?\s+(?:to\s+)?(?:heat|preheat)\b/.test(L)
     || /\b(?:preheated|pre-heated)\s+(?:bath|water)\b/.test(L)
-    || (/\bbefore\s+(?:the\s+)?(?:clock|round|challenge)\b/.test(L)&&/\b(?:bath|preheat|circulator|sous\s*v?ide)\b/.test(L));
+    || (/\bbefore\s+(?:the\s+)?(?:clock|round|challenge)\b/.test(L)&&/\b(?:bath|preheat|circulator|sous\s*v?ide)\b/.test(L))
+    || /\bstation\s+(?:bath|circulator)\s+(?:at|is\s+at|already)\b/.test(L)
+    || /\b(?:bath|circulator)\s+(?:is\s+)?already\s+at\s+(?:the\s+)?target/i.test(L)
+    || /\bat\s+(?:clock\s+start|the\s+go|temp)\b[\s\S]{0,120}\b(?:bath|circulator)\b/i.test(L);
 }
 
 function stepTimelineMinutes(timeStr){
@@ -6467,11 +6472,77 @@ function getZeroTimelineBufferAdvisoryViolations(recipe, ch){
   const msgs=[];
   if(!recipe||!ch) return msgs;
   const total=Math.max(1, Number(ch.totalTime)||30);
-  if(!["hard","insane"].includes(String(ch.diff||"").toLowerCase())) return msgs;
+  const diff=String(ch.diff||"").toLowerCase();
   const end=recipeTimelineEndMinute(recipe);
   if(end<=0) return msgs;
-  if(end>=total)
+  if(end<total) return msgs;
+  if(["hard","insane"].includes(diff))
     msgs.push(`Execution: timeline lands on **${total} min with no buffer** — one slipped sear/reduction **breaks service**; add **1–2 min** slack or drop a lane.`);
+  else if(diff==="medium"||diff==="easy")
+    msgs.push(`Execution: **${diff}** round uses the **full ${total} min** with **no recovery margin** — add **1–3 min** slack (especially with pressure / pasta sync) or simplify a lane.`);
+  return msgs;
+}
+
+/** Explicit prose that pressure-build or at-pressure is honestly budgeted (not SV). */
+function pressureBuildBudgetLanguagePresent(low){
+  const L=String(low||"").toLowerCase();
+  return /\b(\d{1,2})\s*min(?:utes)?\s*(?:to|until)\s+(?:full\s+)?pressure\b/.test(L)
+    || /\b(?:come|coming)\s+up\s+to\s+(?:high\s+)?pressure\b/.test(L)
+    || /\b(?:come|coming)\s+to\s+(?:full\s+)?pressure\b/.test(L)
+    || /\bfull\s+pressure(?:\s+reached)?\b/.test(L)
+    || /\bpressure\s+reached\b/.test(L)
+    || /\b(?:at|under)\s+(?:high\s+)?pressure\b/.test(L)&&/\b(?:after|once|when)\s+\d/.test(L)
+    || /\bbuild(?:-|\s)+up\s+(?:to\s+)?pressure\b/.test(L)
+    || /\bpreheat(?:ed)?\s+.{0,48}(pressure\s+cook(?:er)?|instant\s+pot|electric\s+pressure)\b/.test(L)
+    || /\bhot\s+(?:start|fill|liquid)\b/.test(L)&&/\bpressure\b/.test(L)
+    || (/\bbefore\s+(?:the\s+)?(?:clock|round|challenge)\b/.test(L)&&/\bpressure\b/.test(L))
+    || /\b(natural|quick)\s+release\b/.test(L)&&/\b(\d{1,2})\s*min\b/.test(L);
+}
+
+/** Pressure / IP: timed phase is not the whole story — seal, pressurize, depressurize need minutes on the clock. */
+function getPressureCookerRampViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const usesPc=/\b(pressure\s+cook(?:er)?|instant\s+pot|electric\s+pressure|multi[\s-]?cooker|stovetop\s+pressure)\b/i.test(low)
+    ||(/\bpressure\b/.test(low)&&/\block\b/.test(low)&&/\b(lid|seal|vent|valve|psi)\b/i.test(low));
+  const timedPhase=/\b(\d{1,2})\s*min\b[\s\S]{0,160}?\b(?:high\s+)?pressure\b|\b(?:high\s+)?pressure\b[\s\S]{0,120}?\b(\d{1,2})\s*min\b/i.test(low);
+  if(!usesPc||!timedPhase) return msgs;
+  if(pressureBuildBudgetLanguagePresent(low)) return msgs;
+
+  const steps=Array.isArray(recipe.steps)?recipe.steps:[];
+  let earliestBig=null;
+  let longestDur=0;
+  for(const s of steps){
+    const blob=(String(s.phase||"")+" "+String(s.what||"")+" "+String(s.how||"")).toLowerCase();
+    if(!/\bpressure\b/.test(blob)) continue;
+    const d=minutesFromStepDur(s&&s.dur);
+    if(d<12) continue;
+    if(!/\b(cook|high|timer|minute|min\b|natural|quick\s+release)\b/.test(blob)) continue;
+    const st=stepTimelineMinutes(s&&s.time);
+    if(st==null) continue;
+    if(earliestBig==null||st<earliestBig) earliestBig=st;
+    if(d>longestDur) longestDur=d;
+  }
+  if(earliestBig!=null&&earliestBig<14&&longestDur>=15)
+    msgs.push(`Pressure cooker: **seal + come to high pressure** on **bone-in / full liquid** loads often needs **~8–12+ min** (many stovetop) or **~5–10+ min** (many electrics) **before** the counted pressure phase — plus **natural/quick release** minutes. Your timeline may compress that into **lock lid → cook**. Add **explicit build / at-pressure** minutes (or **preheated / smaller load / hot liquid**) and **release** time${longestDur>=22?" — oxtail-class braises rarely forgive a 2-minute implied pressurize":""}.`);
+  else
+    msgs.push(`Pressure cooker: budget **pressurization + depressurization** in the timeline — not only **minutes at pressure**. Heavy loads need several minutes to **reach** full pressure before the timer story is valid.`);
+
+  return msgs;
+}
+
+/** Nori toasted then crumbled into wet sauce — flavor OK, crunch rarely survives (eval note). */
+function getNoriCrispWetRaguAdvisory(recipe){
+  const msgs=[];
+  if(!recipe) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  if(!/\bnori\b/.test(low)) return msgs;
+  const crisp=/\b(crisp|crisped|toast|toasted|dry\s+skillet|brittle)\b/.test(low);
+  const wet=/\b(ragu|brais|sauce|simmer|liquid|stock|tomato\s+sauce|wet)\b/.test(low);
+  const crumb=/\bcrumbl/.test(low);
+  if(crisp&&wet&&crumb)
+    msgs.push(`Texture note: **crisped nori** folded into a **wet ragu/sauce** **rehydrates** — **umami/ocean** still land; don't promise **lasting crunch** at the pass unless it's a dry garnish step.`);
   return msgs;
 }
 
@@ -6530,6 +6601,8 @@ function getRecipeTimelineViolations(recipe, ch){
   msgs.push(...getCheesePuffCrustSearRiskViolations(recipe));
   msgs.push(...getDatePiccataStyleSweetnessRiskViolations(recipe,ch));
   msgs.push(...getZeroTimelineBufferAdvisoryViolations(recipe,ch));
+  msgs.push(...getPressureCookerRampViolations(recipe,ch));
+  msgs.push(...getNoriCrispWetRaguAdvisory(recipe));
   return [...new Set(msgs)];
 }
 
@@ -7153,13 +7226,20 @@ function shortClockGrainPhysicsPromptBlock(ch){
   return out;
 }
 
+/** Competition-show default: hot ovens/fryers/grills and boiling stockpots — rival + coach prompts only; validators keep SV/pressure honest. */
+function competitionStationStagingBlock(){
+  return `- **Show stations (Chopped-style default):** **Ovens**, **deep fryers** (oil at working fry temp), and **live grills** are **already at heat** when the clock starts — count **bake / fry / sear / char** time, not a separate **preheat** or **"heat the oil"** minute sink unless the challenge text removes that equipment or you **deliberately** write a cold-start story. **Large pasta / blanching stockpots** are treated as **already at a boil** — do not waste the opening minutes only bringing that main pot up unless you need a **second small pot** from cold for a different use.
+`;
+}
+
 /** Real cooking constraints — rival + coach must not claim impossible outcomes to satisfy the basket. */
 function physicsRealismBlock(ch){
   const t=Math.max(1, Number((ch&&ch.totalTime)||30));
   const ctype=(ch&&ch.ctype)||{};
   let s=`PHYSICS & REAL COOKING (non-negotiable — no comic-book shortcuts):
 - CLOCK (${t} min total): Every named minute in steps and prose must fit inside ${t} min (including parallel work). If sous vide, water bath, or "slow roast" would need longer than ${t} min, you cannot use that method — pick faster techniques (sear, steam, shallow poach, high-heat roast only if oven allowed and time fits).
-- **Sous vide bath:** From **room-temp water**, reaching target temp often takes **~8–15+ min** depending on volume — put **real preheat minutes** in PREP, state **preheated / hot fill / kettle boost**, or **bag in only after bath is at temp**; do not imply a **3 min** "set circulator" step is enough before submerge.
+${competitionStationStagingBlock()}- **Sous vide bath:** From **room-temp water**, reaching target temp often takes **~8–15+ min** depending on volume — put **real preheat minutes** in PREP, state **preheated / hot fill / kettle boost**, or **bag in only after bath is at temp**; do not imply a **3 min** "set circulator" step is enough before submerge. (**Station circulator already at target** is fine only if you **say so** in steps or PREP — otherwise budget heat-up.)
+- **Pressure cooker / Instant Pot:** **Minutes "at pressure"** start **after** the pot **reaches full pressure** (often **~5–12+ min** on heavy/bone-in loads) and end before **full depressurization** — budget **build + cook + release** (NR/QPR) in steps, not only a single timer line.
 - Real food obeys time and heat (${t} min round): collagen-rich cuts (short rib, chuck, brisket, shank, oxtail, cheek, pork shoulder) do not become fork-tender from a ${t}-minute open-pot simmer alone — pick real options from this list (mix as needed):
   • **Pressure / Instant Pot** — If allowed in equipment: name it; high-pressure ~35–55 min can stand in for multi-hour braising; finish sauce on stovetop in the same clock.
   • **Honest rename** — "Oxtail-inspired," "stew flavors," "bourguignon-style" — not the full textbook dish name if you are not doing the full braise time.
@@ -7171,7 +7251,7 @@ function physicsRealismBlock(ch){
 - **Chicken wings — pick a texture lane:** crackle (sear + glaze, air-fry, high-heat roast) **or** long wet braise / pressure for fall-off — not a **short braise** that promises both tenderness and crackle; dark chocolate fits a **controlled reduction or glaze** (acid/salt/fat), not an uncontrolled simmer on the wing.
 - Do not claim 2–3 hour outcomes (deep collagen breakdown, from-scratch demi in minutes, textbook osso buco / bourguignon braise) inside this clock unless the method honestly matches — pressure, quality stock concentrate from pantry with clear label, or an honest "inspired by" dish name.
 - Reductions and stocks: respect evaporation; no "instant demi" or full stock body without a credible source or time budget in the steps.
-- Grill / live fire: harder to hold low steady braise temps than an oven; do not assume oven-like stability — simplify or say how you manage heat.
+- **Grill / live fire:** The **grate is hot for searing** at clock start (show default), but **low steady braise** on live fire is still harder than an oven — do not assume oven-like stability; simplify or say how you manage heat.
 - Banned fantasy phrasing: outcomes that imply physics broke ("fork-tender short rib braise" in 20 min on ambient simmer, "full classic bourguignon" with no time for the braise) unless pressure or pivot is explicit.\n`;
   if(challengeTypeIsRecreateClassic(ctype)){
     s+=`RECREATE A CLASSIC — NAME VS. CLOCK: If the signature technique of the named classic needs longer than ${t} min in the real world, you MUST pivot honestly — "inspired by," "flavors of," faster protein treatment — or use only real shortcuts (pressure when allowed). **Do not title it as the textbook classic if the timeline makes that dish impossible.**\n`;
