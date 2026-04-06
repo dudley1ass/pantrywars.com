@@ -6303,7 +6303,7 @@ function getSnackFlavorDensityAdvisoryViolations(recipe, ch){
   let lanes=0;
   if(/\b(grapefruit|yuzu|bergamot)\b/.test(low)) lanes++;
   if(/\b(tahini|sesame\s+paste)\b/.test(low)) lanes++;
-  if((/\b(garlic\s+rub|rub\s+.{0,28}\bgarlic\b|\bgarlic[\s-]?rubbed\b)/i.test(low)||(/\bcrostini\b/.test(low)&&/\bgarlic\b/.test(low))||(/\btoast\b/.test(low)&&/\bgarlic\b/.test(low)))
+  if((/\b(garlic\s+rub|rub\s+.{0,28}\bgarlic\b|\bgarlic[\s-]?rubbed\b)/i.test(low)||(/\bcrostini\b/.test(low)&&/\bgarlic\b/.test(low))||(/\btoast\b/.test(low)&&/\bgarlic\b/.test(low))))
     lanes++;
   if(/\b(jalapeño|jalapeno|serrano|habanero|bird[\s-]?eye)\b/.test(low)) lanes++;
   if(lanes>=3)
