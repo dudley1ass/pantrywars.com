@@ -3972,6 +3972,8 @@ ${["hard","insane"].includes(String(ch.diff||"").toLowerCase())&&Number(ch.total
 
 ${executionHonestyBlock(ch)}
 ${physicsRealismBlock(ch)}
+${shortClockTechniqueRiskBlock(ch)}
+${textureMemorabilityDominanceBlock(ch)}
 REAL COOK / TIME-FIRST (judges hate fantasy timing, not ambition):
 ${techniquePolicy}
 - COMPONENT BUDGET: at most ${maxComponents} on-plate elements for this clock — PREFER FEWER when the story still works. Each element must earn its place (see CLEAN PLATE).
@@ -4159,6 +4161,8 @@ ${basketFlavorLeadershipBlock(ch)}
 ${courseRoleHierarchyBlock(ch)}
 ${executionHonestyBlock(ch)}
 ${physicsRealismBlock(ch)}
+${shortClockTechniqueRiskBlock(ch)}
+${textureMemorabilityDominanceBlock(ch)}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
 {"title":"","tagline":"","processEquipment":["Oven"],"atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":"","dur":"optional e.g. 5 min"}],"lastMinuteTip":"one sentence"}
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts. Self-check every ingredient and step before returning.`;
@@ -5161,6 +5165,98 @@ function getStackedBakeSequenceViolations(low, total){
 }
 
 /**
+ * ≤35 min rounds: stacked **long oven roast** + **dry sugar→amber caramel** is a common clock fail (comfort pot-pie style).
+ */
+function getShortClockRoastCaramelRiskViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const total=Math.max(1, Number(ch.totalTime)||30);
+  if(total>35) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const ovenRoastHeavy=/\b(?:roast|roasted)\b[\s\S]{0,420}?\b(?:1[0-9]|[2-5][0-9])\s*(?:min|minutes?)\b|\b(?:4[0-9]{2}|425|430|440|450)\s*°?\s*f/i.test(low);
+  const sugarAmber=/\bmelt\s+(?:the\s+)?sugar\b|\buntil\s+amber\b|\bgranulated\s+sugar\b[\s\S]{0,200}?\b(?:caramel|amber)\b|\bdry\s+(?:sugar\s+)?caramel\b|\bsugar\s*\([^)]*\)\s*for\s+caramel/i.test(low);
+  const comfortPot=/\b(pot\s+pie|comfort|polenta\s+(?:fill|crust|lid|top)|mac\s+and\s+cheese)\b/i.test(low);
+  if(ovenRoastHeavy&&sugarAmber)
+    msgs.push(`Timeline (${total} min): **long oven roast + dry sugar cooked to amber caramel** stacks two **time/attention risks** — prefer **faster crisp** (air fry, broil, sauté, shallow-fry) for the veg/starch lid and a **lower-risk caramel** (maple/honey reduction, melted soft caramel, brown-butter sugar) for the required **caramel**; name **parallel** work and buffer, or simplify.`);
+  else if(total<=30&&ovenRoastHeavy&&comfortPot)
+    msgs.push(`Timeline (${total} min): **comfort reinvention + 10+ min oven roast** — verify the full sequence fits ${total} min with **preheat + parallel** spelled out; otherwise shorten roast (broil/convection) or swap **pan-char / air-fry crisp** for the "lid."`);
+  return msgs;
+}
+
+/** Injected into rival + coach prompts when the round is short — steers away from roast+caramel stacks. */
+function shortClockTechniqueRiskBlock(ch){
+  const t=Math.max(1, Number((ch&&ch.totalTime)||30));
+  if(t>35) return "";
+  return `SHORT CLOCK (${t} min) — TECHNIQUE & RISK (read before choosing methods):
+- **Oven roast** at high temp (10–15+ min) **eats the round** when combined with polenta, multi-step sauces, and another finicky stage — prefer **air fry / broiler flash / hot skillet or sheet char** for "crispy lid" veg when equipment allows, or state **tight parallel** with oven **preheated** before the clock.
+- **Dry sugar → amber caramel** (watch-pot, easy to burn): on **<~30 min** rounds, default to **safer caramel stories** for REQUIRED caramel — **maple or honey reduction**, **brown butter + sugar**, **melted soft caramel candy**, or **tiny batch** with explicit buffer — not a long sugar cook competing with a roast.
+- **Stack rule:** roast + polenta + caramel + rendered sausage = **too many attention sinks** unless steps prove overlap — one primary long cook max unless parallel is explicit.
+
+`;
+}
+
+/**
+ * Soft/sauced-heavy prose with no named crisp/crunch/snap — common "finals plate" gap.
+ */
+function getRecipeTextureContrastViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  if(challengeTypeIsSnack(ch.ctype)) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const crispOrSnap=/\b(crisp|crispy|crunch|crunchy|crackl|brittle|snaps?|crusty|fry|fried|sear|char\b|shallow[\s-]?fry|tempura|panko|breadcrumbs?|toast|toasted|chip\b|chips|crumb|granola|croquant|wonton\s+skin|spring\s+roll\s+shell)\b/i.test(low);
+  if(crispOrSnap) return msgs;
+  const rawSnap=/\b(slaw|pickle|pickled|quick\s+pickle|raw\s+(?:onion|shallot|garlic)|julienned\s+apple|mung\s+bean\s+sprout|bean\s+sprout|jicama|radish\s+ribbon|celery\s+salad)\b/i.test(low);
+  if(rawSnap) return msgs;
+  const softHits=(low.match(/\b(braise|stew|ragu|ragù|creamy|silky|tender|soft|velvet|simmer|poach|confit|puree|purée|mash|melted|sauce|gravy|risotto|porridge|congee|soupy|unctuous|pillowy|glaze\s+coat|noodle\s+bowl|over\s+rice|grain\s+bowl)\b/gi)||[]).length;
+  const saucedStory=/\b(sauce|gravy|glaze|jus|bisque|broth\s+bowl|bowl|ragu|ragù|stew)\b/i.test(low);
+  if(softHits>=3&&saucedStory)
+    msgs.push(`Texture: recipe reads **mostly soft/tender/sauced** with **no crisp/crunch/snap** — add **one coherent** contrast (sear, char, shallow-fry, pickle, raw snap, crackling, toasted nut, brittle) tied to the basket; name it in **balance.texture** + a real step (not generic garnish).`);
+  return msgs;
+}
+
+/**
+ * Loud ferment/heat in the basket + delicate acid — flag when prose doesn't show balance (e.g. kimchi vs yuzu).
+ */
+function getFlavorDominanceBalanceViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const basket=[...(ch.required||[]),...(ch.pantry||[])].map(s=>String(s).toLowerCase()).join(" | ");
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const hasKimchi=/\bkimchi\b/.test(basket);
+  const hasYuzu=/\byuzu\b/.test(basket);
+  if(hasKimchi&&hasYuzu){
+    const k=(low.match(/\bkimchi\b/g)||[]).length;
+    const y=(low.match(/\byuzu\b/g)||[]).length;
+    if(k>=2&&y<=1)
+      msgs.push(`Flavor dominance: **kimchi** can flatten **yuzu** — keep kimchi **measured** (rinse/squeeze, small dice, kimchi oil/butter) and land **yuzu after heat** so brightness reads; say so in balance.flavor.`);
+  }
+  if(/\bgochujang\b/.test(basket)&&/\byuzu\b/.test(basket)){
+    const g=(low.match(/\bgochujang\b/g)||[]).length;
+    const y2=(low.match(/\byuzu\b/g)||[]).length;
+    if(g>=2&&y2<=1)
+      msgs.push(`Flavor dominance: **gochujang** can overpower **yuzu** — use paste **sparingly** and let **yuzu/citrus** finish the bite; spell out balance in balance.flavor.`);
+  }
+  return msgs;
+}
+
+/** Texture contrast + memorability + dominance — injected into rival + coach prompts (skipped for snack / easy). */
+function textureMemorabilityDominanceBlock(ch){
+  if(!ch) return "";
+  if(challengeTypeIsSnack(ch.ctype)) return "";
+  const d=String(ch.diff||"").toLowerCase();
+  if(d==="easy") return "";
+  const strongType=ch.ctype&&(challengeTypeIsFineDining(ch.ctype)||challengeTypeIsGlobalCuisine(ch.ctype)||challengeTypeIsComfortReinvented(ch.ctype));
+  const hardish=["hard","insane","medium"].includes(d)||!d;
+  if(!strongType&&!hardish) return "";
+  return `MEMORABILITY — TEXTURE & SURPRISE (machine-checked on soft-only runs):
+- **Texture:** If the plate is **stew/braise/sauce/grain/noodle-heavy**, you still need **one intentional crisp/crackle/snap** (sear, char, fry, pickle, brittle, crackling) — **coherent** with the story, in **balance.texture** + steps — not a random extra crumb.
+- **Surprise:** After the dish is **correct**, add **one memorable beat** (temperature contrast, unexpected cut on a required item, one bitter/sharp note, or a technique flip) that a judge could name in one sentence — **not** random fusion.
+- **Dominance:** If **kimchi / gochujang / harissa / 'nduja** shares the haul with **yuzu / finger lime / delicate citrus**, spell **quantities + order of finish** so the loud ingredient doesn't erase the bright one.
+
+`;
+}
+
+/**
  * Basket protein vs challenge clock: long-cut classics need either more minutes or an explicit fast path (grind, leftover, pressure…).
  */
 function getProteinMinClockViolations(recipe, ch){
@@ -5203,6 +5299,9 @@ function getRecipeTimelineViolations(recipe, ch){
   }
   msgs.push(...getProseTimelineViolations(low, total));
   msgs.push(...getProteinMinClockViolations(recipe,ch));
+  msgs.push(...getShortClockRoastCaramelRiskViolations(recipe,ch));
+  msgs.push(...getRecipeTextureContrastViolations(recipe,ch));
+  msgs.push(...getFlavorDominanceBalanceViolations(recipe,ch));
   msgs.push(...getShortClockHardKitchenLoadViolations(recipe,ch));
   msgs.push(...getAppetizerCourseFitViolations(recipe,ch));
   msgs.push(...getAppetizerStarterArchitectureViolations(recipe,ch));
