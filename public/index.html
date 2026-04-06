@@ -5123,7 +5123,11 @@ function ingredientConflictsWithRestriction(ingName, restriction){
     if(ingredientConflictsWithRestriction(ingName,"Vegetarian")) return true;
     return false;
   }
-  if(restriction==="No Salt") return false;
+  if(restriction==="No Salt"){
+    // "No Salt" bans explicit added salt products, not naturally salty foods.
+    if(/\b(kosher\s+salt|sea\s+salt|table\s+salt|pink\s+salt|himalayan\s+salt|flaky\s+salt|finishing\s+salt|celery\s+salt|seasoned\s+salt|garlic\s+salt|onion\s+salt|salt)\b/i.test(n)) return true;
+    return false;
+  }
   return false;
 }
 
@@ -5158,6 +5162,15 @@ function recipeIngredientLinesForCompliance(r){
   return r.ingredients.map(i=>{
     if(!i) return "";
     return [i.amount,i.item,i.prep].filter(Boolean).join(" ").trim();
+  }).filter(Boolean).join(" | ").toLowerCase();
+}
+
+/** Step lines only — for integration-depth and sequencing heuristics. */
+function recipeStepLinesForCompliance(r){
+  if(!r||!Array.isArray(r.steps)) return "";
+  return r.steps.map(s=>{
+    if(!s) return "";
+    return [s.time,s.dur,s.phase,s.what,s.how].filter(Boolean).join(" ").trim();
   }).filter(Boolean).join(" | ").toLowerCase();
 }
 
@@ -7147,6 +7160,8 @@ function pruneConflictingReq(cfg, cdOpt){
   const need=cfg.req;
   state.req=state.req.filter(n=>!ingredientConflictsWithAny(n,state.res));
   let pool=filterPoolByRestrictions(pantryPool(),state.res).filter(x=>!state.req.includes(x));
+  const nonBasicPool=pool.filter(n=>!isSpinnerBasicIngredientName(n));
+  if(nonBasicPool.length>=Math.max(0, need-state.req.length)) pool=nonBasicPool;
   if(cdOpt&&cdOpt.hot!=null&&cdOpt.spinSerial!=null)
     pool=filterIngredientsForCooldown(pool,cdOpt.spinSerial,cdOpt.hot);
   while(state.req.length<need && pool.length){
@@ -7444,11 +7459,22 @@ function ensureCourseBasketViability(req, ctype, diffKey, pool, restrictions, ch
   return out;
 }
 
+/** Pantry staples that usually make weak mystery must-use ingredients. */
+function isSpinnerBasicIngredientName(name){
+  const n=String(name||"").toLowerCase().trim();
+  if(!n) return false;
+  return /\b(kosher\s+salt|sea\s+salt|table\s+salt|pink\s+salt|salt|black\s+pepper|peppercorns?|olive\s+oil|vegetable\s+oil|cooking\s+spray|butter|all-purpose\s+flour|flour|cornstarch|baking\s+powder|baking\s+soda)\b/i.test(n);
+}
+
 function pickRequiredPattern(pool,count,resList,cdOpt){
   const r=resList!==undefined?resList:state.res;
   let filtered=filterPoolByRestrictions(pool||[],r||[]);
   if(cdOpt&&cdOpt.hot!=null&&cdOpt.spinSerial!=null)
     filtered=filterIngredientsForCooldown(filtered,cdOpt.spinSerial,cdOpt.hot);
+  // Mystery spinner: avoid "base staple" must-use picks when possible.
+  const needed=Math.max(1, Number(count)||0);
+  const nonBasic=filtered.filter(n=>!isSpinnerBasicIngredientName(n));
+  if(nonBasic.length>=needed) filtered=nonBasic;
   const uniq=shuffleArray([...new Set(filtered.filter(Boolean))]);
   if(uniq.length===0){
     alert("Nothing in your pantry matches the current restrictions. Clear a restriction or add compatible ingredients.");
