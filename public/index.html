@@ -58,13 +58,19 @@
   @keyframes rndSpin{0%{opacity:.35;transform:translateY(6px) scale(.98)}100%{opacity:1;transform:translateY(0) scale(1)}}
   @keyframes rndShine{0%{background-position:0% 50%}100%{background-position:200% 50%}}
   @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-  @keyframes pwBookFlip{0%{transform:rotateY(0deg);opacity:.96}50%{transform:rotateY(-165deg);opacity:.5}100%{transform:rotateY(-360deg);opacity:.96}}
-  .pw-wait-book{position:relative;width:74px;height:52px;margin:0 auto 12px;perspective:500px}
-  .pw-wait-book-cover{position:absolute;inset:0;border:2px solid #64748b;border-radius:6px;background:linear-gradient(160deg,#334155,#1e293b)}
-  .pw-wait-book-spine{position:absolute;left:6px;top:2px;bottom:2px;width:2px;background:#94a3b8;border-radius:2px;opacity:.65}
-  .pw-wait-book-page{position:absolute;left:10px;top:6px;bottom:6px;width:56px;background:linear-gradient(180deg,#f8fafc,#e2e8f0);border-radius:3px;transform-origin:left center;animation:pwBookFlip 1.15s ease-in-out infinite;box-shadow:0 1px 4px rgba(15,23,42,.22)}
-  .pw-wait-book-page.p2{left:12px;opacity:.75;animation-delay:.18s}
-  .pw-wait-book-page.p3{left:14px;opacity:.58;animation-delay:.36s}
+  @keyframes pwStir{0%{transform:rotate(-18deg)}50%{transform:rotate(16deg)}100%{transform:rotate(-18deg)}}
+  @keyframes pwSteam{0%{opacity:.15;transform:translateY(0)}50%{opacity:.45}100%{opacity:.12;transform:translateY(-5px)}}
+  .pw-wait-pot{position:relative;width:78px;height:56px;margin:0 auto 12px}
+  .pw-wait-pot-body{position:absolute;left:10px;right:10px;bottom:8px;height:28px;border-radius:0 0 14px 14px;background:linear-gradient(180deg,#475569,#334155);border:2px solid #64748b}
+  .pw-wait-pot-rim{position:absolute;left:8px;right:8px;bottom:33px;height:6px;border-radius:8px;background:#94a3b8;opacity:.9}
+  .pw-wait-pot-handle{position:absolute;right:2px;bottom:16px;width:10px;height:14px;border:2px solid #64748b;border-left:none;border-radius:0 8px 8px 0}
+  .pw-wait-pot-steam{position:absolute;left:24px;bottom:40px;width:30px;height:10px}
+  .pw-wait-pot-steam i{position:absolute;bottom:0;width:6px;height:10px;border-radius:10px;background:#cbd5e1;opacity:.25;animation:pwSteam 1s ease-in-out infinite}
+  .pw-wait-pot-steam i:nth-child(1){left:0}
+  .pw-wait-pot-steam i:nth-child(2){left:10px;animation-delay:.22s}
+  .pw-wait-pot-steam i:nth-child(3){left:20px;animation-delay:.44s}
+  .pw-wait-pot-spoon{position:absolute;left:40px;bottom:20px;width:3px;height:27px;border-radius:3px;background:#e2e8f0;transform-origin:bottom center;animation:pwStir .95s ease-in-out infinite}
+  .pw-wait-pot-spoon:after{content:"";position:absolute;left:-4px;top:-2px;width:11px;height:7px;border-radius:50%;background:#f8fafc}
   #spin-host .basket-spin-wrap{max-width:100%;background:#fff;border:2px solid #f59e0b;border-radius:14px;padding:14px 12px;margin-bottom:12px;box-shadow:0 8px 24px rgba(15,23,42,.08);animation:fadeIn .2s ease}
   #spin-host .basket-spin-h{font-size:13px;font-weight:900;color:#0f172a;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
   #spin-host .basket-spin-slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;overflow:visible}
@@ -3942,7 +3948,7 @@ const PW_RIVAL_WAIT_LINES=[
 function rivalChefLoadingPanelHtml(){
   const msg=PW_RIVAL_WAIT_LINES[randomIndex(PW_RIVAL_WAIT_LINES.length)];
   return `<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div>
-  <div class="pw-wait-book" aria-hidden="true"><div class="pw-wait-book-cover"></div><div class="pw-wait-book-spine"></div><div class="pw-wait-book-page p1"></div><div class="pw-wait-book-page p2"></div><div class="pw-wait-book-page p3"></div></div>
+  <div class="pw-wait-pot" aria-hidden="true"><div class="pw-wait-pot-body"></div><div class="pw-wait-pot-rim"></div><div class="pw-wait-pot-handle"></div><div class="pw-wait-pot-steam"><i></i><i></i><i></i></div><div class="pw-wait-pot-spoon"></div></div>
   <div style="text-align:center;padding:0 14px 12px;color:#cbd5e1;font-size:15px;font-weight:800;line-height:1.5">${escapeHtml(msg.lead)}</div>
   <div style="text-align:center;padding:0 14px 24px;color:#94a3b8;font-size:12px;line-height:1.5;max-width:460px;margin:0 auto">${escapeHtml(msg.sub)}</div>`;
 }
@@ -4145,6 +4151,7 @@ ${shortClockTechniqueRiskBlock(ch)}
 ${textureMemorabilityDominanceBlock(ch)}
 ${couscousMalangaSeitanTechniqueBlock(ch)}
 ${streetFoodOkraMarjoramLaneBlock(ch)}
+${comfortWingMacExecutionBlock(ch)}
 REAL COOK / TIME-FIRST (judges hate fantasy timing, not ambition):
 ${techniquePolicy}
 - COMPONENT BUDGET: at most ${maxComponents} on-plate elements for this clock — PREFER FEWER when the story still works. Each element must earn its place (see CLEAN PLATE).
@@ -4336,6 +4343,7 @@ ${shortClockTechniqueRiskBlock(ch)}
 ${textureMemorabilityDominanceBlock(ch)}
 ${couscousMalangaSeitanTechniqueBlock(ch)}
 ${streetFoodOkraMarjoramLaneBlock(ch)}
+${comfortWingMacExecutionBlock(ch)}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
 {"title":"","tagline":"","processEquipment":["Oven"],"atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":"","dur":"optional e.g. 5 min"}],"lastMinuteTip":"one sentence"}
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts. Self-check every ingredient and step before returning.`;
@@ -5489,6 +5497,68 @@ function getStreetFoodOkraMarjoramTempehViolations(recipe, ch){
   return msgs;
 }
 
+/**
+ * Comfort Reinvented basket trap: wings + celery root + potato chips + parmesan.
+ * Guard against soggy chip crust timing, GF chip ambiguity, and overbuilt double-hero execution.
+ */
+function getComfortWingMacChipViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  if(!challengeTypeIsComfortReinvented(ch.ctype)) return msgs;
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" | ");
+  const hasWing=/\bchicken\s+wings?\b|\bwings?\b/.test(req);
+  const hasCeleryRoot=/\bcelery\s+root|celeriac\b/.test(req);
+  const hasChips=/\bpotato\s+chips?\b/.test(req);
+  const hasParm=/\bparmesan\b/.test(req);
+  if(!(hasWing&&hasCeleryRoot&&hasChips&&hasParm)) return msgs;
+
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+
+  // No Gluten + potato chips should name GF certainty.
+  if(challengeHasNoGluten(ch)&&hasChips){
+    const chipsMentioned=/\bpotato\s+chips?\b/i.test(low);
+    const gfNamed=/\b(gluten[\s-]?free|gf|certified\s+gf)\b[\s\S]{0,60}\bpotato\s+chips?\b|\bpotato\s+chips?\b[\s\S]{0,60}\b(gluten[\s-]?free|gf|certified\s+gf)\b/i.test(low);
+    if(chipsMentioned&&!gfNamed){
+      msgs.push(`No Gluten + potato chips: specify **gluten-free / certified GF chips** (brand-safe wording) — generic "potato chips" is an avoidable compliance risk.`);
+    }
+  }
+
+  const chipOnWing=/\b(chip[-\s]?crust|chip[-\s]?coated|press(?:ed)?\s+.*potato\s+chips?|potato\s+chips?\s+.*(?:onto|on)\s+.*wings?)\b/i.test(low);
+  const glazeOnWing=/\b(honey|glaze|sticky|parmesan\s+paste)\b[\s\S]{0,160}\bwings?\b|\bwings?\b[\s\S]{0,160}\b(honey|glaze|sticky)\b/i.test(low);
+  const freshChipFinish=/\b(plate|plating|finish)\b[\s\S]{0,220}\b(chip\s+shards?|fresh\s+chips?|crushed\s+chips?)\b/i.test(low);
+  if(chipOnWing&&glazeOnWing&&!freshChipFinish){
+    msgs.push(`Texture hold: **chip crust on glazed wings** softens quickly at the pass — keep chips for **last-minute plating crunch** (or split: light pan set + fresh shard finish).`);
+  }
+
+  // Step-time realism: long hold between celery-root purée and pasta finish can tighten cream purée.
+  const steps=Array.isArray(recipe.steps)?recipe.steps:[];
+  const timeToMin=(t)=>{
+    const m=String(t||"").match(/^\s*(\d{1,2})\s*:\s*(\d{2})\s*$/);
+    if(!m) return null;
+    return (+m[1])*60+(+m[2]);
+  };
+  let pureeAt=null, pastaFinishAt=null;
+  for(const s of steps){
+    const blob=(String(s&&s.what||"")+" "+String(s&&s.how||"")).toLowerCase();
+    const tm=timeToMin(s&&s.time);
+    if(tm==null) continue;
+    if(pureeAt==null&&/\b(celery\s+root|celeriac)\b/.test(blob)&&/\b(blend|puree|purée)\b/.test(blob)) pureeAt=tm;
+    if(pastaFinishAt==null&&/\b(pasta|mac)\b/.test(blob)&&/\b(finish|toss|sauce|coat)\b/.test(blob)) pastaFinishAt=tm;
+  }
+  if(pureeAt!=null&&pastaFinishAt!=null&&pastaFinishAt-pureeAt>=6){
+    msgs.push(`Texture timing: celery-root cream base sits **~${pastaFinishAt-pureeAt} min** before pasta finish — it can tighten/paste. Either blend closer to toss time or name a stronger re-loosen plan (more pasta water/cream).`);
+  }
+
+  // Overbuild signal: crispy wings + mac-and-cheese reinvention + chip crust all as co-heroes.
+  const comfortMac=/\b(mac\s*(?:and|&)\s*cheese|mac[-\s]?style|celery\s+root\s+mac)\b/i.test(low);
+  const wingHero=/\bwings?\b[\s\S]{0,140}\b(top|on\s+top|hero|crisp|crusted)\b|\bcrispy\s+wings?\b/i.test(low);
+  if(comfortMac&&wingHero&&chipOnWing){
+    msgs.push(`Strategy risk: this basket can become **double-hero overload** (reinvented mac + chip-crusted wings). Keep one hero primary and simplify the secondary so execution survives the clock.`);
+  }
+
+  return msgs;
+}
+
 /** Texture contrast + memorability + dominance — injected into rival + coach prompts (skipped for snack / easy). */
 function textureMemorabilityDominanceBlock(ch){
   if(!ch) return "";
@@ -5529,6 +5599,23 @@ function streetFoodOkraMarjoramLaneBlock(ch){
 - Default taco lane is valid but **obvious**. Consider at least one less-default street format (e.g. arayes / flatbread pocket / wrap) if it better fits the herb profile.
 - If you stay taco, solve handheld geometry: avoid whole pods across the bite; use **sliced/chopped okra** or an **acidic tomato-okra relish/stew** so okra becomes integrated sauce/filling.
 - Put **marjoram where aroma survives**: bloom in dry spice mix or oil, or finish as fresh leaf; avoid hiding all marjoram inside rich blended crema.
+
+`;
+}
+
+/** Comfort basket nudge for wing-mac architecture under clock pressure. */
+function comfortWingMacExecutionBlock(ch){
+  if(!ch||!challengeTypeIsComfortReinvented(ch.ctype)) return "";
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" | ");
+  if(!(/\bchicken\s+wings?\b|\bwings?\b/.test(req)&&/\bcelery\s+root|celeriac\b/.test(req)&&/\bpotato\s+chips?\b/.test(req)&&/\bparmesan\b/.test(req))) return "";
+  const ng=challengeHasNoGluten(ch);
+  return `COMFORT LOCK — WINGS + CELERY ROOT + POTATO CHIPS + PARMESAN:
+- This concept is strong. Win by **surgical execution**, not extra structure.
+- Chip crust timing: chips soften fast on hot/fatty wings. Prefer **last-minute chip finish at plating** (or split: light pan set + fresh shard top) so crunch survives.
+- Celery root should do at least **two roles** (silky base + diced/charred fold-in or crisp garnish) for depth without adding a second starch system.
+- Wings on stovetop without cast iron: prioritize **skin render + crisp** first, then controlled glaze; avoid sticky glaze + long hold.
+- Keep one hero primary (mac body) and one secondary (wings) — don't let both demand peak crisp at once.
+${ng?`- No Gluten: write **gluten-free/certified GF potato chips** explicitly; generic chips can fail strict judging.`:""}
 
 `;
 }
@@ -5581,6 +5668,7 @@ function getRecipeTimelineViolations(recipe, ch){
   msgs.push(...getFlavorDominanceBalanceViolations(recipe,ch));
   msgs.push(...getCouscousMalangaSeitanViolations(recipe,ch));
   msgs.push(...getStreetFoodOkraMarjoramTempehViolations(recipe,ch));
+  msgs.push(...getComfortWingMacChipViolations(recipe,ch));
   msgs.push(...getShortClockHardKitchenLoadViolations(recipe,ch));
   msgs.push(...getAppetizerCourseFitViolations(recipe,ch));
   msgs.push(...getAppetizerStarterArchitectureViolations(recipe,ch));
