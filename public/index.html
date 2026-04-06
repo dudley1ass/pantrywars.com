@@ -1082,6 +1082,10 @@ const PROTEIN_MIN_CLOCK_MINUTES={
   "Oxtail":44,
   "Whole Chicken":38,
 };
+const GRAIN_MIN_CLOCK_MINUTES={
+  "Barley (Pearl)":25,
+  "Arborio Rice":18,
+};
 
 function minClockMinutesForPantryName(name){
   const meta=pantryMetaByName(name);
@@ -1095,6 +1099,10 @@ function minClockMinutesForPantryName(name){
   const low=key.toLowerCase();
   for(const k of Object.keys(PROTEIN_MIN_CLOCK_MINUTES)){
     if(k.toLowerCase()===low) return PROTEIN_MIN_CLOCK_MINUTES[k];
+  }
+  if(GRAIN_MIN_CLOCK_MINUTES[key]!=null) return GRAIN_MIN_CLOCK_MINUTES[key];
+  for(const k of Object.keys(GRAIN_MIN_CLOCK_MINUTES)){
+    if(k.toLowerCase()===low) return GRAIN_MIN_CLOCK_MINUTES[k];
   }
   return null;
 }
@@ -1130,6 +1138,70 @@ function formatTechniqueMatrixDisplay(tm){
 function compactTechniqueMatrixForAi(tm){
   if(!tm) return "";
   return `sear ${tm.sear} | slice ${tm.sliceThin} | grind ${tm.grind} | quick ${tm.quickBraise} | SV ${tm.sousVide} | slow ${tm.slowCook}`;
+}
+
+/** Universal ingredient cook matrix (all ingredient classes, not proteins only). */
+function defaultCookMatrixAiForMeta(meta,name){
+  const n=String(name||"");
+  const cat=String((meta&&meta.cat)||"").toLowerCase();
+  const cook=String((meta&&meta.cookSheet)||"").trim();
+  const clk=String((meta&&meta.clockPlaybookAi)||"").trim();
+  const merged=(cook+" "+clk).toLowerCase();
+  const minuteMatches=[...merged.matchAll(/(\d+)\s*(?:[-–]\s*(\d+))?\s*min/g)];
+  let minM=null,maxM=null;
+  for(const m of minuteMatches){
+    const a=Number(m[1]),b=Number(m[2]||m[1]);
+    if(!Number.isFinite(a)||!Number.isFinite(b)) continue;
+    const lo=Math.min(a,b),hi=Math.max(a,b);
+    minM=minM==null?lo:Math.min(minM,lo);
+    maxM=maxM==null?hi:Math.max(maxM,hi);
+  }
+  const hasRaw=/\b(raw|cold|no[\s-]?cook|finish|garnish|sprinkle)\b/.test(merged)||/spices?\s*&\s*herbs|oils\s*&\s*vinegars/.test(cat);
+  const isProtein=/\bproteins?\b/.test(cat)||/\b(chicken|beef|pork|lamb|duck|fish|shrimp|scallop|egg|tofu|tempeh|seitan)\b/i.test(n);
+  const isGrain=/\bgrains?\s*&\s*legumes\b/.test(cat)||/\b(rice|barley|quinoa|couscous|lentil|bean|pasta|spaghetti)\b/i.test(n);
+  const isProduce=/\bvegetables|fruits|aromatics\b/.test(cat);
+  let fast="3–10 min";
+  let medium="10–20 min";
+  let long="20+ min";
+  if(minM!=null&&maxM!=null){
+    fast=`${Math.max(1,Math.min(minM,10))}–${Math.max(Math.min(maxM,12),Math.max(4,Math.min(minM+4,12)))} min`;
+    medium=`${Math.max(8,Math.min(minM+4,16))}–${Math.max(14,Math.max(minM+10,Math.min(maxM+6,28)))} min`;
+    long=`${Math.max(20,Math.max(maxM,20))}+ min`;
+  }else if(isGrain){
+    fast="toast/garnish 2–8 min";
+    medium="simmer 15–30 min";
+    long="30+ min";
+  }else if(isProtein){
+    fast="sear/slice 3–10 min";
+    medium="braise/roast 12–30 min";
+    long="30+ min";
+  }else if(isProduce){
+    fast="raw/quick saute 2–8 min";
+    medium="roast/simmer 10–25 min";
+    long="25+ min";
+  }
+  const best=isProtein
+    ?"slice thin or high-heat sear"
+    :isGrain
+      ?"pre-cook or garnish role on short rounds"
+      :isProduce
+        ?"raw + one fast heat move"
+        :"small-dose bloom/finish";
+  const avoid=isGrain
+    ?"long tender simmer as sole centerpiece on tight clocks"
+    :isProtein
+      ?"slow braise/sous-vide when clock is short"
+      :"long multi-stage prep without payoff";
+  return `fast ${fast} | medium ${medium} | long ${long} | no-cook ${hasRaw?"yes":"limited"} | best_short_clock ${best} | avoid_short_clock ${avoid}`;
+}
+
+function ingredientCookMatrixForName(name){
+  const meta=pantryMetaByName(name);
+  const explicit=meta&&String(meta.cookMatrixAi||"").trim();
+  if(explicit) return explicit;
+  const tm=techniqueMatrixForName(name);
+  if(tm) return compactTechniqueMatrixForAi(tm);
+  return defaultCookMatrixAiForMeta(meta,name);
 }
 
 /** Form-aware transformation rules (exact SKU × technique). Keys match FULL_PANTRY `name`; extend for more proteins. */
@@ -1463,9 +1535,8 @@ function culinaryEngineBrief(ch){
   lines.push("• **Required ingredients** — pick **one** path per line consistent with matrix + equipment:");
   for(const name of (ch.required||[])){
     const c=classifyIngredientForEngine(name);
-    const tm=techniqueMatrixForName(name);
-    const row=tm?` | ${compactTechniqueMatrixForAi(tm)}`:"";
-    lines.push(`  – **${name}** [${c.cls}] ${c.hint}${row}`);
+    const row=ingredientCookMatrixForName(name);
+    lines.push(`  – **${name}** [${c.cls}] ${c.hint}${row?` | ${row}`:""}`);
   }
   lines.push("• **Pantry = role completion** (only if basket leaves a gap):");
   lines.push(...pantryRoleGapFillLines(ch));
@@ -1494,18 +1565,18 @@ MASTER RULE (decision engine): Prefer safe comp methods — slice thin, cook fas
 `;
 }
 
-/** Protein × technique minute grid — when catalog or custom row has matrix data. */
+/** Ingredient cook matrix grid — applies to every required item. */
 function basketTechniqueMatrixBlock(ch){
   const req=(ch&&ch.required)||[];
   if(!req.length) return "";
   const t=Math.max(1, Number((ch&&ch.totalTime)||30));
   const lines=[];
   for(const name of req){
-    const tm=techniqueMatrixForName(name);
-    if(tm) lines.push(`• ${name}: ${compactTechniqueMatrixForAi(tm)}`);
+    const row=ingredientCookMatrixForName(name);
+    if(row) lines.push(`• ${name}: ${row}`);
   }
   if(!lines.length) return "";
-  return `PROTEIN × TECHNIQUE TIME MATRIX (typical ranges — your round ~${t} min; "—" = usually N/A; ❌ = wrong tool or not viable; align chosen technique with clock):
+  return `INGREDIENT COOK MATRIX (all required items, typical ranges/lanes — your round ~${t} min; align method with clock and equipment):
 ${lines.join("\n")}
 
 `;
@@ -4678,6 +4749,8 @@ const MODAL_PROMPTS={
 "clockPlaybook": optional short multi-line block (emoji headers OK) — method grid vs clock if helpful; omit if redundant.
 "ingredientToolkitAi": one dense line — transform→result→use summary for AI prompts (starts with "Toolkit (${i}): ..." style OK).
 "ingredientToolkit": optional longer block — multi-line transform → result → use bullets like other pantry toolkits.
+"cookMatrixAi": REQUIRED one-line machine-friendly matrix for this ingredient class (all ingredients, not only proteins). Format: "fast ... | medium ... | long ... | no-cook yes/limited | best_short_clock ... | avoid_short_clock ...".
+"cookMatrix": OPTIONAL expanded object with the same meaning, keys: fast, medium, long, noCook, bestShortClock, avoidShortClock.
 "techniqueMatrix": ONLY if this is a protein/meat/fish/shellfish/tofu-style main — object with string values (typical minute ranges or "—"/"❌"): sear, sliceThin, grind, quickBraise, sousVide, slowCook. Omit for spices, dry goods, produce-only, etc.`,
   restriction:i=>`Culinary expert. "${i}" as a cooking restriction. Return ONLY JSON no markdown: {"label":"short name","description":"what it eliminates","tags":["affected"]}`,
   equipment: i=>`Culinary expert. "${i}" as kitchen equipment. Return ONLY JSON no markdown: {"label":"equipment name","description":"how it affects cooking","tags":["techniques"]}`,
@@ -4708,7 +4781,7 @@ function openModal(type){
 
 function closeModal(){$("modal-overlay").classList.add("hidden");}
 
-/** Normalize AI JSON for custom pantry rows so they carry the same optional fields as FULL_PANTRY (cookSheet, clock playbooks, toolkits, technique matrix). */
+/** Normalize AI JSON for custom pantry rows so they carry the same optional fields as FULL_PANTRY (cookSheet, clock playbooks, toolkits, cook matrix, technique matrix). */
 function normalizeCustomPantryFromAi(data){
   const src=data&&typeof data==="object"?data:{};
   const flavorSet=new Set(["sweet","salty","sour","bitter","umami","savory","gamey","rich","briny","smoky","mild"]);
@@ -4736,6 +4809,24 @@ function normalizeCustomPantryFromAi(data){
   const clockPlaybook=trimCap(src.clockPlaybook,1200);
   const ingredientToolkitAi=trimCap(src.ingredientToolkitAi,450);
   const ingredientToolkit=trimCap(src.ingredientToolkit,2000);
+  const cookMatrixAi=trimCap(src.cookMatrixAi,420);
+  const cmSrc=(src.cookMatrix&&typeof src.cookMatrix==="object")?src.cookMatrix:{};
+  const cmFast=trimCap(cmSrc.fast,80);
+  const cmMedium=trimCap(cmSrc.medium,80);
+  const cmLong=trimCap(cmSrc.long,80);
+  const cmNoCook=trimCap(cmSrc.noCook,20);
+  const cmBest=trimCap(cmSrc.bestShortClock,120);
+  const cmAvoid=trimCap(cmSrc.avoidShortClock,120);
+  const cookMatrix=(cmFast||cmMedium||cmLong||cmNoCook||cmBest||cmAvoid)
+    ?{
+      fast:cmFast||"3–10 min",
+      medium:cmMedium||"10–20 min",
+      long:cmLong||"20+ min",
+      noCook:cmNoCook||"limited",
+      bestShortClock:cmBest||"one fast method",
+      avoidShortClock:cmAvoid||"long multi-stage builds",
+    }
+    :null;
   let techniqueMatrix=null;
   if(src.techniqueMatrix&&typeof src.techniqueMatrix==="object"){
     const o={};
@@ -4755,6 +4846,15 @@ function normalizeCustomPantryFromAi(data){
   if(clockPlaybook) row.clockPlaybook=clockPlaybook;
   if(ingredientToolkitAi) row.ingredientToolkitAi=ingredientToolkitAi;
   if(ingredientToolkit) row.ingredientToolkit=ingredientToolkit;
+  row.cookMatrixAi=cookMatrixAi||defaultCookMatrixAiForMeta(row, String(src.name||src.label||""));
+  row.cookMatrix=cookMatrix||{
+    fast:"3–10 min",
+    medium:"10–20 min",
+    long:"20+ min",
+    noCook:"limited",
+    bestShortClock:"one fast method",
+    avoidShortClock:"long multi-stage builds",
+  };
   if(techniqueMatrix) row.techniqueMatrix=techniqueMatrix;
   const mcm=Number(src.minClockMinutes);
   if(Number.isFinite(mcm)&&mcm>0&&mcm<=600) row.minClockMinutes=Math.round(mcm);
@@ -4788,6 +4888,8 @@ async function doModalLookup(){
       if(cs) bits.push(`<div style="font-size:11px;color:#475569;line-height:1.45;margin-top:4px"><span style="font-weight:700;color:#334155">Cook sheet</span> — ${escapeHtml(cs.length>240?cs.slice(0,240)+"…":cs)}</div>`);
       const clk=String(data.clockPlaybookAi||"").trim();
       if(clk) bits.push(`<div style="font-size:11px;color:#475569;line-height:1.45;margin-top:4px"><span style="font-weight:700;color:#334155">Clock</span> — ${escapeHtml(clk.length>200?clk.slice(0,200)+"…":clk)}</div>`);
+      const cm=String(data.cookMatrixAi||"").trim();
+      if(cm) bits.push(`<div style="font-size:11px;color:#475569;line-height:1.45;margin-top:4px"><span style="font-weight:700;color:#334155">Cook matrix</span> — ${escapeHtml(cm.length>220?cm.slice(0,220)+"…":cm)}</div>`);
       pantryExtra=bits.length?`<div style="margin-bottom:10px">${bits.join("")}</div>`:"";
     }
     mb.innerHTML=`<div style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:10px;padding:12px">
@@ -5638,6 +5740,29 @@ function getProteinMinClockViolations(recipe, ch){
   return msgs;
 }
 
+/** Non-protein staples with known minimum cook windows (e.g. pearl barley, arborio). */
+function getGrainMinClockViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const total=Math.max(1, Number(ch.totalTime)||30);
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  // Allow explicit fast-lane language (pre-cooked, leftover, puffed/toasted garnish-only).
+  const fastLane=/\b(pre[\s-]?cooked|leftover|cooked\s+ahead|quick[\s-]?cook|instant|puffed|toasted?\s+(?:barley|grain)|barley\s+crisp|barley\s+garnish|sprinkle|shard|crumb)\b/i.test(low);
+  if(fastLane) return msgs;
+  for(const name of ch.required||[]){
+    const key=String(name||"").trim();
+    const minM=GRAIN_MIN_CLOCK_MINUTES[key];
+    if(minM==null||total>=minM) continue;
+    const n=key.toLowerCase();
+    // Only flag if recipe actually attempts a tender cooked grain path.
+    const usedAsCooked=(new RegExp(`\\b${n.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\$&")}\\b`,"i")).test(low)
+      && /\b(boil|simmer|cook\s+until|tender|porridge|pudding|risotto|pilaf|soften|stew)\b/i.test(low);
+    if(!usedAsCooked) continue;
+    msgs.push(`Timeline: **${key}** typically needs **~${minM}+ min** to cook tender; this is a **${total} min** round. Use pre-cooked/leftover/instant form, or pivot ${key} to toasted/crisp garnish instead of central cooked base.`);
+  }
+  return msgs;
+}
+
 /**
  * Rough timeline check: summed step durations vs challenge clock.
  * Catches "20 min braise + rest in 25 min" style fantasy.
@@ -5663,6 +5788,7 @@ function getRecipeTimelineViolations(recipe, ch){
   }
   msgs.push(...getProseTimelineViolations(low, total));
   msgs.push(...getProteinMinClockViolations(recipe,ch));
+  msgs.push(...getGrainMinClockViolations(recipe,ch));
   msgs.push(...getShortClockRoastCaramelRiskViolations(recipe,ch));
   msgs.push(...getRecipeTextureContrastViolations(recipe,ch));
   msgs.push(...getFlavorDominanceBalanceViolations(recipe,ch));
@@ -6224,6 +6350,21 @@ function noGlutenFishSaucePhysicsPromptBlock(ch){
 - Most traditional fish sauce is **fish + salt** (often naturally GF), but **some brands add wheat** as a process aid. Under strict no-gluten, **ingredients[]** must name a **gluten-free labeled** fish sauce or a **specific verified GF** product — not only the words "fish sauce" with no label story.\n`;
 }
 
+/** Short-clock grain realism: pearl barley / arborio are not quick-cook unless pre-cooked/instant. */
+function shortClockGrainPhysicsPromptBlock(ch){
+  if(!ch) return "";
+  const t=Math.max(1, Number(ch.totalTime)||30);
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" | ");
+  const hasBarley=/\bbarley\b/.test(req);
+  const hasArborio=/\barborio\b/.test(req);
+  if(!hasBarley&&!hasArborio) return "";
+  let out=`SHORT-CLOCK GRAIN REALISM (${t} min):
+- **Pearl barley** is not a 10–15 min tender grain. Typical tender window is **~25–35 min** simmer/boil. If the clock is tight, use **pre-cooked/instant barley** or pivot barley to **toasted/crisp garnish** rather than central pudding/porridge body.
+- **Arborio** needs active absorption and usually **~18–28 min**; under-cooked rice reads chalky.
+`;
+  return out;
+}
+
 /** Real cooking constraints — rival + coach must not claim impossible outcomes to satisfy the basket. */
 function physicsRealismBlock(ch){
   const t=Math.max(1, Number((ch&&ch.totalTime)||30));
@@ -6248,6 +6389,7 @@ function physicsRealismBlock(ch){
   }
   s+=glutenFreePastaPhysicsPromptBlock(ch);
   s+=noGlutenFishSaucePhysicsPromptBlock(ch);
+  s+=shortClockGrainPhysicsPromptBlock(ch);
   return s;
 }
 
