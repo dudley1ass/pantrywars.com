@@ -105,6 +105,10 @@ app.post("/api/openai", async (req, res) => {
 
   try {
     const anthBody = legacyOpenaiChatToAnthropicBody(payload);
+    const upstreamSignal =
+      typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function"
+        ? AbortSignal.timeout(300000)
+        : undefined;
     const r = await fetch(ANTHROPIC_URL, {
       method: "POST",
       headers: {
@@ -113,6 +117,7 @@ app.post("/api/openai", async (req, res) => {
         "anthropic-version": ANTHROPIC_VERSION,
       },
       body: JSON.stringify(anthBody),
+      signal: upstreamSignal,
     });
     const text = await r.text();
     if (!r.ok) {
@@ -149,6 +154,10 @@ app.post("/api/anthropic", async (req, res) => {
   }
 
   try {
+    const upstreamSignal =
+      typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function"
+        ? AbortSignal.timeout(300000)
+        : undefined;
     const r = await fetch(ANTHROPIC_URL, {
       method: "POST",
       headers: {
@@ -157,6 +166,7 @@ app.post("/api/anthropic", async (req, res) => {
         "anthropic-version": ANTHROPIC_VERSION,
       },
       body: JSON.stringify(payload),
+      signal: upstreamSignal,
     });
     const text = await r.text();
     res.status(r.status).set("Content-Type", "application/json").send(text);

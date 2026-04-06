@@ -291,7 +291,7 @@ const EQUIPMENT_TECHNIQUE_SHEET={
   "Cast Iron":"Sear, shallow fry, bake in pan, fond + deglaze, cornbread; overlaps with beef/pork/aromatic sears.",
   Wok:"Stir-fry, high-heat toss, dry-toast spices, quick steam-fry; matches fast veg + protein + aromatics.",
   "Sous Vide":"Even edge-to-edge temp; finish with sear/torch — steps must match real time on the clock.",
-  Torch:"Brûlée, meringue, char skin, melt cheese tops — finishing heat, not a long cook.",
+  Torch:"**Pan-inaccessible finish** — brûlée sugar, caramelize **brine/pickle syrup/honey brush** into a lacquer (vinegar lifts; sugars brown), blister meringue/cheese tops, spot-melt fat. **Weak:** re-torching **already-seared meat slices** for edge char — cast iron already delivered Maillard; that reads cosmetic. Prefer flame that changes **flavor register**, not only color.",
   "Sheet Pan":"Tray roast, one-pan dinners, even browning for veg + protein together; aligns with oven timing.",
 };
 
@@ -311,7 +311,7 @@ const EQUIPMENT_COOK_TIME_HINTS={
   "Cast Iron":"Sear / shallow fry / pan-roast small cuts **~6–18m**; fond+deglaze — overlaps **Stovetop**; preheat matters.",
   Wok:"Stir-fry / dry-toss **~3–12m** high heat; not a long braise vessel — pick wok **or** oven story for the main clock.",
   "Sous Vide":"Bath often **~45–90m+** for thick cuts + **sear finish ~3–8m** — must fit **total** round or forbidden.",
-  Torch:"Finish only **~30s–4m** — brûlée, char, melt tops; **not** primary protein cook.",
+  Torch:"Finish only **~30s–4m** — brûlée, **brine/syrup caramel lacquer**, meringue/cheese blister; **not** primary protein cook **and not** fake “torch the sliced steak” after a full sear.",
   "Sheet Pan":"Tray roast **~20–45m** typical for veg+protein together — one oven story; aligns with **Oven** clock.",
 };
 
@@ -1349,7 +1349,7 @@ function basketEquipmentTechniquesBlock(ch){
     lines.push(`• ${name}: ${tip}${clk?" **Typical cook window:** "+clk:""}`);
   }
   if(!lines.length) return "";
-  return `MUST-USE EQUIPMENT — TECHNIQUES (~${t} min round; **match protein/technique to gear time** — e.g. grill = open high heat + smoke/char, not baked tart; torch = finish only; blender = prep not sear):
+  return `MUST-USE EQUIPMENT — TECHNIQUES (~${t} min round; **match protein/technique to gear time** — e.g. grill = open high heat + smoke/char, not baked tart; **torch = selective finish that does pan-inaccessible work** (brûlée, brine lacquer), not duplicate sear on sliced meat; blender = prep not sear):
 ${lines.join("\n")}
 
 `;
@@ -1401,6 +1401,9 @@ function equipmentIntersectionLines(ch){
   }
   if(R.some(x=>/\bwok\b/.test(x))){
     lines.push("• **Wok** must-use: starring stir-fry / toss / high-heat — not only wilting garnish while the oven carries the plate.");
+  }
+  if(R.some(x=>/\btorch\b/.test(x))){
+    lines.push("• **Torch** must-use: flame must earn its line — **brûlée**, **caramelize pickle/brine/syrup** into a lacquer on veg or crust, blister meringue/cheese, spot-melt — work a **skillet cannot** do without wrecking texture. **Avoid:** torching **already-seared meat slices** “for char” (cast iron already handled Maillard) unless you pair it with a **second** torch move that is clearly chemical (brine glaze, sugar, cheese).");
   }
   return lines;
 }
@@ -2118,10 +2121,22 @@ async function ai(prompt, tokens=300, opts) {
     pwTrackDailyLimitHit("blocked_precheck");
     throw new Error(PW_DAILY_LIMIT_MESSAGE);
   }
+  const maxTok = Math.min(Math.max(256, Number(tokens) || 300), 8192);
+  let timeoutMs = Number(opts.timeoutMs);
+  if (!Number.isFinite(timeoutMs) || timeoutMs < 15000) {
+    if (maxTok >= 6000) timeoutMs = 240000;
+    else if (maxTok >= 3500) timeoutMs = 180000;
+    else if (maxTok >= 1200) timeoutMs = 120000;
+    else timeoutMs = 90000;
+  }
   const runXhr = (forceServerKeyOnly) => new Promise((resolve, reject) => {
     const keyToSend=forceServerKeyOnly?"":apiKey;
     const xhr = new XMLHttpRequest();
-    const timer = setTimeout(() => { xhr.abort(); reject(new Error("Request timed out (60s)")); }, 60000);
+    const sec = Math.round(timeoutMs / 1000);
+    const timer = setTimeout(() => {
+      xhr.abort();
+      reject(new Error(`Request timed out after ${sec}s — rival recipe and coach calls use a huge prompt; Claude often needs 1–3 min. Try again, or wait and retry if Anthropic is slow.`));
+    }, timeoutMs);
     xhr.open("POST", "/api/anthropic");
     xhr.setRequestHeader("Content-Type", "application/json");
     xhr.onload = () => {
@@ -2169,7 +2184,6 @@ async function ai(prompt, tokens=300, opts) {
       reject(new Error("Cannot reach Pantry Wars server — check that the app is running (npm start) or your live site is up."));
     };
     xhr.onabort = () => { clearTimeout(timer); reject(new Error("aborted")); };
-    const maxTok = Math.min(Math.max(256, Number(tokens) || 300), 8192);
     const payload = {
       model: PW_CLAUDE_MODEL,
       max_tokens: maxTok,
@@ -2909,6 +2923,53 @@ function challengeTypeIsDinerClassic(ctype){
   if(/\bdiner\b/.test(label)&&/\b(burger|melt|fries|milkshake|blue[\s-]?plate|counter)\b/.test(label)) return true;
   return false;
 }
+
+/** Required haul has anchovy + lemon + sesame oil (flexible naming). */
+function basketHasAnchovyLemonSesameOil(required){
+  const j=(required||[]).map(s=>String(s).toLowerCase()).join(" | ");
+  return /\banchovy\b/.test(j)&&/\blemon\b/.test(j)&&/\bsesame\s+oil\b/.test(j);
+}
+
+/**
+ * Diner Classic + wok + anchovy/lemon/sesame: steer toward judge-recognizable counter Caesar + wok croutons (eval anchor).
+ */
+function dinerWokAnchovyLemonSesameBlock(ch){
+  if(!ch||!challengeTypeIsDinerClassic(ch.ctype)) return "";
+  const reqEq=(ch.reqEquip||[]).map(s=>String(s).toLowerCase());
+  if(!reqEq.some(r=>/\bwok\b/.test(r))) return "";
+  if(!basketHasAnchovyLemonSesameOil(ch.required||[])) return "";
+  return `DINER + WOK + ANCHOVY + LEMON + SESAME OIL — RECOGNIZED LANE (default unless restrictions forbid):
+- **Counter-service Caesar salad** is the most iconic diner format for this trio: anchovy + lemon at the **identity** of the dressing — not a generic Italian–Asian stir-fry noodle plate with no diner name.
+- **Wok must star as primary heat:** **toast croutons / bread in the wok** with **sesame oil** until **shattering and golden** — legitimate high-heat wok work, not only wilting lettuce or a side veg.
+- **Dressing:** build classic Caesar logic (yolk or honest mayo + lemon + anchovy + Parmesan path); **sesame oil = the deliberate riff** (depth/umami), not an anonymous "Asian finish."
+- **Indulgence:** diner win = Parmesan, egg yolk emulsion, or creaminess + **crunch** (croutons) — avoid "clean light noodle bowl" as the only read.
+- title/tagline should name **Caesar** (or plain **diner Caesar / counter Caesar**) + **wok-toasted crouton** — if you choose a different format, spell out why it still beats a menu-name diner dish.\n\n`;
+}
+
+/**
+ * Comfort Reinvented: salt-stack discipline, freshness contrast, split-use for multi-texture veg (eval: mac+cheese+puffs+anchovy).
+ */
+function comfortReinventedSaltFreshSplitBlock(ch){
+  if(!ch||!challengeTypeIsComfortReinvented(ch.ctype)) return "";
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join("\n");
+  const hits=[];
+  if(/\banchov/i.test(req)) hits.push("anchovy");
+  if(/\bcheese\s+puffs?\b|puff\s+crust|snack\s+crisp/i.test(req)) hits.push("cheese puffs / crispy snack");
+  if(/\bcapers?\b/i.test(req)) hits.push("capers");
+  if(/\b(kimchi|miso|fish\s+sauce|soy\s+sauce|worcestershire)\b/i.test(req)) hits.push("ferment/brine");
+  if(/\bcrab\b/i.test(req)) hits.push("crab");
+  if(/\b(bacon|prosciutto|chorizo|pancetta|nduja)\b/i.test(req)) hits.push("cured meat");
+  if(/\b(parmesan|pecorino|feta|cheddar|blue\s+cheese)\b/i.test(req)) hits.push("aged cheese");
+  const stackNote=hits.length>=2
+    ?`This haul overlaps **${hits.slice(0,6).join(", ")}** — high latent sodium. **Minimize added salt**; name **acid** (lemon, vinegar, pickle brine) and **herbs** that cut richness.\n`
+    :`When **two+** salty drivers combine (e.g. anchovy + cheese puffs + pasta water), **salt discipline** + **extra acid** in the same bite story.\n`;
+  return `COMFORT REINVENTED — ENGINE (salt / freshness / split-use):
+- **Salt load:** ${stackNote}- **Fresh contrast:** rich/creamy/cheesy comfort still needs a **bright layer** — citrus finish, herb, raw scallion, peppery green, quick pickle, or micro-salad — in real steps, not only color garnish.
+- **Split use:** veg that supports multiple textures (**edamame, peas, cauliflower, lotus root, potato**) → prefer **two techniques** (whole + purée / blister / char / chip) when the clock allows — say so in balance.basket; one lazy fold-in is a missed upgrade.
+
+`;
+}
+
 function challengeTypeIsStreetFood(ctype){
   const id=String((ctype&&ctype.id)||"");
   const label=String((ctype&&ctype.label)||"").toLowerCase();
@@ -2959,7 +3020,7 @@ const PW_NAMED_FRUIT_FOR_SAUCE_CHECK = ["plum","strawberry","cherry","raspberry"
 const PW_CHALLENGE_SOUL_APPENDIX = `CHALLENGE SOUL — DNA CHEAT SHEET (honor when the named classic / course matches; do not contradict):
 • MILANESE COTOLETTA / BREADED CUTLET (veal/chicken/pork Milanese, Wiener schnitzel): crisp crumb (breadcrumbs/panko) = nutty crunch; cook in butter and/or oil; salt-forward; LEMON is essential (wedge/juice/zest) — cuts fat; optional bitter green (arugula/parsley). Parmesan can add umami. Identity is NOT saucy, not spicy-dominant, not dessert-sweet — precision and balance, thin cutlets, golden crust.
 • RISOTTO MILANESE (if that is the named classic, NOT the cutlet): saffron + gradual absorption + stock + finish — do not confuse with breaded Milanese cutlet.
-• DINER / BLUE-PLATE: one honest protein + gravy or brown-sauce lane + veg + starch (mash, fries, toast); counter-serve energy — not tasting-menu layers unless the challenge demands refinement.
+• DINER / BLUE-PLATE: one honest protein + gravy or brown-sauce lane + veg + starch (mash, fries, toast); **counter Caesar**, tuna melt, patty melt, griddled Reuben, **diner spaghetti** — judges must hear a **menu name**, not "composed plate." Indulgence (cheese, butter, fry crisp) often beats "chef-balanced" — still disciplined, but **nostalgic + craveable**.
 • DINER CLASSIC / STREET FOOD / FINE DINING / COMFORT REINVENTED / GLOBAL: when the builder selects those challenge types, follow the CHALLENGE INTENT + ROLE HIERARCHY blocks — they override generic "entree" defaults.
 • DESSERT COURSE: sweet structure leads (cake, custard, tart shell, mousse, fruit compote, chocolate) — odd savory basket items stay accent or micro, not the flavor headline.
 • ELEVATE A CHEAP MEAL: already locked — the humble dish stays visible; see CHALLENGE INTENT.
@@ -3036,18 +3097,26 @@ FAIL THE BRIEF IF:
 - **Deconstructed plate** with separate protein/veg/sauce tracks and no handheld structure — fails snack even if flavors are nice.\n`;
   }
   if(challengeTypeIsDinerClassic(ctype)){
-    return `CHALLENGE INTENT (mandatory): DINER CLASSIC — counter culture comfort, not tasting-menu architecture.
+    return `CHALLENGE INTENT (mandatory): DINER CLASSIC — **named counter format + nostalgia + indulgence**, not tasting-menu balance or anonymous fusion.
 
-WHAT COUNTS:
-- Burgers, patty melts, griddled sandwiches, crisp fries / hash / diner potatoes, milkshakes or malt-adjacent drinks (if rules allow), blue-plate specials — execution and craveability beat clever fusion.
-- Skill = comfort food execution: sear/juice on patties, real melt on cheese, crisp-edged bread, fries that read intentional (double-fry, soak, starch — as clock allows).
+WHAT COUNTS (judges must recognize the **dish type** from a real diner board):
+- **Sandwiches / griddle:** burger, patty melt, tuna melt, Reuben, BLT, club, grilled cheese.
+- **Salads at the counter:** **Caesar salad** (anchovy–lemon–Parmesan story), chop salad, wedge — big bowl, fork food, optional pickup.
+- **Plates:** blue-plate special, meatloaf + mash, **diner spaghetti** + red sauce, fish fry, breakfast plate — counter-serve, generous, **craveable fat** (butter, cheese, fry oil) where the brief allows.
+- Skill = execution that reads **diner**: griddle crust, cheese pull, **shatter crouton** or crisp fry, shake body — not "light refined pasta" unless you titled **diner spaghetti** and kept the indulgence lane.
+
+INDULGENCE & TEXTURE (diner wins are often "too much" in a good way):
+- Prefer **at least one** indulgence signal: melted cheese, creamy dressing, butter, egg yolk in dressing, crisp fried element — paired with acid (pickle, lemon, hot sauce) so it is not cloying.
+- If everything is **soft + slick** (noodles only, no crunch), add **one** crisp layer (crouton, chip, fried onion, pickle spear) unless the format is explicitly soft (melt interior — still has toast crust).
 
 REQUIRED IN OUTPUT:
-- title OR tagline must name the diner format (burger, melt, patty melt, fries + …, shake, etc.) — not a vague "composed plate."
-- balance.basket: one sentence on how this still reads as diner energy (pickup, griddle, counter plate) vs fine-dining.
+- title OR tagline must name the **diner format** (Caesar salad, patty melt, tuna melt, fries + …, diner spaghetti, shake, etc.) — not a vague "stir-fry" or "composed noodles" with no menu name.
+- balance.basket: (1) **which classic counter dish** this is, (2) **diner energy** (griddle, counter bowl, blue plate), (3) **one indulgence + one acid** in plain words.
 
 FAIL THE BRIEF IF:
-- The plan reads as tweezer plating or six-component tasting while claiming diner — missed brief.\n`;
+- Tweezer plating or six-component tasting while claiming diner — missed brief.
+- The dish reads as **chef's fusion** (e.g. Italian noodles + Asian wok) with **no judge-recognizable diner name** — missed brief unless title honestly sells a **named** mash-up and still feels counter-serve.
+- **Too clean / diet** for the challenge: refined balance without nostalgia or craveable fat when the basket could support a classic format — weak diner identity.\n`;
   }
   if(challengeTypeIsStreetFood(ctype)){
     return `CHALLENGE INTENT (mandatory): STREET FOOD — bold flavor + portability.
@@ -3082,14 +3151,19 @@ WHAT COUNTS:
 - Mac & cheese, pot pie, shepherd's pie, casserole, baked pasta — dishes that trigger "home," then you justify a smart twist (technique, ingredient, texture) without erasing the dish.
 - **Reinvent the EXPERIENCE** (crisp + rich + cohesive), not only the flavor keywords — especially for **pot pie**: if **oven/sheet pan are forbidden**, you must still deliver **crust logic** (pan-crisp grain lid, griddled dough, crisp potato top, etc.), not "stew in a bowl + sweet sauce."
 - **Marshmallow / shelf-sweet in a savory comfort dish:** use as **technique** (caramelize, torch, salty-sweet **integrated** in filling, toasted crisp) — **NOT** as **marshmallow gravy** or a **dessert drizzle** that makes the plate "pork + sweet sauce." Judges must taste **one unified bite**.
+- **Salt stack:** multiple umami/salty sources (anchovy, cheese puffs, capers, miso, cured meat, crab, snack crisps, aged cheese) → **restraint on added salt** + **named acid** (lemon, vinegar, pickle) + often **herb or raw veg** so the dish is not one-note salty.
+- **Fresh contrast:** creamy/rich comfort still needs a **bright layer** — citrus, herbs, peppery green, quick pickle — integrated in the bite, not only tweezers.
+- **Split use:** veg that can do two things (edamame, peas, cauliflower, lotus, potato) → **two techniques** (whole + purée/blister/char/chip) when time allows — stronger than a single fold-in.
 
 REQUIRED IN OUTPUT:
 - title OR tagline must name the comfort baseline (e.g. "pot pie," "mac and cheese") and the twist in plain words.
 - balance.basket sentence 1: "Comfort baseline: [dish] — twist: …" and one line on why it still feels like that comfort food.
+- balance.flavor: name **salt discipline** (if salty ingredients stack) **and** **fresh/acid contrast** for rich plates.
 
 FAIL THE BRIEF IF:
 - Baseline disappears into a random fine-dining plate with no recognizable comfort anchor — that is replacement, not reinvention.
-- **Marshmallow reads as the sauce identity** (gravy/essence drizzle) instead of supporting structure or subtle rounding — missed brief.\n`;
+- **Marshmallow reads as the sauce identity** (gravy/essence drizzle) instead of supporting structure or subtle rounding — missed brief.
+- **Salt bomb** with no credible acid/fresh counterweight when the basket stacked salty drivers — weak execution.\n`;
   }
   if(challengeTypeIsGlobalCuisine(ctype)){
     return `CHALLENGE INTENT (mandatory): GLOBAL CUISINE — flavor authenticity + honest technique markers.
@@ -3097,6 +3171,7 @@ FAIL THE BRIEF IF:
 WHAT COUNTS:
 - Pick ONE lane (Italian, Thai, Mexican, Japanese, Korean, Vietnamese, West African, regional Indian, etc.) and honor its flavor grammar (soffrito, curry paste, chiles, tare, miso, herbs, spice order).
 - Prefer a **transportive** choice: judges punish "default global bowl" (grain base + marinated tofu/tempeh + one Latin or Asian veg) with no format surprise — that reads like every vegan menu. Push toward **specific street format, crisp/crackle, composed small plate, or a less obvious regional lane** when the basket allows.
+- If the haul is **pickled veg + torch + seared protein** (or similar): prefer a **clear cuisine story** (e.g. Vietnamese shaking-beef / đồ chua energy, or another honest lane) over a nameless bistro plate — and use **torch** for **brine/syrup caramel lacquer** or another **pan-inaccessible** finish, not cosmetic re-char on already-seared meat slices.
 
 REQUIRED IN OUTPUT:
 - balance.basket must name the cuisine lane + one concrete technique or flavor backbone you are following (not "Asian-inspired" alone).
@@ -3163,8 +3238,10 @@ CHALLENGE TYPE — SNACK:
   if(challengeTypeIsDinerClassic(ctype)){
     return `
 CHALLENGE TYPE — DINER CLASSIC:
-- Penalize tweezer or tasting-menu architecture when the brief asks for diner; reward griddle energy, melt, crisp fries, honest shake/story when allowed.
-- Factor execution credibility (sear, crust, cheese pull) into challenge execution.`;
+- Penalize tweezer or tasting-menu architecture; reward **named counter formats** (Caesar, patty melt, tuna melt, diner spaghetti, fish fry, blue plate) with **indulgence** (cheese, butter, creamy dressing, fry crisp) and **acid** balance.
+- Penalize **anonymous fusion** (e.g. wok noodles + Italian cues) with **no menu-name diner identity** when the basket could support a **classic** — e.g. **anchovy + lemon + sesame + wok** strongly suggests **Caesar + wok croutons**, not generic stir-fry pasta.
+- Penalize **all-soft / all-slick** plates with no **crunch** when the equipment and time could add crouton, chip, or crisp bread.
+- Reward griddle energy, real melt, **shatter crouton**, crisp fries, honest shake when allowed; factor sear, crust, cheese pull into challenge execution.`;
   }
   if(challengeTypeIsStreetFood(ctype)){
     return `
@@ -3183,6 +3260,8 @@ CHALLENGE TYPE — FINE DINING:
 CHALLENGE TYPE — COMFORT FOOD REINVENTED:
 - Penalize if no named comfort baseline (mac, pot pie, etc.) or if the twist erases recognition.
 - Penalize **marshmallow gravy / sweet drizzle spine** on savory comfort — reads as two cuisines; reward integrated technique (caramelize, binder, micro glaze with salt-acid) or **stovetop "crust"** (crisp grain/potato top) when oven is off the table.
+- Penalize **salt-stack** comfort (anchovy + cheese puffs + reduced cheese sauce, etc.) with **no named acid/fresh/herb strategy** — reward explicit restraint + citrus/pickle/herb layer.
+- Reward **split-use veg** (edamame/peas/cauliflower — two techniques) over a single lazy fold when the basket supports it.
 - Reward nostalgia + twist that still reads as "that dish, evolved."`;
   }
   if(challengeTypeIsGlobalCuisine(ctype)){
@@ -3480,8 +3559,11 @@ function courseEnforcementBlock(ch, sig) {
   }
   if(challengeTypeIsDinerClassic(ch.ctype)){
     return `COURSE LOCK — DINER CLASSIC:
-- Griddle / counter / blue-plate energy — burgers, melts, fries, shakes (when rules allow). Craveable sear, real melt, intentional crisp — not tweezers or tasting-menu scaffolding.
-- balance.complete: one phrase naming diner execution (griddle crust, cheese pull, fry crisp).\n`;
+- **Named format first:** judges should think "that's from a diner menu" — Caesar, patty melt, tuna melt, diner spaghetti, fish fry, blue plate — not anonymous noodle fusion.
+- Griddle / counter / blue-plate energy — burgers, melts, **counter salads**, fries, shakes (when rules allow). Craveable sear, real melt, **crouton or fry shatter**, creamy or cheesy body — not tweezers or tasting-menu scaffolding.
+- **Indulgence + acid:** butter/cheese/creamy dressing/fry crisp **with** pickle, lemon, or hot sauce so it stays diner, not dessert.
+- **Texture:** avoid all-soft, all-slick plates — add **crunch** (crouton, chip, crisp bread) when the basket allows.
+- balance.complete: one phrase naming diner execution (griddle crust, cheese pull, fry crisp, **wok-toasted crouton**).\n`;
   }
   if(challengeTypeIsStreetFood(ch.ctype)){
     return `COURSE LOCK — STREET FOOD:
@@ -3511,6 +3593,9 @@ function courseEnforcementBlock(ch, sig) {
 - NAMED comfort baseline first (mac & cheese, pot pie, baked pasta, casserole) — then one clear twist. Still recognizable comfort; not a new genre.
 - balance.basket must lead with "Comfort baseline: … — twist: …"
 - **Reinvention = experience + cohesion**, not only removing the crust and adding sugar. If the basket has **marshmallow**, it is NOT allowed as **dessert gravy** or **sweet drizzle spine** — use **heat**, **binder**, or **micro** salty-sweet integrated into the filling/top.
+- **Salt + umami stack** (anchovy + puffs, miso + soy, etc.): **minimize table salt**; push **acid** and **herb/raw** contrast in balance.flavor and steps.
+- **Freshness:** one **bright** element (citrus, herb, pickle, raw veg) on rich comfort — mandatory for competition balance.
+- **Split-use veg:** edamame/peas/cauliflower/lotus/potato → two textures when the haul allows — name both in balance.basket.
 ${ovenSheetLock}${hardText}`;
   }
   if(challengeTypeIsGlobalCuisine(ch.ctype)){
@@ -3573,7 +3658,7 @@ function basketFlavorLeadershipBlock(ch){
 `;
   }
   if(isDiner){
-    out+=`DINER CLASSIC — FLAVOR NORTH STAR: Craveable griddle + crisp + melt. Lead with burger/melt/fries/shake logic — acid from pickle/onion/mustard, not random gastrique unless basket forces it.
+    out+=`DINER CLASSIC — FLAVOR NORTH STAR: **Menu-name identity** + craveable fat + crisp. Lead with **recognizable formats** (patty melt, **Caesar**, tuna melt, diner spaghetti, fish fry) — not "balanced fusion" with no diner headline. **Indulgence** (cheese, butter, creamy dressing, fry oil) is on-brief when checked by acid (lemon, pickle). If the haul has **anchovy + lemon + sesame oil** and **Wok**, seriously consider **counter Caesar** with **wok-toasted sesame croutons** as the star wok move — before defaulting to stir-fry noodles.
 
 `;
   }
@@ -3589,6 +3674,9 @@ function basketFlavorLeadershipBlock(ch){
   }
   if(isComfortRev){
     out+=`COMFORT REINVENTED — FLAVOR NORTH STAR: Name the home dish first (mac, pot pie, etc.), then the twist. Judges must still taste "that" dish — not a new restaurant genre.
+- **Sodium:** if anchovy, cheese puffs, cured meat, miso, crab, or snack crisps share the plate, **salt is a design problem** — under-season with table salt; over-deliver **lemon, vinegar, herbs, pickle**.
+- **Fresh punch:** creamy comfort needs **acid + green** (herb, citrus, raw allium, arugula) — not only brown/beige layers.
+- **Two ways:** edamame/peas/cauliflower/lotus → **split** (purée + whole, blister + fold) when the clock fits — shows craft.
 
 `;
   }
@@ -3653,9 +3741,10 @@ function courseRoleHierarchyBlock(ch){
   }
   if(challengeTypeIsDinerClassic(ctype)){
     return `ROLE HIERARCHY — DINER CLASSIC:
-- PRIMARY = griddled sandwich / burger / melt OR crisp fries + anchor protein — diner legibility beats chef abstraction.
-- SUPPORT = cheese melt, pickle, onion, sauce that reads counter-service — not three unrelated sauces.
-- balance.basket: name griddle story + crisp story (fries or hash) in one breath.\n`;
+- PRIMARY = **named diner format** — griddled sandwich / burger / melt OR **counter Caesar (or other big-bowl salad)** OR crisp fries + anchor protein OR **diner pasta plate** — diner legibility beats chef abstraction.
+- If **Wok** is must-use: PRIMARY wok work must be **starring** (stir-fry main, **wok-toasted croutons/bread**, wok-char on a main element) — not only wilting garnish while a pot boils pasta unless the title is honest **diner spaghetti** and wok earns its line another way.
+- SUPPORT = cheese melt, pickle, onion, **creamy dressing**, sauce that reads counter-service — not three unrelated sauces.
+- balance.basket: name **which classic** + griddle/counter story + **crisp story** (fries, hash, **crouton**) in one breath.\n`;
   }
   if(challengeTypeIsStreetFood(ctype)){
     return `ROLE HIERARCHY — STREET FOOD:
@@ -3673,7 +3762,9 @@ function courseRoleHierarchyBlock(ch){
     return `ROLE HIERARCHY — COMFORT REINVENTED:
 - PRIMARY = the comfort dish identity (mac, pot pie shell + filling, baked pasta) — twist is technique or one basket swap, not a new dish name.
 - SUPPORT = pantry that reinforces creaminess, crust, or nostalgia — not unrelated starch bands.
-- balance.basket: "Comfort baseline: … — twist: …" then roles per REQUIRED.\n`;
+- **Salty stack:** if REQUIRED combines high-sodium items (anchovy + puffs, etc.), ACCENT = acid/herb — PRIMARY sauce must not also max salt without naming the fix.
+- **Veg with range:** edamame / peas / cauliflower / lotus — map **PRIMARY/SUPPORT** to two techniques when possible (e.g. purée base + whole fold).
+- balance.basket: "Comfort baseline: … — twist: …" then roles per REQUIRED + **salt/acid/fresh** one-liner.\n`;
   }
   if(challengeTypeIsGlobalCuisine(ctype)){
     return `ROLE HIERARCHY — GLOBAL CUISINE:
@@ -3689,6 +3780,10 @@ function courseRoleHierarchyBlock(ch){
 
 async function generateRecipe() {
   const ch=state.challenge;
+  const apLoad=$("recipe-ai-panel");
+  const footLoad=$("recipe-battle-footer");
+  if(footLoad) footLoad.innerHTML="";
+  if(apLoad) apLoad.innerHTML='<div style="font-size:10px;font-weight:900;color:#818cf8;margin-bottom:10px;letter-spacing:1.5px;text-transform:uppercase">Pantry Wars · Rival chef</div><div style="text-align:center;padding:28px 14px;color:#cbd5e1;font-size:14px;font-weight:700;line-height:1.55">Contacting AI…</div><div style="text-align:center;padding:0 14px 24px;color:#94a3b8;font-size:12px;line-height:1.5;max-width:420px;margin:0 auto">Full <strong>rival chef</strong> runs send a very long prompt and ask for a large JSON recipe — this often takes <strong>1–3 minutes</strong>, sometimes longer if the API is busy. Please wait; a short wait is normal.</div>';
   try {
     const res=ch.restrictions.length?`RESTRICTIONS (hard rules — the dish must comply; no cheating): ${ch.restrictions.join("; ")}.`:"RESTRICTIONS: none.";
     const fe=ch.forbEquip.length?`Forbidden: ${ch.forbEquip.join(", ")}.`:"";
@@ -3732,6 +3827,7 @@ SNACK OVERRIDE — BITE FORMAT: One pickup vehicle only (crostini, mini tart, pu
     const dessertAwkwardBlock=dessertAwkwardBasketPromptBlock(ch);
     const flavorLeadershipBlock=basketFlavorLeadershipBlock(ch);
     const roleHierarchyBlock=courseRoleHierarchyBlock(ch);
+    const dinerAnchovyWokBlock=dinerWokAnchovyLemonSesameBlock(ch);
     const recreateJsonRule=challengeTypeIsRecreateClassic(ch.ctype)
       ?`RECREATE A CLASSIC — JSON / BRIEF LOCK:
 - balance.basket MUST begin by naming the specific classic dish (standard name a judge could verify), e.g. first words: "Classic: fish and chips — …", "Homage to chicken parmesan — …", "Classic: lasagna — …". Synonyms OK if universal (chicken parm, parmigiana). Naming specificity must match CANONICAL CLASSICS in CHALLENGE INTENT (not a vague region).
@@ -3770,8 +3866,10 @@ ${snackHard?`- HARD: balance.texture MUST name **crunch or crisp** (fry, chip, s
       :"";
     let extendedChallengeJsonRule="";
     if(challengeTypeIsDinerClassic(ch.ctype)) extendedChallengeJsonRule+=`DINER CLASSIC — JSON / BRIEF LOCK:
-- title OR tagline MUST name the diner format (burger, patty melt, fries + …, milkshake if allowed).
-- balance.basket clause 1: griddle/counter story + one execution highlight (sear, melt, crisp).\n`;
+- title OR tagline MUST name the **diner format** (Caesar salad, patty melt, tuna melt, burger, fries + …, diner spaghetti, milkshake if allowed) — not only technique words ("stir-fry noodles").
+- balance.basket clause 1: **which classic counter dish** + griddle/counter/bowl story + one execution highlight (sear, melt, crisp, **wok crouton**).
+- balance.flavor: name **one indulgence** (cheese, butter, creamy emulsion, fry) **and** one **acid/cut** (lemon, pickle, hot sauce) — diner-appropriate.
+- balance.texture: name **crunch** (crouton, fry, chip, crisp bread) when the plate is starch-heavy — avoid only soft/slick unless format demands it.\n`;
     if(challengeTypeIsStreetFood(ch.ctype)) extendedChallengeJsonRule+=`STREET FOOD — JSON / BRIEF LOCK:
 - balance.basket MUST state portable format (taco, skewer, wrap, cup) in the first two sentences.
 - title OR tagline MUST signal bold flavor + handheld / stall energy — not seated entree plating.\n`;
@@ -3781,6 +3879,8 @@ ${snackHard?`- HARD: balance.texture MUST name **crunch or crisp** (fry, chip, s
     if(challengeTypeIsComfortReinvented(ch.ctype)) extendedChallengeJsonRule+=`COMFORT REINVENTED — JSON / BRIEF LOCK:
 - balance.basket MUST begin: "Comfort baseline: [specific dish — mac & cheese, pot pie, etc.] — twist: …"
 - title OR tagline MUST include both comfort anchor and twist in plain words.
+- balance.flavor MUST name **salt/umami discipline** when the haul stacks salty drivers (anchovy, cheese puffs, miso, crab, cured meat, snack crisps, etc.) **and** **acid + fresh contrast** (citrus, herb, pickle, raw veg) for rich plates.
+- balance.complete: optional line on **split-use veg** (two textures) when edamame/peas/cauliflower/lotus/potato are required.
 - If **marshmallow** is in the basket: **forbidden** — "marshmallow gravy," "marshmallow essence" drizzle, or sweet sauce as the **lead** finish; balance.flavor must describe **one unified savory comfort bite** (marshmallow as caramelized/binder/micro glaze with salt-acid, or toasted crisp — not dessert-on-meat).
 - If **pot pie / pie** without oven: name a **stovetop crust substitute** (e.g. pan-crisp couscous lid, griddled dough, crisp potato top) when equipment forbids oven/sheet pan.\n`;
     if(challengeTypeIsGlobalCuisine(ch.ctype)) extendedChallengeJsonRule+=`GLOBAL CUISINE — JSON / BRIEF LOCK:
@@ -3816,6 +3916,8 @@ ${savoryChocolateBlock}
 ${shelfSweetSavoryBlock}
 ${dessertAwkwardBlock}
 ${challengeIntentCoachBlock(ch.ctype)||""}
+${dinerAnchovyWokBlock}
+${comfortReinventedSaltFreshSplitBlock(ch)}
 ${PW_CHALLENGE_SOUL_APPENDIX}
 ${flavorLeadershipBlock}
 ${roleHierarchyBlock}
@@ -3931,7 +4033,9 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
     showRecipeData(data);
   } catch(e) {
     console.error("Recipe generation failed:", e);
-    const err=`<div style="text-align:center;padding:32px 16px;color:#f87171">Failed: ${escapeHtml(e.message)}<br><br><small style="color:#94a3b8">Use <code>npm start</code> or your deployed URL (not <code>file://</code>). <strong>HTTP 401</strong> = bad API key. <strong>HTTP 404</strong> on <code>model:</code> = that model name is not available — deploy the latest app or set <code>CLAUDE_MODEL</code> / <code>PW_CLAUDE_MODEL</code> to a current ID from Anthropic’s docs. On a hosted site, a browser-stored key overrides the server — clear: <code style="font-size:11px">localStorage.removeItem(&quot;basket_anthropic_key_v1&quot;)</code> then reload.</small><br><br><button type="button" onclick="generateRecipe()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:700">Try Again</button></div>`;
+    const timedOut=/timed out|timeout/i.test(String(e.message||""));
+    const errExtra=timedOut?`<br><br><small style="color:#94a3b8">Timeouts are now up to <strong>4 minutes</strong> for large recipe requests. If this still timed out, Anthropic may be overloaded — wait a minute and tap <strong>Try Again</strong>, or try again with fewer required ingredients.</small>`:"";
+    const err=`<div style="text-align:center;padding:32px 16px;color:#f87171">Failed: ${escapeHtml(e.message)}${errExtra}<br><br><small style="color:#94a3b8">Use <code>npm start</code> or your deployed URL (not <code>file://</code>). <strong>HTTP 401</strong> = bad API key. <strong>HTTP 404</strong> on <code>model:</code> = that model name is not available — deploy the latest app or set <code>CLAUDE_MODEL</code> / <code>PW_CLAUDE_MODEL</code> to a current ID from Anthropic’s docs. On a hosted site, a browser-stored key overrides the server — clear: <code style="font-size:11px">localStorage.removeItem(&quot;basket_anthropic_key_v1&quot;)</code> then reload.</small><br><br><button type="button" onclick="generateRecipe()" style="background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:700">Try Again</button></div>`;
     const ap=$("recipe-ai-panel");
     const foot=$("recipe-battle-footer");
     if(foot) foot.innerHTML="";
@@ -4010,7 +4114,7 @@ async function generateContestRecipe(){
   };
   const bStart=$("contest-live-btn");
   if(bStart){bStart.disabled=true;bStart.innerHTML="⏳ Calling the pass…";}
-  setContestStatus("Contacting AI…","#64748b");
+  setContestStatus("Contacting AI… (game plan can take 1–3 min — long prompt)","#64748b");
   try{
     state.contestRecipeRestrictionWarnings=null;
     const courseLabel=(ch.ctype&&ch.ctype.label)?String(ch.ctype.label):"Entree";
@@ -4048,6 +4152,8 @@ ${savoryDarkChocolateBasketPromptBlock(ch)}
 ${shelfSweetWildcardSavoryPromptBlock(ch)}
 ${dessertAwkwardBasketPromptBlock(ch)}
 ${challengeIntentCoachBlock(ch.ctype)||""}
+${dinerWokAnchovyLemonSesameBlock(ch)}
+${comfortReinventedSaltFreshSplitBlock(ch)}
 ${PW_CHALLENGE_SOUL_APPENDIX}
 ${basketFlavorLeadershipBlock(ch)}
 ${courseRoleHierarchyBlock(ch)}
@@ -4687,8 +4793,26 @@ function scrubNegatedButterGhee(low){
   return s;
 }
 
+/**
+ * "non-dairy" / "dairy-free" contain the substring \bdairy\b — strip before scanning or every
+ * compliance-safe recipe trips No Dairy. Same for plant cheeses and negated dairy mentions.
+ */
+function scrubDairyNegationsForCompliance(low){
+  return String(low||"")
+    .replace(/\bnon[\s-]*dairy\s+milk\b/gi," __ndmilk__ ")
+    .replace(/\bnon[\s-]*dairy\b/gi," ")
+    .replace(/\bdairy[\s-]*free\b/gi," ")
+    .replace(/\bfree[\s-]*of[\s-]*dairy\b/gi," ")
+    .replace(/\bcontains[\s-]*no[\s-]*dairy\b/gi," ")
+    .replace(/\bno[\s-]*animal[\s-]*dairy\b/gi," ")
+    .replace(/\b(without|sans|avoiding)[\s]+dairy\b/gi," ")
+    .replace(/\b(vegan|plant|nut|cashew|almond|soy|oat|vegetable)\s+cheese\b/gi," __vcheese__ ")
+    .replace(/\bvegan[\s-]*(?:dark[\s-]*)?chocolate\b/gi," __vchoc__ ");
+}
+
 function textSuggestsAnimalDairy(low){
   let t=scrubComplianceFalsePositives(low);
+  t=scrubDairyNegationsForCompliance(t);
   t=scrubNegatedButterGhee(t);
   return /\b(heavy\s*cream|whipping\s*cream|double\s*cream|sour\s*cream|clotted\s*cream|cream\s*cheese|cr[eè]me\s*fra[iî]che|half\s*and\s*half|buttermilk|\bwhole\s*milk\b|\bskim\s*milk\b|condensed\s*milk|evaporated\s*milk|\bmilk\b|\bbutter\b|ghee|brown\s*butter|cheese\b|mozzarella|parmesan|parm\b|pecorino|ricotta|feta|halloumi|cheddar|brie|mascarpone|provolone|gruy[eè]re|paneer|yogurt|yoghurt|kefir|\bwhey\b|fromage|crema\b|\bdairy\b|\bcream\b)/i.test(t);
 }
@@ -5434,6 +5558,27 @@ function getRecipeEquipmentCentralityViolations(recipe, ch){
   }
   msgs.push(...getWokMustUseCentralityViolations(recipe,ch));
   msgs.push(...getBlenderMustUseCentralityViolations(recipe,ch));
+  msgs.push(...getTorchMustUseDepthViolations(recipe,ch));
+  return msgs;
+}
+
+/**
+ * Torch must-use: nudge when the only torch story is post-sear meat slices (cosmetic vs cast iron).
+ * Skips if the recipe already ties torch to brine/pickle/caramel/meringue/glaze (pan-inaccessible work).
+ */
+function getTorchMustUseDepthViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const req=(ch.reqEquip||[]).map(s=>String(s).trim().toLowerCase());
+  if(!req.some(r=>/\btorch\b/.test(r))) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe);
+  const lowL=low.toLowerCase();
+  if(!/\b(torch|torched|torching)\b/i.test(lowL)) return msgs;
+  const goodTorchStory=/\b(torch|torched|torching)\b[\s\S]{0,320}?\b(brine|pickle|pickled|meringue|caramel|lacquer|glaze|br[ûu]l[eé]|sugar\s+(?:crust|dome)|brush\s+(?:with\s+)?(?:brine|pickle|honey|syrup)|cheese|mozzarella|gruy|gratin)|\b(brine|pickle|pickled|meringue|caramel|lacquer|glaze|cheese)\b[\s\S]{0,320}?\b(torch|torched|torching)\b/i.test(lowL);
+  if(goodTorchStory) return msgs;
+  const lazySteakRechar=/\b(slice|sliced|slices|fan|fanned)\b[\s\S]{0,400}?\b(steak|skirt|flank|strip|ribeye|hanger|beef)\b[\s\S]{0,400}?\b(torch|torched|torching)\b|\b(torch|torched|torching)\b[\s\S]{0,400}?\b(slice|sliced|slices)\b[\s\S]{0,240}?\b(steak|skirt|flank|beef)\b/i.test(lowL);
+  if(lazySteakRechar&&/\b(char|charred|edges?|edge|bitter)\b/i.test(lowL))
+    msgs.push(`Torch must-use: **use flame for work a ripping pan cannot** — e.g. **caramelize pickle/brine/syrup** into a lacquer, brûlée sugar, blister meringue/cheese. **Weak:** cosmetic **re-char on already-seared meat slices** (duplicates cast-iron Maillard). Revise so the torch changes **flavor register** (volatiles, caramel), not only edge color.`);
   return msgs;
 }
 
@@ -6045,6 +6190,10 @@ ACTIVE RESTRICTIONS (fail closed):
   if(r.some(x=>normalizeRestrictionKey(x)==="Vegan")&&req.some(x=>/\bkimchi\b/i.test(String(x)))){
     s+=`
 BASKET — KIMCHI + VEGAN (mandatory): Kimchi is in the required haul AND Vegan is active. Name **vegan / fish-free kimchi** on the ingredient line (real product wording) or an explicit scratch ferment with no fish sauce/shrimp paste. "Kimchi" without that clarification fails compliance — same for kimchi brine unless sourced from the vegan product you named.\n`;
+  }
+  if(r.some(x=>normalizeRestrictionKey(x)==="No Dairy")&&req.some(x=>/\bgnocchi\b/i.test(String(x)))){
+    s+=`
+BASKET — GNOCCHI + NO DAIRY: Shelf gnocchi often contains cheese or egg. ingredients[] must name **dairy-free / vegan potato gnocchi** (or GF+dairy-free if No Gluten) — not generic "gnocchi" alone — or describe scratch potato gnocchi with no dairy in the dough.\n`;
   }
   return s;
 }
