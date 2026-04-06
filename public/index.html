@@ -1127,7 +1127,7 @@ const PROTEIN_TECHNIQUE_MATRIX={
   "Scallops":{sear:"2–3m",sliceThin:"—",grind:"—",quickBraise:"—",sousVide:"—",slowCook:"❌"},
   "Mussels":{sear:"—",sliceThin:"—",grind:"—",quickBraise:"5–7m (steam)",sousVide:"—",slowCook:"❌"},
   "Clams":{sear:"—",sliceThin:"—",grind:"—",quickBraise:"5–7m (steam)",sousVide:"—",slowCook:"❌"},
-  "Squid":{sear:"1–2m",sliceThin:"—",grind:"—",quickBraise:"—",sousVide:"—",slowCook:"60m+"},
+  "Squid":{sear:"1–2m",sliceThin:"—",grind:"—",quickBraise:"—",sousVide:"15–22m · narrow snap window",slowCook:"60m+"},
   "Octopus":{sear:"❌",sliceThin:"—",grind:"—",quickBraise:"30m+",sousVide:"—",slowCook:"1–2h"},
   "Tofu (Firm)":{sear:"6–12m (whole slab / patty)",sliceThin:"5–8m",grind:"—",quickBraise:"—",sousVide:"—",slowCook:"—"},
   "Tempeh":{sear:"6–10m",sliceThin:"5–8m",grind:"5–8m",quickBraise:"10–15m",sousVide:"—",slowCook:"—"},
@@ -1765,10 +1765,14 @@ let state = {
   mysterySpinLocked:false,
   chaosBasket:false,
   userCookPlan:{dish:"",techniques:"",timing:""},
-  scoresYou:{taste:7,creativity:7,presentation:7,difficulty:7},
-  scoresAI:{taste:7,creativity:7,presentation:7,difficulty:7},
+  scoresYou:{taste:0,creativity:0,presentation:0,difficulty:0},
+  scoresAI:{taste:0,creativity:0,presentation:0,difficulty:0},
   duelAutoScoring:false,
+  duelSlidersUnlocked:true,
+  duelScoreAnimRaf:null,
+  duelAutoSummaryRaw:"",
   duelAutoSummary:"",
+  duelJudgeSummaryConflict:false,
   timerRem:0, timerRunning:false, timerInterval:null,
   modalType:null,
   leaderboard:null,
@@ -2151,11 +2155,14 @@ function renderLanding() {
           </ul>
         </div>
         <p class="landing-judges">👉 Can you beat the judges?</p>
+        <button type="button" id="landing-lb-btn" class="landing-start-btn" style="margin-bottom:10px;background:linear-gradient(180deg,#0ea5e9,#0284c7);box-shadow:0 6px 20px rgba(14,165,233,0.35)">🏆 Leaderboard — rankings by level</button>
         <button type="button" id="landing-start-btn" class="landing-start-btn">Take the challenge — Step 1: Pantry</button>
         <p class="landing-api" style="margin-top:8px;max-width:26rem">Free play includes up to ${PW_DAILY_AI_LIMIT} AI-powered rounds per day (rival chef, battle judge, competition coach, lookups). More battles &amp; buy packs coming soon.</p>
       </div>
     </div>`;
   sc.querySelector("#landing-start-btn").onclick = () => { showScreen("screen-pantry"); renderPantry(); };
+  const lbBtn=sc.querySelector("#landing-lb-btn");
+  if(lbBtn) lbBtn.onclick=()=>void openLeaderboardModal();
   showScreen("screen-landing");
 }
 
@@ -2718,9 +2725,10 @@ function renderBuild() {
   const hleft=div({},[htitle,hsub,hQuotaCol]);
   const hbtns=div({style:{display:"flex",gap:"8px",flexWrap:"wrap"}});
   const backPan=btn("← Pantry","#334155","#94a3b8",{border:"none",padding:"8px 10px",fontSize:"12px"},()=>{showScreen("screen-pantry");renderPantry();});
+  const lbHdr=btn("🏆 Leaderboard","#0ea5e9","#fff",{border:"none",padding:"8px 12px",fontSize:"12px"},()=>void openLeaderboardModal());
   const randBtn=btn("🎰 Spin my mystery basket","#f59e0b","#fff",{animation:"rndPulse 2s ease-in-out infinite"},()=>runMysteryRandomize());
   const launchBtn=btn(`Launch — beat AI → · ${gamesLeftLabel}`,state.req.length===0?"#475569":"#6366f1","#fff",{cursor:state.req.length===0?"not-allowed":"pointer",fontSize:"12px"},()=>{if(state.req.length>0)doLaunch();});
-  hbtns.append(backPan,randBtn,launchBtn);
+  hbtns.append(backPan,lbHdr,randBtn,launchBtn);
   hdr.append(hleft,hbtns);
   sc.appendChild(hdr);
 
@@ -3039,11 +3047,90 @@ function updateBattleButtonState() {
   if(hint) hint.style.display=ok?"none":"block";
 }
 
+function cancelDuelScoreAnimation(){
+  if(state.duelScoreAnimRaf!=null){
+    cancelAnimationFrame(state.duelScoreAnimRaf);
+    state.duelScoreAnimRaf=null;
+  }
+}
+/** Keep judge copy aligned with weighted math (taste×3.5 + creativity×2.5 + presentation×2 + difficulty×2). */
+function reconcileDuelJudgeSummary(raw, ty, ta){
+  const s=String(raw||"").trim();
+  state.duelJudgeSummaryConflict=false;
+  let off="tie";
+  if(ty>ta) off="you";
+  else if(ta>ty) off="rival";
+  const youWin=/\b(you\s+win|you\s+(?:take|edge|clinch)|your\s+(?:plan|dish|idea|entry)\s+win|winner:\s*you|favors\s+you\b)/i.test(s);
+  const rivWin=/\b(rival\s+win|rival\s+chef\s+win|ai\s+win|favors\s+(?:the\s+)?rival|winner:\s*rival|rival\s+(?:take|edges|clinch))\b/i.test(s);
+  let bad=false;
+  if(off==="you"&&rivWin&&!youWin) bad=true;
+  if(off==="rival"&&youWin&&!rivWin) bad=true;
+  if(off==="tie"&&(youWin||rivWin)) bad=true;
+  if(!bad) return s;
+  state.duelJudgeSummaryConflict=true;
+  const label=off==="you"?`You win (${ty} vs ${ta})`:off==="rival"?`Rival chef wins (${ta} vs ${ty})`:`Tie (${ty} each)`;
+  return `Official weighted result — ${label}. (Narrative below disagreed with the numbers; totals decide the round.)\n\n${s}`;
+}
+function syncDuelScoreWidgets(){
+  const sides=["you","ai"];
+  const cats=["taste","creativity","presentation","difficulty"];
+  for(const side of sides){
+    const key=side==="you"?"scoresYou":"scoresAI";
+    for(const cat of cats){
+      const lab=$(`score-${side}-val-${cat}`);
+      if(lab) lab.textContent=state[key][cat];
+      const rg=$(`score-${side}-range-${cat}`);
+      if(rg) rg.value=state[key][cat];
+    }
+  }
+  updateScoreDisplay();
+  const aut=$("score-auto-status");
+  if(aut){
+    if(state.duelScoreAnimRaf!=null) aut.textContent="Revealing scores…";
+    else if(state.duelAutoScoring) aut.textContent="Auto-judging duel…";
+    else aut.textContent="Auto-judge ready.";
+  }
+}
+function animateDuelScores(targetYou,targetAi){
+  cancelDuelScoreAnimation();
+  const keys=["taste","creativity","presentation","difficulty"];
+  const startY={...state.scoresYou},startA={...state.scoresAI};
+  const startT=performance.now();
+  const dur=1300;
+  const ease=t=>1-Math.pow(1-t,3);
+  function frame(now){
+    const u=Math.min(1,(now-startT)/dur);
+    const e=ease(u);
+    for(const k of keys){
+      state.scoresYou[k]=Math.max(0,Math.round(startY[k]+(targetYou[k]-startY[k])*e));
+      state.scoresAI[k]=Math.max(0,Math.round(startA[k]+(targetAi[k]-startA[k])*e));
+    }
+    syncDuelScoreWidgets();
+    if(u<1) state.duelScoreAnimRaf=requestAnimationFrame(frame);
+    else{
+      state.duelScoreAnimRaf=null;
+      for(const k of keys){
+        state.scoresYou[k]=targetYou[k];
+        state.scoresAI[k]=targetAi[k];
+      }
+      state.duelSlidersUnlocked=true;
+      state.duelAutoSummary=reconcileDuelJudgeSummary(state.duelAutoSummaryRaw,calcTotal(state.scoresYou),calcTotal(state.scoresAI));
+      renderScore();
+    }
+  }
+  state.duelSlidersUnlocked=false;
+  state.duelScoreAnimRaf=requestAnimationFrame(frame);
+}
 function openBattleScorecards() {
   syncUserCookPlanFromDom();
   if(!userPlanFilled()){alert("Fill in Your battle plan (dish, techniques, or timing) — then run Battle.");return;}
   if(!state.recipe){alert("Wait for the rival chef to finish.");return;}
   trackPWEvent("user_submission", pwParamsChallenge());
+  cancelDuelScoreAnimation();
+  state.duelSlidersUnlocked=false;
+  state.duelJudgeSummaryConflict=false;
+  state.duelAutoSummaryRaw="";
+  state.duelAutoSummary="";
   resetDuelScores();
   showScreen("screen-score");renderScore();
   runAutoBattleScoring();
@@ -3065,6 +3152,11 @@ async function runAutoBattleScoring(){
     const prompt=`You are a fair cooking competition judge. Compare two competitors from the same basket.
 Return ONLY compact JSON with this shape:
 {"you":{"taste":1-10,"creativity":1-10,"presentation":1-10,"difficulty":1-10},"ai":{"taste":1-10,"creativity":1-10,"presentation":1-10,"difficulty":1-10},"summary":"2-4 sentences with winner + why"}
+
+WEIGHTED MATH — DO THIS BEFORE THE SUMMARY:
+1) Compute YOU_TOTAL = round(taste×3.5 + creativity×2.5 + presentation×2 + difficulty×2) for "you" (max 100).
+2) Compute AI_TOTAL the same way for "ai".
+3) The "summary" must state the same winner as those numbers: if YOU_TOTAL > AI_TOTAL, say you win; if AI_TOTAL > YOU_TOTAL, say rival wins; if equal, say tie. If your draft summary praises the lower-scoring side as the winner, rewrite until it matches the math.
 
 WEIGHTED TOTAL (must match your summary): taste×3.5 + creativity×2.5 + presentation×2 + difficulty×2 (max 100). Whoever has the higher total is the winner — your summary must name that same winner (or say "tie" only if totals are equal).
 
@@ -3101,25 +3193,29 @@ ${JSON.stringify({
 })}`;
     const out=await ai(prompt,1400);
     if(out&&out.you&&out.ai){
-      state.scoresYou={
+      const targetYou={
         taste:clampScore(out.you.taste),
         creativity:clampScore(out.you.creativity),
         presentation:clampScore(out.you.presentation),
         difficulty:clampScore(out.you.difficulty),
       };
-      state.scoresAI={
+      const targetAi={
         taste:clampScore(out.ai.taste),
         creativity:clampScore(out.ai.creativity),
         presentation:clampScore(out.ai.presentation),
         difficulty:clampScore(out.ai.difficulty),
       };
-      state.duelAutoSummary=String(out.summary||"").slice(0,700);
-      renderScore();
+      state.duelAutoSummaryRaw=String(out.summary||"").slice(0,700);
+      state.duelAutoSummary="";
+      state.duelJudgeSummaryConflict=false;
+      animateDuelScores(targetYou,targetAi);
     } else {
       if(st) st.textContent="Auto-judge unavailable — set scores manually.";
+      state.duelSlidersUnlocked=true;
     }
   } catch(_e){
     if(st) st.textContent="Auto-judge unavailable — set scores manually.";
+    state.duelSlidersUnlocked=true;
   } finally{
     state.duelAutoScoring=false;
     const base=pwParamsChallenge();
@@ -3481,6 +3577,8 @@ WHAT COUNTS:
 - **Reinvent the EXPERIENCE** (crisp + rich + cohesive), not only the flavor keywords — especially for **pot pie**: if **oven/sheet pan are forbidden**, you must still deliver **crust logic** (pan-crisp grain lid, griddled dough, crisp potato top, etc.), not "stew in a bowl + sweet sauce."
 - **Marshmallow / shelf-sweet in a savory comfort dish:** use as **technique** (caramelize, torch, salty-sweet **integrated** in filling, toasted crisp) — **NOT** as **marshmallow gravy** or a **dessert drizzle** that makes the plate "pork + sweet sauce." Judges must taste **one unified bite**.
 - **Salt stack:** multiple umami/salty sources (anchovy, cheese puffs, capers, miso, cured meat, crab, snack crisps, aged cheese) → **restraint on added salt** + **named acid** (lemon, vinegar, pickle) + often **herb or raw veg** so the dish is not one-note salty.
+- **Shelf-snack crumb "crust" on fish:** cheese puffs / similar are **pre-cooked, fatty, salty** — they **char faster** than flour/panko; call **lower heat / shorter first-side** or **protect** the crust so judges don't get burn-bitter, and keep **salt discipline** when crumbs also dissolve into sauce.
+- **Tight first window:** thin-sliced cabbage by knife + juicer + crushing puffs in the **same** opening minutes is **high prep density** — either **lengthen honest PREP**, **simplify** one task, or state **parallel + practiced hand**.
 - **Fresh contrast:** creamy/rich comfort still needs a **bright layer** — citrus, herbs, peppery green, quick pickle — integrated in the bite, not only tweezers.
 - **Split use:** veg that can do two things (edamame, peas, cauliflower, lotus, potato) → **two techniques** (whole + purée/blister/char/chip) when time allows — stronger than a single fold-in.
 
@@ -3658,6 +3756,7 @@ RECREATE A CLASSIC — JUDGING LENS:
 - Creativity points when it serves recognition of the named classic — not when it becomes an unrelated original.
 - Penalize "swap-only" logic: require clear functional mapping (what replaces gravy/body/umami/acid roles) so the dish tastes like the classic, not a sweet or random variation.
 - Penalize archetype drift: e.g. piccata must read lemon/briny; carbonara is not cream-forward; fish and chips needs **crisp chip energy + real batter or honest grill-pan shallow fry** — not grilled fish with soft veg “chips” unless the title says inspired-by and roles are mapped.
+- **Title honesty:** do not put an ingredient in **title or tagline** (e.g. "caper," "lobster," "truffle") unless it appears in the **printed ingredient list** — "date-caper **style**" is OK only if prose admits **no capers** and the title does not promise them.
 - If restrictions forbid dairy/meat/etc., penalize heavily for smuggling forbidden ingredients — authenticity of the classic never overrides posted rules.
 - Penalize impossible physics on the clock: long-braise classics executed as if collagen broke down in a fraction of the time, "full" bourguignon/cassoulet with no honest time or pressure story. Reward time-honest pivots (inspired-by title, steak-cut + sauce, pressure when credible).`;
 }
@@ -4760,6 +4859,7 @@ function renderScore(){
   const cats=[{k:"taste",l:"Taste",w:"35%"},{k:"creativity",l:"Creativity",w:"25%"},{k:"presentation",l:"Presentation",w:"20%"},{k:"difficulty",l:"Difficulty",w:"20%"}];
   function duelCard(side,title,accent,skey){
     const s=state[skey];
+    const dis=state.duelSlidersUnlocked?"":"disabled";
     return `<div style="background:#fff;border:2px solid ${accent};border-radius:12px;padding:14px">
       <div style="font-size:11px;font-weight:900;color:${accent};text-transform:uppercase;letter-spacing:1.2px;margin-bottom:12px;text-align:center">${title}</div>
       ${cats.map(cat=>`<div style="margin-bottom:10px">
@@ -4767,19 +4867,22 @@ function renderScore(){
           <div style="font-size:12px;font-weight:800;color:#0f172a">${cat.l} <span style="font-size:10px;color:#94a3b8">(${cat.w})</span></div>
           <div id="score-${side}-val-${cat.k}" style="font-size:22px;font-weight:900;color:${accent}">${s[cat.k]}</div>
         </div>
-        <input type="range" min="1" max="10" value="${s[cat.k]}" oninput="updateDuelScore('${side}','${cat.k}',this.value)" style="width:100%;accent-color:${accent}">
+        <input type="range" id="score-${side}-range-${cat.k}" min="0" max="10" step="1" value="${s[cat.k]}" ${dis} oninput="updateDuelScore('${side}','${cat.k}',this.value)" style="width:100%;accent-color:${accent}">
       </div>`).join("")}
     </div>`;
   }
   sc.innerHTML=`
-    <div style="background:#1e293b;padding:14px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <div style="background:#1e293b;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <button onclick="showScreen('screen-active');renderActive()" style="background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Back</button>
       <div style="font-size:16px;font-weight:800;color:#f8fafc">Pantry Wars — Duel scorecards</div>
+      </div>
+      <button type="button" onclick="openLeaderboardModal()" style="background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:800;cursor:pointer;font-size:12px">🏆 Leaderboard</button>
     </div>
     <div style="max-width:920px;margin:0 auto;padding:16px 12px">
       <div style="background:#e0f2fe;border:2px solid #7dd3fc;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#0c4a6e">
         <strong>Battle judge:</strong> AI pre-fills both scorecards from your plan vs rival recipe.
-        <span id="score-auto-status" style="margin-left:6px;color:#0369a1">${state.duelAutoScoring?"Auto-judging duel...":"Auto-judge ready."}</span>
+        <span id="score-auto-status" style="margin-left:6px;color:#0369a1">${state.duelScoreAnimRaf!=null?"Revealing scores…":state.duelAutoScoring?"Auto-judging duel…":"Auto-judge ready."}</span>
       </div>
       ${state.challenge?`<div style="background:#f8fafc;border:2px solid #cbd5e1;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#334155">
         <div style="font-size:10px;font-weight:800;color:#6366f1;text-transform:uppercase;margin-bottom:6px">Challenge</div>
@@ -4793,6 +4896,7 @@ function renderScore(){
         </div>
         ${(uc.techniques||"").trim()?`<div style="font-size:11px;color:#57534e;margin-top:8px;line-height:1.45"><strong>Your techniques:</strong> ${escapeHtml((uc.techniques||"").slice(0,200))}${(uc.techniques||"").length>200?"…":""}</div>`:""}
         ${(()=>{const ty=calcTotal(state.scoresYou),ta=calcTotal(state.scoresAI);let w="";if(ty>ta)w=`Weighted score favors you (${ty}/100 vs ${ta}/100).`;else if(ta>ty)w=`Weighted score favors rival chef (${ta}/100 vs ${ty}/100).`;else w=`Weighted score is tied (${ty}/100 each).`;return`<div style="font-size:11px;color:#0f172a;font-weight:700;margin-top:8px">${escapeHtml(w)}</div>`;})()}
+        ${state.duelJudgeSummaryConflict?`<div style="font-size:11px;color:#b45309;font-weight:700;margin-top:6px">Heads-up: the AI judge’s story didn’t match the weighted totals — we prepended the <strong>official</strong> call above; trust the numbers for win/loss.</div>`:""}
         ${state.duelAutoSummary?`<div style="font-size:11px;color:#1f2937;line-height:1.5;margin-top:8px"><strong>Judge summary:</strong> ${escapeHtml(state.duelAutoSummary)}</div>`:""}
       </div>`;})()}
       <div class="duel-score-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
@@ -4813,13 +4917,14 @@ function renderScore(){
 }
 
 function resetDuelScores(){
-  const d={taste:7,creativity:7,presentation:7,difficulty:7};
-  state.scoresYou={...d};state.scoresAI={...d};
+  const z={taste:0,creativity:0,presentation:0,difficulty:0};
+  state.scoresYou={...z};state.scoresAI={...z};
 }
 
 function updateDuelScore(side,k,v){
+  if(!state.duelSlidersUnlocked)return;
   const key=side==="you"?"scoresYou":"scoresAI";
-  state[key][k]=+v;
+  state[key][k]=clampScore(v);
   const el=$(`score-${side}-val-${k}`);
   if(el) el.textContent=v;
   updateScoreDisplay();
@@ -4833,6 +4938,10 @@ function leaderboardTierLabel(wins){
   if(w>=11) return "Silver";
   return "Bronze";
 }
+function leaderboardDifficultyLabel(dk){
+  const m={easy:"Easy",medium:"Medium",hard:"Hard",insane:"Insane",overall:"Overall"};
+  return m[dk]||dk;
+}
 function leaderboardRowsHtml(rows, meName){
   const me=String(meName||"").toLowerCase();
   return (rows||[]).map(r=>{
@@ -4845,35 +4954,79 @@ function leaderboardRowsHtml(rows, meName){
     </div>`;
   }).join("");
 }
-function leaderboardPanelHtml(lb, meName){
+function leaderboardPanelHtml(lb, meName, activeTab){
   if(!lb||!lb.cycle) return "";
-  const me=lb.me||null;
+  const tab=activeTab||"overall";
+  const view=tab==="overall"?lb:(lb.byDifficulty&&lb.byDifficulty[tab]);
+  if(!view) return `<div style="font-size:12px;color:#64748b;padding:8px">No data for this bracket yet.</div>`;
+  const me=view.me||null;
   const cycleStart=new Date(lb.cycle.startIso);
   const cycleEnd=new Date(lb.cycle.nextResetIso);
   const cycleLabel=`${cycleStart.toLocaleDateString()} → ${cycleEnd.toLocaleDateString()}`;
   const meTier=me?leaderboardTierLabel(me.wins):"Bronze";
-  const tierRows=(lb.tiers&&lb.tiers[meTier])||[];
+  const tierRows=(view.tiers&&view.tiers[meTier])||[];
+  const bracketNote=tab==="overall"
+    ? "All difficulties — combined points & wins"
+    : `${leaderboardDifficultyLabel(tab)} only — ranks games you saved at this difficulty`;
+  const tabs=[["overall","Overall"],["easy","Easy"],["medium","Medium"],["hard","Hard"],["insane","Insane"]];
+  const tabRow=`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${tabs.map(([id,lbl])=>
+    `<button type="button" data-lb-tab="${id}" style="padding:6px 12px;border-radius:8px;font-size:11px;font-weight:800;cursor:pointer;border:${tab===id?"2px solid #0e7490":"1px solid #bae6fd"};background:${tab===id?"#cffafe":"#fff"};color:#0f172a">${lbl}</button>`
+  ).join("")}</div>`;
   return `<div style="background:#ecfeff;border:2px solid #67e8f9;border-radius:12px;padding:12px;margin-top:14px">
     <div style="font-size:10px;font-weight:900;color:#0e7490;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:6px">Leaderboard · Weekly cycle</div>
-    <div style="font-size:12px;color:#164e63;margin-bottom:10px">${escapeHtml(cycleLabel)} · resets Mon/Thu</div>
-    ${me?`<div style="font-size:12px;font-weight:800;color:#0f172a;margin-bottom:10px">Your rank: #${me.rank} · ${Number(me.points||0).toFixed(2)} pts · ${me.wins||0} wins · ${meTier}</div>`:"<div style=\"font-size:12px;color:#334155;margin-bottom:10px\">Save a result to appear in the board.</div>"}
+    ${tabRow}
+    <div style="font-size:11px;color:#164e63;margin-bottom:8px">${escapeHtml(bracketNote)} · ${escapeHtml(cycleLabel)} · resets Mon/Thu UTC</div>
+    ${me?`<div style="font-size:12px;font-weight:800;color:#0f172a;margin-bottom:10px">Your rank (${leaderboardDifficultyLabel(tab)}): #${me.rank} · ${Number(me.points||0).toFixed(2)} pts · ${me.wins||0} wins · tier ${meTier}</div>`:"<div style=\"font-size:12px;color:#334155;margin-bottom:10px\">Enter a username and save a result to appear — pick a tab to see difficulty-specific ranks.</div>"}
     <div class="duel-score-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div style="background:#fff;border:1px solid #bae6fd;border-radius:10px;padding:10px">
         <div style="font-size:11px;font-weight:900;color:#0369a1;margin-bottom:8px">Top 50</div>
-        <div style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto">${leaderboardRowsHtml(lb.top50||[], meName)}</div>
+        <div style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto">${leaderboardRowsHtml(view.top50||[], meName)}</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <div style="background:#fff;border:1px solid #bae6fd;border-radius:10px;padding:10px">
           <div style="font-size:11px;font-weight:900;color:#0369a1;margin-bottom:8px">Players Near You</div>
-          <div style="display:flex;flex-direction:column;gap:6px;max-height:120px;overflow:auto">${leaderboardRowsHtml(lb.near||[], meName)}</div>
+          <div style="display:flex;flex-direction:column;gap:6px;max-height:120px;overflow:auto">${leaderboardRowsHtml(view.near||[], meName)}</div>
         </div>
         <div style="background:#fff;border:1px solid #bae6fd;border-radius:10px;padding:10px">
-          <div style="font-size:11px;font-weight:900;color:#0369a1;margin-bottom:8px">${escapeHtml(meTier)} Tier</div>
+          <div style="font-size:11px;font-weight:900;color:#0369a1;margin-bottom:8px">${escapeHtml(meTier)} Tier (${leaderboardDifficultyLabel(tab)})</div>
           <div style="display:flex;flex-direction:column;gap:6px;max-height:120px;overflow:auto">${leaderboardRowsHtml(tierRows, meName)}</div>
         </div>
       </div>
     </div>
   </div>`;
+}
+function wireLeaderboardTabs(mountEl, lb, meName){
+  if(!mountEl||!lb) return;
+  mountEl.querySelectorAll("[data-lb-tab]").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      const t=btn.getAttribute("data-lb-tab")||"overall";
+      mountEl.innerHTML=leaderboardPanelHtml(lb, meName, t);
+      wireLeaderboardTabs(mountEl, lb, meName);
+    });
+  });
+}
+async function openLeaderboardModal(){
+  const p=getLeaderboardProfile();
+  const ov=$("modal-overlay");
+  ov.innerHTML=`<div class="modal" style="max-width:720px;max-height:92vh;overflow:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px">
+      <div style="font-size:16px;font-weight:900;color:#0f172a">🏆 Leaderboard</div>
+      <button type="button" id="lb-modal-x" style="background:#f1f5f9;border:none;border-radius:8px;padding:6px 14px;font-size:16px;font-weight:700;cursor:pointer">×</button>
+    </div>
+    <div id="lb-modal-body" style="min-height:120px;font-size:13px;color:#334155">Loading…</div>
+  </div>`;
+  ov.classList.remove("hidden");
+  const bx=$("lb-modal-x");
+  if(bx) bx.onclick=()=>ov.classList.add("hidden");
+  const body=$("lb-modal-body");
+  try{
+    const lb=await leaderboardFetch(p.username||"");
+    state.leaderboard=lb;
+    body.innerHTML=leaderboardPanelHtml(lb, p.username||"", "overall");
+    wireLeaderboardTabs(body, lb, p.username||"");
+  }catch(e){
+    if(body) body.textContent=String(e.message||e);
+  }
 }
 function updateScoreDisplay(){
   const ty=calcTotal(state.scoresYou),ta=calcTotal(state.scoresAI);
@@ -4906,8 +5059,11 @@ async function saveLeaderboardFromResults(){
       scoreAi:ta
     });
     state.leaderboard=lb;
-    if(status) status.textContent=lb.me?`Saved. You are #${lb.me.rank} this cycle.`:"Saved.";
-    if(mount) mount.innerHTML=leaderboardPanelHtml(lb, uname);
+    if(status) status.textContent=lb.me?`Saved. You are #${lb.me.rank} overall this cycle.`:"Saved.";
+    if(mount){
+      mount.innerHTML=leaderboardPanelHtml(lb, uname, "overall");
+      wireLeaderboardTabs(mount, lb, uname);
+    }
   }catch(e){
     if(status) status.textContent=`Could not save leaderboard: ${e.message}`;
   }
@@ -4966,9 +5122,12 @@ async function submitScore(){
     const pre=await leaderboardFetch(prof.username||"");
     state.leaderboard=pre;
     const mount=$("leaderboard-mount");
-    if(mount) mount.innerHTML=leaderboardPanelHtml(pre, prof.username||"");
+    if(mount){
+      mount.innerHTML=leaderboardPanelHtml(pre, prof.username||"", "overall");
+      wireLeaderboardTabs(mount, pre, prof.username||"");
+    }
     const st=$("lb-status");
-    if(st&&pre&&pre.me) st.textContent=`You are currently #${pre.me.rank} this cycle.`;
+    if(st&&pre&&pre.me) st.textContent=`You are currently #${pre.me.rank} overall this cycle.`;
   }catch(_e){}
 }
 
@@ -5275,6 +5434,15 @@ function ingredientConflictsWithRestriction(ingName, restriction){
 
 function ingredientConflictsWithAny(ingName, restrictions){
   return (restrictions||[]).some(r=>ingredientConflictsWithRestriction(ingName,r));
+}
+
+/** Ingredient lines only — title vs list consistency checks. */
+function recipeIngredientListText(r){
+  if(!r||!Array.isArray(r.ingredients)) return "";
+  return (r.ingredients||[]).map(i=>{
+    if(!i) return "";
+    return [i.item,i.prep,i.amount].filter(Boolean).join(" ");
+  }).filter(Boolean).join(" ").toLowerCase();
 }
 
 /** Flatten AI recipe JSON for restriction scanning (rival + contest coach shapes). */
@@ -6058,6 +6226,86 @@ function getGrainMinClockViolations(recipe, ch){
   return msgs;
 }
 
+/** True when prose credibly accounts for bath coming to target temp (not only "set circulator"). */
+function sousVidePreheatLanguagePresent(low){
+  const L=String(low||"").toLowerCase();
+  return /\bpreheat(?:ed)?\s+(?:the\s+)?(?:bath|water|vessel|tank)\b/.test(L)
+    || /\b(?:bath|water)\s+(?:reaches|reached|hits?|is\s+at)\b/.test(L)
+    || /\bcomes?\s+to\s+(?:temp|temperature)\b/.test(L)
+    || /\btarget\s+temp(?:erature)?\b/.test(L)
+    || /\bonce\s+(?:the\s+)?(?:bath|water)\s+(?:is|hits|reaches)\b/.test(L)
+    || /\b(?:hot|warm)\s+water\b|\bkettle\b|\b(?:boil|boiling)\s+water\b/.test(L)
+    || /\b\d{1,2}\s*min(?:utes)?\s+(?:to\s+)?(?:heat|preheat)\b/.test(L)
+    || /\b(?:preheated|pre-heated)\s+(?:bath|water)\b/.test(L)
+    || (/\bbefore\s+(?:the\s+)?(?:clock|round|challenge)\b/.test(L)&&/\b(?:bath|preheat|circulator|sous\s*v?ide)\b/.test(L));
+}
+
+function stepTimelineMinutes(timeStr){
+  const m=String(timeStr||"").match(/^\s*(\d{1,2})\s*:\s*(\d{2})\s*$/);
+  if(!m) return null;
+  return (+m[1])*60+(+m[2]);
+}
+
+/** Circulators typically need meaningful heat-up; flag early bag-in or "while water heats" with no minute budget. */
+function getSousVideBathPreheatViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  if(!/\b(sous\s*-?\s*vide|immersion\s+circulator)\b/.test(low)) return msgs;
+  const cookStory=/\b(submerg|submerged|into\s+(?:the\s+)?(?:bath|water)|vacuum\s+bag|zip[\s-]?\s*lock|water\s+displacement)\b/.test(low)
+    && /\b(\d+\s*min|minutes?|°\s*c|°\s*f|passive\s+hold)\b/.test(low);
+  if(!cookStory) return msgs;
+  if(sousVidePreheatLanguagePresent(low)) return msgs;
+
+  const steps=Array.isArray(recipe.steps)?recipe.steps:[];
+  let earliest=null;
+  for(const s of steps){
+    const blob=(String(s&&s.phase||"")+" "+String(s&&s.what||"")+" "+String(s&&s.how||"")).toLowerCase();
+    if(!/\b(sous\s*-?\s*vide|immersion\s+circulator|water\s*bath)\b/.test(blob)) continue;
+    if(!/\b(submerg|submerged|into\s+(?:the\s+)?bath|sealed\s+bag|zip[\s-]?\s*lock|passive\s+hold|vacuum\s+bag)\b/.test(blob)) continue;
+    const st=stepTimelineMinutes(s&&s.time);
+    if(st==null) continue;
+    if(earliest==null||st<earliest) earliest=st;
+  }
+  if(earliest!=null&&earliest<10)
+    msgs.push(`Sous vide: **bath heat-up** to target is often **~8–15+ min** from cold — timeline shows **bag-in** in the **first ~10 min** without **preheat minutes**, **preheated bath**, or **hot / kettle fill**. Add honest PREP or state bath at temp before submerge.`);
+  else if(/\bwhile\s+(?:the\s+)?water\s+heats\b/.test(low))
+    msgs.push(`Sous vide: "**while water heats**" is not a timeline unless you budget **~8–15+ min** (volume-dependent) — add **explicit preheat minutes** or **start from hot / preheated bath**.`);
+  else if(!steps.length)
+    msgs.push(`Sous vide: name **bath preheat to target temp** (minutes) or **preheated/hot-filled vessel** so circulator timing is credible — **set circulator** alone is rarely enough before **submerge**.`);
+  return msgs;
+}
+
+/** Squid + high heat: crowding steams; eval pattern. */
+function getSquidFlashHeatExecutionViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  if(!/\bsquid\b/.test(low)) return msgs;
+  if(!/\b(sear|flash|high\s+heat|smoking\s+hot|skillet|griddle|char\b|wok)\b/i.test(low)) return msgs;
+  if(/\b(do\s+not\s+crowd|don'?t\s+crowd|single\s+layer|one\s+layer|work\s+in\s+batches|in\s+batches|uncrowded|small\s+batch)\b/i.test(low))
+    return msgs;
+  msgs.push(`Squid + high-heat finish: **crowding = steam** — specify **single layer / work in batches** (and **pat very dry**) or rings will not char.`);
+  return msgs;
+}
+
+/** Handheld snack with many loud lanes — design advisory from evals (clarity vs. stacking). */
+function getSnackFlavorDensityAdvisoryViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch||!challengeTypeIsSnack(ch.ctype)) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  if(!/\b(two[\s-]?bite|handheld|crostini|skewer|toast\s+bite|pickup|poppable|finger\s+food)\b/i.test(low)) return msgs;
+  let lanes=0;
+  if(/\b(grapefruit|yuzu|bergamot)\b/.test(low)) lanes++;
+  if(/\b(tahini|sesame\s+paste)\b/.test(low)) lanes++;
+  if((/\b(garlic\s+rub|rub\s+.{0,28}\bgarlic\b|\bgarlic[\s-]?rubbed\b)/i.test(low)||(/\bcrostini\b/.test(low)&&/\bgarlic\b/.test(low))||(/\btoast\b/.test(low)&&/\bgarlic\b/.test(low)))
+    lanes++;
+  if(/\b(jalapeño|jalapeno|serrano|habanero|bird[\s-]?eye)\b/.test(low)) lanes++;
+  if(lanes>=3)
+    msgs.push(`Snack / handheld: **high flavor density** (citrus + sesame + toast/aromatics + heat in one bite). Use **balance.flavor** to show **one unifying thread** (e.g. reduced glaze tying citrus to tahini), or **drop a lane** so the bite reads intentional, not crowded.`);
+  return msgs;
+}
+
 /**
  * Detect overloaded active-active overlaps (e.g., sear + glaze + reduction all at once).
  * We allow one passive overlap lane, but flag dense simultaneous attention sinks.
@@ -6124,6 +6372,109 @@ function getActiveAttentionOverlapViolations(recipe, ch){
   return msgs;
 }
 
+/** End minute of last timeline step (same clock as step times). */
+function recipeTimelineEndMinute(recipe){
+  const steps=(recipe&&recipe.steps)||[];
+  let end=0;
+  for(const s of steps){
+    const st=stepTimelineMinutes(s&&s.time);
+    const d=minutesFromStepDur(s&&s.dur);
+    if(st==null||d<=0) continue;
+    end=Math.max(end, st+d);
+  }
+  return end;
+}
+
+/** Title/tagline name ingredients that are not in the printed list — e.g. "caper" in name, dates-only basket. */
+function getRecipeTitleIngredientMismatchViolations(recipe){
+  const msgs=[];
+  if(!recipe) return msgs;
+  const titleBlob=(`${recipe.title||""} ${recipe.tagline||""}`).toLowerCase();
+  if(!titleBlob.trim()) return msgs;
+  const ing=recipeIngredientListText(recipe);
+  const claims=[
+    {rx:/\bcapers?\b/i,label:"capers"},
+    {rx:/\banchovies?\b/i,label:"anchovies"},
+    {rx:/\blobster\b/i,label:"lobster"},
+    {rx:/\bcaviar\b/i,label:"caviar"},
+    {rx:/\btruffles?\b/i,label:"truffle"},
+    {rx:/\bfoie\s+gras\b|\bfoie\b/i,label:"foie gras"},
+    {rx:/\bprosciutto\b/i,label:"prosciutto"},
+    {rx:/\bscallops?\b/i,label:"scallops"},
+  ];
+  for(const {rx,label} of claims){
+    if(!rx.test(titleBlob)) continue;
+    if(rx.test(ing)) continue;
+    msgs.push(`Title/tagline vs list: **${label}** appears in the **name** but not in **ingredients** — rename (e.g. "date-lemon pan sauce") or **add** ${label} to the list.`);
+  }
+  return msgs;
+}
+
+/** Blanched tender veg left idle too long before short reheat — color/texture loss. */
+function getBlanchedVegetableLongHoldViolations(recipe){
+  const msgs=[];
+  if(!recipe||!Array.isArray(recipe.steps)) return msgs;
+  const vegRx=/\b(asparagus|green\s+beans?|broccoli|snap\s+peas?|snow\s+peas?|haricot\s+verts?)\b/i;
+  let blanchEnd=null;
+  for(const s of recipe.steps){
+    const blob=(String(s.phase||"")+" "+String(s.what||"")+" "+String(s.how||"")).toLowerCase();
+    const st=stepTimelineMinutes(s.time);
+    const d=minutesFromStepDur(s.dur);
+    if(st==null||d<=0) continue;
+    if(/\bblanch\b/.test(blob)&&vegRx.test(blob))
+      blanchEnd=st+d;
+  }
+  if(blanchEnd==null) return msgs;
+  let reheatStart=null;
+  for(const s of recipe.steps){
+    const blob=(String(s.phase||"")+" "+String(s.what||"")+" "+String(s.how||"")).toLowerCase();
+    const st=stepTimelineMinutes(s.time);
+    if(st==null||!vegRx.test(blob)) continue;
+    if(/\b(reheat|warm|toss|saut[eé]e?|in\s+pan|residual\s+pan|finish)\b/.test(blob)&&st>=blanchEnd-1)
+      if(reheatStart==null||st<reheatStart) reheatStart=st;
+  }
+  if(reheatStart!=null&&reheatStart-blanchEnd>=15)
+    msgs.push(`Timeline: **blanched delicate veg** ~**${reheatStart-blanchEnd} min** idle before a short reheat — expect **limp, dull** veg. **Blanch later** (parallel to sauce), **ice bath** hold, or **reheat longer/hotter** honestly.`);
+  return msgs;
+}
+
+/** Pre-cooked snack crumb crust on fish — chars fast; eval pattern. */
+function getCheesePuffCrustSearRiskViolations(recipe){
+  const msgs=[];
+  if(!recipe) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const puffCrumb=/\b(cheese\s+puffs?|cheese\s+puff|puff\s+snack|snack\s+crumb|corn\s+puff|crushed\s+puffs?)\b/.test(low);
+  const fish=/\b(salmon|trout|sea\s+bass|cod|halibut|fish\s+fillet|fillet)\b/.test(low);
+  const sear=/\b(sear|crust[\s-]?side[\s-]?down|skin[\s-]?side[\s-]?down|cast[\s-]?iron|high\s+heat)\b/.test(low);
+  if(puffCrumb&&fish&&sear)
+    msgs.push(`Technique risk: **snack-food crumb crust** on fish is **high-fat / pre-cooked** — it **browns fast** and can **burn** vs flour/panko. Lower sear heat, shorten first side, or **protect** crust; name the guard in **tip** or steps.`);
+  return msgs;
+}
+
+/** Dates + piccata-class sauce — sweetness / jam risk; eval pattern. */
+function getDatePiccataStyleSweetnessRiskViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  if(!/\b(medjool\s+)?dates?\b/.test(low)) return msgs;
+  if(!/\b(piccata|picatta|sole\s+meuni|meuni[eè]re|lemon[\s-]butter\s+sauce|pan\s+sauce)\b/.test(low)) return msgs;
+  msgs.push(`Flavor architecture: **dates** in a **piccata / meunière-class** sauce can go **jam-sweet** — use **tight quantity**, **extra lemon finish**, and **salt** checks in balance.flavor; pull reduction **before** candy-like.`);
+  return msgs;
+}
+
+/** Hard rounds that consume the full clock with no slack — eval pattern. */
+function getZeroTimelineBufferAdvisoryViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const total=Math.max(1, Number(ch.totalTime)||30);
+  if(!["hard","insane"].includes(String(ch.diff||"").toLowerCase())) return msgs;
+  const end=recipeTimelineEndMinute(recipe);
+  if(end<=0) return msgs;
+  if(end>=total)
+    msgs.push(`Execution: timeline lands on **${total} min with no buffer** — one slipped sear/reduction **breaks service**; add **1–2 min** slack or drop a lane.`);
+  return msgs;
+}
+
 /**
  * Rough timeline check: summed step durations vs challenge clock.
  * Catches "20 min braise + rest in 25 min" style fantasy.
@@ -6150,6 +6501,9 @@ function getRecipeTimelineViolations(recipe, ch){
   msgs.push(...getProseTimelineViolations(low, total));
   msgs.push(...getProteinMinClockViolations(recipe,ch));
   msgs.push(...getGrainMinClockViolations(recipe,ch));
+  msgs.push(...getSousVideBathPreheatViolations(recipe,ch));
+  msgs.push(...getSquidFlashHeatExecutionViolations(recipe,ch));
+  msgs.push(...getSnackFlavorDensityAdvisoryViolations(recipe,ch));
   msgs.push(...getActiveAttentionOverlapViolations(recipe,ch));
   msgs.push(...getShortClockRoastCaramelRiskViolations(recipe,ch));
   msgs.push(...getRecipeTextureContrastViolations(recipe,ch));
@@ -6171,6 +6525,11 @@ function getRecipeTimelineViolations(recipe, ch){
   msgs.push(...getComfortReinventedMarshmallowViolations(recipe,ch));
   msgs.push(...getSnackFormatEnforcementViolations(recipe,ch));
   msgs.push(...getDessertSnapPeaTransformationViolations(recipe,ch));
+  msgs.push(...getRecipeTitleIngredientMismatchViolations(recipe));
+  msgs.push(...getBlanchedVegetableLongHoldViolations(recipe));
+  msgs.push(...getCheesePuffCrustSearRiskViolations(recipe));
+  msgs.push(...getDatePiccataStyleSweetnessRiskViolations(recipe,ch));
+  msgs.push(...getZeroTimelineBufferAdvisoryViolations(recipe,ch));
   return [...new Set(msgs)];
 }
 
@@ -6800,6 +7159,7 @@ function physicsRealismBlock(ch){
   const ctype=(ch&&ch.ctype)||{};
   let s=`PHYSICS & REAL COOKING (non-negotiable — no comic-book shortcuts):
 - CLOCK (${t} min total): Every named minute in steps and prose must fit inside ${t} min (including parallel work). If sous vide, water bath, or "slow roast" would need longer than ${t} min, you cannot use that method — pick faster techniques (sear, steam, shallow poach, high-heat roast only if oven allowed and time fits).
+- **Sous vide bath:** From **room-temp water**, reaching target temp often takes **~8–15+ min** depending on volume — put **real preheat minutes** in PREP, state **preheated / hot fill / kettle boost**, or **bag in only after bath is at temp**; do not imply a **3 min** "set circulator" step is enough before submerge.
 - Real food obeys time and heat (${t} min round): collagen-rich cuts (short rib, chuck, brisket, shank, oxtail, cheek, pork shoulder) do not become fork-tender from a ${t}-minute open-pot simmer alone — pick real options from this list (mix as needed):
   • **Pressure / Instant Pot** — If allowed in equipment: name it; high-pressure ~35–55 min can stand in for multi-hour braising; finish sauce on stovetop in the same clock.
   • **Honest rename** — "Oxtail-inspired," "stew flavors," "bourguignon-style" — not the full textbook dish name if you are not doing the full braise time.

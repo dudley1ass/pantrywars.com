@@ -75,6 +75,56 @@ function normalizeDifficultyMultiplier(diff) {
   if (d === "medium") return 1.5;
   return 1;
 }
+/** Normalize client difficulty to one of four leaderboard buckets. */
+function normalizeDiffBucket(diff) {
+  const d = String(diff || "").toLowerCase();
+  if (d === "medium" || d === "hard" || d === "insane") return d;
+  return "easy";
+}
+function ensureDifficultyStats(row) {
+  row.difficultyWins = row.difficultyWins || { easy: 0, medium: 0, hard: 0, insane: 0 };
+  row.difficultyPoints = row.difficultyPoints || { easy: 0, medium: 0, hard: 0, insane: 0 };
+  row.difficultyGames = row.difficultyGames || { easy: 0, medium: 0, hard: 0, insane: 0 };
+  for (const k of ["easy", "medium", "hard", "insane"]) {
+    row.difficultyWins[k] = Number(row.difficultyWins[k]) || 0;
+    row.difficultyPoints[k] = Number(row.difficultyPoints[k]) || 0;
+    row.difficultyGames[k] = Number(row.difficultyGames[k]) || 0;
+  }
+}
+function sortedEntriesForDifficulty(usersObj, dk) {
+  return Object.values(usersObj || {}).sort((a, b) => {
+    const ap = Number((a.difficultyPoints && a.difficultyPoints[dk]) || 0);
+    const bp = Number((b.difficultyPoints && b.difficultyPoints[dk]) || 0);
+    if (bp !== ap) return bp - ap;
+    const aw = Number((a.difficultyWins && a.difficultyWins[dk]) || 0);
+    const bw = Number((b.difficultyWins && b.difficultyWins[dk]) || 0);
+    if (bw !== aw) return bw - aw;
+    return String(a.username || "").localeCompare(String(b.username || ""));
+  });
+}
+function leaderboardViewForDifficulty(usersObj, diffKey, username) {
+  const dk = String(diffKey || "easy").toLowerCase();
+  const rows = sortedEntriesForDifficulty(usersObj, dk).map((u, idx) => ({
+    rank: idx + 1,
+    username: u.username,
+    wins: Number((u.difficultyWins && u.difficultyWins[dk]) || 0),
+    points: Number(Number((u.difficultyPoints && u.difficultyPoints[dk]) || 0).toFixed(2)),
+    streak: u.streak || 0,
+    bestStreak: u.bestStreak || 0,
+    tier: tierForWins(Number((u.difficultyWins && u.difficultyWins[dk]) || 0)),
+    games: Number((u.difficultyGames && u.difficultyGames[dk]) || 0),
+  }));
+  const uname = String(username || "").trim().toLowerCase();
+  const meIndex = uname ? rows.findIndex((r) => String(r.username).toLowerCase() === uname) : -1;
+  const me = meIndex >= 0 ? rows[meIndex] : null;
+  const top50 = rows.slice(0, 50);
+  const near = meIndex >= 0 ? rows.slice(Math.max(0, meIndex - 5), meIndex + 6) : [];
+  const tiers = ["Bronze", "Silver", "Gold", "Platinum"].reduce((acc, t) => {
+    acc[t] = rows.filter((r) => r.tier === t).slice(0, 50);
+    return acc;
+  }, {});
+  return { top50, near, me, tiers };
+}
 function tierForWins(wins) {
   const w = Number(wins) || 0;
   if (w >= 51) return "Platinum";
@@ -289,10 +339,16 @@ app.get("/api/leaderboard", (req, res) => {
     users: {},
   };
   const username = String(req.query.username || "");
-  const view = leaderboardView(cycle.users || {}, username);
+  const users = cycle.users || {};
+  const view = leaderboardView(users, username);
+  const byDifficulty = ["easy", "medium", "hard", "insane"].reduce((acc, dk) => {
+    acc[dk] = leaderboardViewForDifficulty(users, dk, username);
+    return acc;
+  }, {});
   return res.json({
     cycle: { key: cycle.key, startIso: cycle.startIso, nextResetIso: cycle.nextResetIso },
     ...view,
+    byDifficulty,
   });
 });
 
@@ -300,7 +356,7 @@ app.post("/api/leaderboard/submit", (req, res) => {
   const username = String(req.body.username || "").trim();
   const email = String(req.body.email || "").trim();
   const won = !!req.body.won;
-  const difficulty = String(req.body.difficulty || "easy");
+  const difficulty = normalizeDiffBucket(req.body.difficulty || "easy");
   if (!username || username.length < 2) {
     return res.status(400).json({ error: { message: "username is required (min 2 chars)" } });
   }
@@ -328,26 +384,33 @@ app.post("/api/leaderboard/submit", (req, res) => {
       streak: 0,
       bestStreak: 0,
       difficultyWins: { easy: 0, medium: 0, hard: 0, insane: 0 },
+      difficultyPoints: { easy: 0, medium: 0, hard: 0, insane: 0 },
+      difficultyGames: { easy: 0, medium: 0, hard: 0, insane: 0 },
       lastPlayedIso: new Date().toISOString(),
     };
   }
   const row = cycle.users[unameKey];
+  ensureDifficultyStats(row);
   row.username = username;
   if (email) row.email = email;
   row.games = (row.games || 0) + 1;
   row.lastPlayedIso = new Date().toISOString();
 
+  const d = difficulty;
+  row.difficultyGames[d] = (row.difficultyGames[d] || 0) + 1;
+
   if (won) {
     row.wins = (row.wins || 0) + 1;
     row.streak = (row.streak || 0) + 1;
     row.bestStreak = Math.max(row.bestStreak || 0, row.streak);
-    const d = String(difficulty || "").toLowerCase();
-    if (!row.difficultyWins[d]) row.difficultyWins[d] = 0;
-    row.difficultyWins[d] += 1;
+    row.difficultyWins[d] = (row.difficultyWins[d] || 0) + 1;
     let gain = 1 * normalizeDifficultyMultiplier(d);
     if (row.streak === 3) gain += 2;
     if (row.streak === 5) gain += 5;
     row.points = Number((Number(row.points || 0) + gain).toFixed(2));
+    row.difficultyPoints[d] = Number(
+      (Number(row.difficultyPoints[d] || 0) + gain).toFixed(2)
+    );
   } else {
     row.streak = 0;
   }
@@ -355,10 +418,16 @@ app.post("/api/leaderboard/submit", (req, res) => {
   trimOldCycles(store);
   writeLeaderboardStore(store);
 
-  const view = leaderboardView(cycle.users || {}, username);
+  const users = cycle.users || {};
+  const view = leaderboardView(users, username);
+  const byDifficulty = ["easy", "medium", "hard", "insane"].reduce((acc, dk) => {
+    acc[dk] = leaderboardViewForDifficulty(users, dk, username);
+    return acc;
+  }, {});
   return res.json({
     cycle: { key: cycle.key, startIso: cycle.startIso, nextResetIso: cycle.nextResetIso },
     ...view,
+    byDifficulty,
   });
 });
 
