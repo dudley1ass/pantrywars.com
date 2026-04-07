@@ -3561,6 +3561,10 @@ FAIL THE BRIEF IF:
 
 WHAT COUNTS:
 - Fewer elements, more intent; clean lines; controlled sauces; garnish with purpose; one focal — not maximalist pile-on.
+- **Basket interdependence (above "all three present"):** Judges reward when REQUIRED items **link through technique** — same pan/fond chain, fat from one ingredient cooking the next, brine/juice from one item **defining** another stage, not three parallel silos. Say that chain in balance.basket or balance.complete in one short sentence.
+- **Jar pickles / giardiniera / fermented brine as main acid:** Product brines vary (sweet, sharp, spicy). If brine drives a pan sauce or reduction, state **taste and adjust** (or small add-in strategy) so the plate is not locked to one unknown SKU.
+- **Precision plating:** Sauce arcs, tight quenelles, fanned protein, explicit negative space — honest **PLATE/ASSEMBLE** minutes or true **parallel** with a passive step; fine-dining passes cost real hands-on time.
+- **Sweetener as modifier:** Honey/maple/syrup in small amounts to **soften bitterness** (chicory, endive, radicchio) — name that job in balance.flavor; do not stack a separate dessert-sweet lane unless the basket demands it.
 
 REQUIRED IN OUTPUT:
 - balance.basket must state component budget (e.g. 3 elements) and the focal technique.
@@ -3680,7 +3684,11 @@ CHALLENGE TYPE — STREET FOOD:
     return `
 CHALLENGE TYPE — FINE DINING:
 - Penalize sloppy plating and excess components; reward precision, restraint, and clear focal technique.
-- Weight refinement and presentation heavily in challenge execution and presentation scores.`;
+- Weight refinement and presentation heavily in challenge execution and presentation scores.
+- Reward **ingredient interdependence**: basket items that **carry flavor or fat into each other** (fond chain, shared render fat, brine deglaze tying pickle to sauce, etc.) over three unrelated "checklist" uses.
+- When **jar pickle / giardiniera / fermented brine** is the main sauce acid, reward plans that **taste and calibrate** (or staged brine adds); downscore blind brine dumps that ignore product variability.
+- **Difficulty vs clock:** Medium/Hard stars are not only "minutes left on the timer" — dense correct technique (e.g. cold skin render → oven finish, butter mount, tight plate architecture) can raise the execution bar even when the timeline has buffer; score execution honestly.
+- Reward explicit **failure-mode awareness** in tips/steps (e.g. why cold pan for duck skin) when it matches the stated technique goal.`;
   }
   if(challengeTypeIsComfortReinvented(ctype)){
     return `
@@ -4365,7 +4373,9 @@ ${snackHard?`- HARD: balance.texture MUST name **crunch or crisp** (fry, chip, s
 - title OR tagline MUST signal bold flavor + handheld / stall energy — not seated entree plating.\n`;
     if(challengeTypeIsFineDining(ch.ctype)) extendedChallengeJsonRule+=`FINE DINING — JSON / BRIEF LOCK:
 - balance.basket MUST name the focal element + max visible components (${Math.min(maxComponents,4)} or fewer on plate).
-- balance.complete MUST name one refinement move (sauce precision, emulsion, torch, quenelle-style placement — honest to the clock).\n`;
+- balance.complete MUST name one refinement move (sauce precision, emulsion, torch, quenelle-style placement — honest to the clock).
+- balance.basket or balance.complete: one phrase on **how REQUIRED items connect through technique** (shared pan, fat carry, brine→sauce, etc.) when more than one basket star — not only that each "appears."
+- If **pickle / giardiniera / jar-veg brine** sets sauce acid: name **taste and adjust** (or incremental brine adds) — brine sweetness and heat vary by product.\n`;
     if(challengeTypeIsComfortReinvented(ch.ctype)) extendedChallengeJsonRule+=`COMFORT REINVENTED — JSON / BRIEF LOCK:
 - balance.basket MUST begin: "Comfort baseline: [specific dish — mac & cheese, pot pie, etc.] — twist: …"
 - title OR tagline MUST include both comfort anchor and twist in plain words.
