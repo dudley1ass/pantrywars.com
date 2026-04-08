@@ -1714,6 +1714,9 @@ const PW_PHYSICS_GLUTEN_FREE_PASTA={
   starchEmulsification:"low",
 };
 
+/** Human competitor slots on the battle screen (name + plan each). Only #1 is judged vs the rival chef. */
+const PW_BATTLE_COMPETITORS_MAX=8;
+
 function getAnthropicApiKey() {
   const fromConst = (typeof BASKET_API_KEY === "string" && BASKET_API_KEY.trim()) ? BASKET_API_KEY.trim() : "";
   if (fromConst) return fromConst;
@@ -1764,7 +1767,9 @@ let state = {
   spinConstraints: [],
   mysterySpinLocked:false,
   chaosBasket:false,
-  userCookPlan:{dish:"",techniques:"",timing:""},
+  battleCompetitorPlans:[{name:"",dish:"",techniques:"",timing:""}],
+  /** 0-based index into battleCompetitorPlans — whose plan is judged vs the rival chef */
+  battleVsRivalIndex:0,
   scoresYou:{taste:0,creativity:0,presentation:0,difficulty:0},
   scoresAI:{taste:0,creativity:0,presentation:0,difficulty:0},
   duelAutoScoring:false,
@@ -2995,48 +3000,143 @@ function doLaunch() {
   const pool = pantryPool();
   state.challenge={diff:state.diff,ctype:state.ctype,totalTime:state.total,prepTime:state.prep,cookTime:state.cook,surpriseCut:state.cut,required:state.req,restrictions:state.res,reqEquip:state.reqEq,forbEquip:state.forbEq,limitBurners:state.lim,pantry:pool.filter(p=>!state.req.includes(p))};
   trackPWEvent("start_battle", pwParamsChallenge(state.challenge));
-  state.userCookPlan={dish:"",techniques:"",timing:""};
+  state.battleCompetitorPlans=[{name:"",dish:"",techniques:"",timing:""}];
+  state.battleVsRivalIndex=0;
   state.contestRecipe=null;
   showScreen("screen-recipe");
   renderRecipe();
 }
 
-function userCookPlanPanelHtml() {
-  return `<div style="background:#0f172a;border:1px solid #334155;border-radius:12px;padding:14px;height:fit-content">
-    <div style="font-size:10px;font-weight:900;color:#f8fafc;margin-bottom:2px;letter-spacing:2px;text-transform:uppercase">Pantry Wars</div>
-    <div style="font-size:11px;font-weight:900;color:#f59e0b;margin-bottom:4px;letter-spacing:1.5px;text-transform:uppercase">Your battle plan</div>
-    <div style="font-size:11px;color:#64748b;margin-bottom:12px;line-height:1.45">Same basket &amp; rules as the AI. What would <em>you</em> make? (No need to actually cook — this is your pitch.)</div>
+function clampBattleVsRivalIndex(){
+  const a=state.battleCompetitorPlans;
+  if(!a||!a.length){ state.battleVsRivalIndex=0; return; }
+  const max=a.length-1;
+  let i=Math.floor(Number(state.battleVsRivalIndex));
+  if(!Number.isFinite(i)) i=0;
+  if(i<0) i=0;
+  if(i>max) i=max;
+  state.battleVsRivalIndex=i;
+}
+function getBattleVsRivalPlan(){
+  clampBattleVsRivalIndex();
+  const a=state.battleCompetitorPlans;
+  const i=state.battleVsRivalIndex;
+  return (a&&a[i])||{name:"",dish:"",techniques:"",timing:""};
+}
+function ensureBattleCompetitorPlanSlots(n){
+  const want=Math.max(1,Math.min(PW_BATTLE_COMPETITORS_MAX,Math.floor(Number(n))||1));
+  if(!state.battleCompetitorPlans||!Array.isArray(state.battleCompetitorPlans)) state.battleCompetitorPlans=[];
+  const a=state.battleCompetitorPlans;
+  const empty=()=>({name:"",dish:"",techniques:"",timing:""});
+  while(a.length<want) a.push(empty());
+  while(a.length>want) a.pop();
+  clampBattleVsRivalIndex();
+  return want;
+}
+
+function recipeUserCompetitorPanelsHtml(){
+  if(!state.battleCompetitorPlans||!state.battleCompetitorPlans.length){
+    state.battleCompetitorPlans=[{name:"",dish:"",techniques:"",timing:""}];
+  }
+  ensureBattleCompetitorPlanSlots(state.battleCompetitorPlans.length);
+  clampBattleVsRivalIndex();
+  const n=state.battleCompetitorPlans.length;
+  const vsi=state.battleVsRivalIndex;
+  const optRows=Array.from({length:PW_BATTLE_COMPETITORS_MAX},(_,i)=>`<option value="${i+1}"${n===i+1?" selected":""}>${i+1}</option>`).join("");
+  const vsOpts=state.battleCompetitorPlans.map((p,i)=>{
+    const nm=(p.name||"").trim();
+    const tail=nm?` — ${escapeHtml(nm.length>22?nm.slice(0,22)+"…":nm)}`:"";
+    return `<option value="${i}"${i===vsi?" selected":""}>Competitor ${i+1}${tail}</option>`;
+  }).join("");
+  const cards=state.battleCompetitorPlans.map((p,i)=>`<div style="background:#1e293b;border:1px solid #475569;border-radius:10px;padding:12px;margin-bottom:12px;box-sizing:border-box">
+    <div style="font-size:11px;font-weight:800;color:#fbbf24;margin-bottom:10px;letter-spacing:0.5px">Competitor ${i+1}${i===vsi?` <span style="color:#64748b;font-weight:700;font-size:10px">(vs rival — scorecard)</span>`:""}</div>
+    <label style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;display:block;margin-bottom:5px">Chef name</label>
+    <input type="text" id="user-plan-name-${i}" maxlength="80" placeholder="${i===0?"Your name":"Optional"}" style="width:100%;background:#0f172a;border:1px solid #475569;border-radius:8px;padding:8px 10px;color:#f8fafc;font-size:13px;margin-bottom:12px;box-sizing:border-box"/>
     <label style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;display:block;margin-bottom:5px">What I'd cook</label>
-    <textarea id="user-plan-dish" rows="4" placeholder="Dish name + what's on the plate — how each mystery item shows up" style="width:100%;min-height:88px;background:#1e293b;border:1px solid #475569;border-radius:8px;padding:10px;color:#f8fafc;font-size:13px;margin-bottom:12px;resize:vertical;box-sizing:border-box"></textarea>
+    <textarea id="user-plan-dish-${i}" rows="3" placeholder="Dish name + what's on the plate — how each mystery item shows up" style="width:100%;min-height:72px;background:#0f172a;border:1px solid #475569;border-radius:8px;padding:10px;color:#f8fafc;font-size:13px;margin-bottom:10px;resize:vertical;box-sizing:border-box"></textarea>
     <label style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;display:block;margin-bottom:5px">Techniques</label>
-    <textarea id="user-plan-tech" rows="4" placeholder="Sear, braise, reduction, pickle, purée… what you'd actually execute" style="width:100%;min-height:88px;background:#1e293b;border:1px solid #475569;border-radius:8px;padding:10px;color:#f8fafc;font-size:13px;margin-bottom:12px;resize:vertical;box-sizing:border-box"></textarea>
+    <textarea id="user-plan-tech-${i}" rows="3" placeholder="Sear, braise, reduction, pickle, purée… what you'd actually execute" style="width:100%;min-height:72px;background:#0f172a;border:1px solid #475569;border-radius:8px;padding:10px;color:#f8fafc;font-size:13px;margin-bottom:10px;resize:vertical;box-sizing:border-box"></textarea>
     <label style="font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;display:block;margin-bottom:5px">Order & timing</label>
-    <textarea id="user-plan-time" rows="3" placeholder="Order of operations — what you’d do first, second, in parallel (optional detail)" style="width:100%;min-height:64px;background:#1e293b;border:1px solid #475569;border-radius:8px;padding:10px;color:#f8fafc;font-size:13px;margin-bottom:12px;resize:vertical;box-sizing:border-box"></textarea>
-    <div style="padding-top:12px;border-top:1px solid #334155;font-size:11px;color:#64748b;line-height:1.5"><strong style="color:#94a3b8">Pantry Wars scorecard:</strong> Haul honesty · plate story · balance · creativity.</div>
+    <textarea id="user-plan-time-${i}" rows="2" placeholder="Order of operations — first, second, in parallel (optional detail)" style="width:100%;min-height:56px;background:#0f172a;border:1px solid #475569;border-radius:8px;padding:10px;color:#f8fafc;font-size:13px;margin-bottom:0;resize:vertical;box-sizing:border-box"></textarea>
+  </div>`).join("");
+  return `<div style="background:#0f172a;border:1px solid #334155;border-radius:12px;padding:14px;height:fit-content;box-sizing:border-box">
+    <div style="font-size:10px;font-weight:900;color:#f8fafc;margin-bottom:2px;letter-spacing:2px;text-transform:uppercase">Pantry Wars</div>
+    <div style="font-size:11px;font-weight:900;color:#f59e0b;margin-bottom:4px;letter-spacing:1.5px;text-transform:uppercase">Human battle plans</div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:12px;line-height:1.45">Same basket &amp; rules as the AI. Everyone fills in a pitch — pick <strong style="color:#94a3b8">whose plan</strong> below to score vs the rival chef.</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #334155">
+      <label for="battle-competitor-count" style="font-size:11px;font-weight:800;color:#cbd5e1">Number of competitors</label>
+      <select id="battle-competitor-count" style="background:#1e293b;border:1px solid #475569;border-radius:8px;padding:6px 28px 6px 10px;color:#f8fafc;font-size:13px;font-weight:700;cursor:pointer">
+        ${optRows}
+      </select>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #334155">
+      <label for="battle-vs-rival-pick" style="font-size:11px;font-weight:800;color:#cbd5e1">Whose recipe vs rival?</label>
+      <select id="battle-vs-rival-pick" style="background:#1e293b;border:1px solid #f59e0b;border-radius:8px;padding:6px 28px 6px 10px;color:#f8fafc;font-size:13px;font-weight:700;cursor:pointer;max-width:min(100%,280px)">
+        ${vsOpts}
+      </select>
+    </div>
+    ${cards}
+    <div style="padding-top:12px;border-top:1px solid #334155;font-size:11px;color:#64748b;line-height:1.5"><strong style="color:#94a3b8">Pantry Wars scorecard:</strong> Haul honesty · plate story · balance · creativity — for <strong style="color:#f59e0b">competitor ${vsi+1}</strong> vs rival.</div>
   </div>`;
 }
 
+function renderRecipeUserPanel(){
+  const wp=$("recipe-user-panel");
+  if(!wp) return;
+  wp.innerHTML=recipeUserCompetitorPanelsHtml();
+  wireUserCookPlanForm();
+  updateBattleButtonState();
+}
+
 function wireUserCookPlanForm() {
-  const d=$("user-plan-dish"),t=$("user-plan-tech"),tm=$("user-plan-time");
-  if(!d||!t||!tm)return;
-  d.value=state.userCookPlan.dish||"";
-  t.value=state.userCookPlan.techniques||"";
-  tm.value=state.userCookPlan.timing||"";
-  d.oninput=()=>{state.userCookPlan.dish=d.value;updateBattleButtonState();};
-  t.oninput=()=>{state.userCookPlan.techniques=t.value;updateBattleButtonState();};
-  tm.oninput=()=>{state.userCookPlan.timing=tm.value;updateBattleButtonState();};
+  const sel=$("battle-competitor-count");
+  if(sel){
+    sel.onchange=()=>{
+      syncUserCookPlanFromDom();
+      const nv=Math.max(1,Math.min(PW_BATTLE_COMPETITORS_MAX,parseInt(sel.value,10)||1));
+      ensureBattleCompetitorPlanSlots(nv);
+      renderRecipeUserPanel();
+    };
+  }
+  const vs=$("battle-vs-rival-pick");
+  if(vs){
+    vs.onchange=()=>{
+      syncUserCookPlanFromDom();
+      const mx=Math.max(0,(state.battleCompetitorPlans&&state.battleCompetitorPlans.length)||1)-1;
+      state.battleVsRivalIndex=Math.max(0,Math.min(mx,parseInt(vs.value,10)||0));
+      renderRecipeUserPanel();
+    };
+  }
+  state.battleCompetitorPlans.forEach((p,i)=>{
+    const nm=$(`user-plan-name-${i}`),d=$(`user-plan-dish-${i}`),t=$(`user-plan-tech-${i}`),tm=$(`user-plan-time-${i}`);
+    if(!d||!t||!tm) return;
+    if(nm){
+      nm.value=p.name||"";
+      nm.oninput=()=>{state.battleCompetitorPlans[i].name=nm.value;};
+    }
+    d.value=p.dish||"";
+    t.value=p.techniques||"";
+    tm.value=p.timing||"";
+    d.oninput=()=>{state.battleCompetitorPlans[i].dish=d.value;updateBattleButtonState();};
+    t.oninput=()=>{state.battleCompetitorPlans[i].techniques=t.value;updateBattleButtonState();};
+    tm.oninput=()=>{state.battleCompetitorPlans[i].timing=tm.value;updateBattleButtonState();};
+  });
 }
 
 function syncUserCookPlanFromDom() {
-  const d=$("user-plan-dish"),t=$("user-plan-tech"),tm=$("user-plan-time");
-  if(d) state.userCookPlan.dish=d.value;
-  if(t) state.userCookPlan.techniques=t.value;
-  if(tm) state.userCookPlan.timing=tm.value;
+  if(!state.battleCompetitorPlans) return;
+  state.battleCompetitorPlans.forEach((_p,i)=>{
+    const nm=$(`user-plan-name-${i}`),d=$(`user-plan-dish-${i}`),t=$(`user-plan-tech-${i}`),tm=$(`user-plan-time-${i}`);
+    if(nm) state.battleCompetitorPlans[i].name=nm.value;
+    if(d) state.battleCompetitorPlans[i].dish=d.value;
+    if(t) state.battleCompetitorPlans[i].techniques=t.value;
+    if(tm) state.battleCompetitorPlans[i].timing=tm.value;
+  });
 }
 
 function userPlanFilled() {
-  const u=state.userCookPlan;
-  return !!(u.dish||"").trim()||!! (u.techniques||"").trim()||!!(u.timing||"").trim();
+  const u=getBattleVsRivalPlan();
+  return !!(u.dish||"").trim()||!!(u.techniques||"").trim()||!!(u.timing||"").trim();
 }
 
 function updateBattleButtonState() {
@@ -3123,7 +3223,12 @@ function animateDuelScores(targetYou,targetAi){
 }
 function openBattleScorecards() {
   syncUserCookPlanFromDom();
-  if(!userPlanFilled()){alert("Fill in Your battle plan (dish, techniques, or timing) — then run Battle.");return;}
+  const vsel=$("battle-vs-rival-pick");
+  if(vsel&&state.battleCompetitorPlans&&state.battleCompetitorPlans.length){
+    state.battleVsRivalIndex=Math.max(0,Math.min(state.battleCompetitorPlans.length-1,parseInt(vsel.value,10)||0));
+  }
+  clampBattleVsRivalIndex();
+  if(!userPlanFilled()){alert(`Fill in competitor ${state.battleVsRivalIndex+1}'s battle plan (dish, techniques, or timing) — or choose another competitor in "Whose recipe vs rival?" — then run Battle.`);return;}
   if(!state.recipe){alert("Wait for the rival chef to finish.");return;}
   trackPWEvent("user_submission", pwParamsChallenge());
   cancelDuelScoreAnimation();
@@ -3143,7 +3248,8 @@ function clampScore(v){
 
 async function runAutoBattleScoring(){
   if(state.duelAutoScoring) return;
-  const ch=state.challenge, uc=state.userCookPlan, r=state.recipe;
+  const ch=state.challenge, uc=getBattleVsRivalPlan(), r=state.recipe;
+  const cVs=state.battleVsRivalIndex+1;
   if(!ch||!r) return;
   state.duelAutoScoring=true;
   const st=$("score-auto-status");
@@ -3176,7 +3282,8 @@ Challenge:
 - Required: ${ch.required.join(", ")}
 - Restrictions: ${(ch.restrictions||[]).join(", ")||"none"}
 
-USER PLAN:
+USER PLAN (competitor ${cVs} — human side scored vs AI):
+- Chef name: ${(uc.name||"").trim().slice(0,120)||"—"}
 - Dish: ${(uc.dish||"").slice(0,1200)}
 - Techniques: ${(uc.techniques||"").slice(0,1200)}
 - Timing: ${(uc.timing||"").slice(0,1200)}
@@ -3279,7 +3386,7 @@ function renderRecipe() {
       <div>
         <div style="font-size:10px;color:#64748b;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px">${state.challenge.ctype.emoji} ${state.challenge.ctype.label} · ${state.challenge.diff.toUpperCase()} · beat AI</div>
         <div style="font-size:clamp(22px,4.2vw,30px);font-weight:900;color:#f8fafc;line-height:1.12;letter-spacing:-0.02em">The battle — make your plate</div>
-        <div style="font-size:13px;color:#94a3b8;margin-top:8px;max-width:38rem;line-height:1.5">Same haul &amp; rules for you and the rival chef. Fill in <strong style="color:#f59e0b">Your battle plan</strong>, then <strong style="color:#fbbf24">Battle</strong> to compare scorecards.</div>
+        <div style="font-size:13px;color:#94a3b8;margin-top:8px;max-width:38rem;line-height:1.5">Same haul &amp; rules for everyone. Add <strong style="color:#f59e0b">competitors</strong>, pick <strong style="color:#f59e0b">whose recipe vs rival</strong>, then <strong style="color:#fbbf24">Battle</strong> for scorecards.</div>
       </div>
       <div style="display:flex;gap:8px">
         <button onclick="showScreen('screen-build');renderBuild();" style="background:#334155;color:#94a3b8;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer">Back</button>
@@ -3297,7 +3404,7 @@ function renderRecipe() {
             <div style="font-size:13px;color:#94a3b8;text-align:center;max-width:24rem;line-height:1.55;margin-top:2px">This might take up to a minute — your rival chef is thinking through the haul. Hang tight.<br/><span style="display:inline-block;margin-top:8px;color:#64748b;font-size:12px">Don&apos;t worry: it&apos;ll probably be better than yours.</span></div>
           </div>
         </div>
-        <div id="recipe-user-panel">${userCookPlanPanelHtml()}</div>
+        <div id="recipe-user-panel">${recipeUserCompetitorPanelsHtml()}</div>
       </div>
       <div id="recipe-battle-footer"></div>
     </div>`;
@@ -4770,7 +4877,7 @@ function showRecipeData(r) {
   const battleFooter=`<div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;padding:18px 14px;background:#0f172a;border:1px solid #334155;border-radius:14px">
     <div style="font-size:11px;color:#94a3b8;max-width:440px;line-height:1.45">Need the extra <strong style="color:#c4b5fd">competition coach</strong> plan? Tap <strong>Back</strong> — it’s on the battle builder.</div>
     <button type="button" id="battle-btn" onclick="openBattleScorecards()" disabled style="background:linear-gradient(180deg,#fbbf24,#f59e0b);color:#0f172a;border:none;border-radius:12px;padding:12px 28px;font-size:14px;font-weight:900;cursor:not-allowed;box-shadow:0 6px 20px rgba(245,158,11,0.35);width:100%;max-width:400px">⚔ Battle — compare & scorecards</button>
-    <div id="battle-hint" style="font-size:11px;color:#94a3b8;text-align:center;max-width:420px;line-height:1.45">Fill <strong style="color:#f59e0b">Your battle plan</strong> (right column) with what you’d make, then <strong style="color:#fbbf24">Battle</strong> for AI vs you scorecards.</div>
+    <div id="battle-hint" style="font-size:11px;color:#94a3b8;text-align:center;max-width:420px;line-height:1.45">Choose <strong style="color:#f59e0b">whose recipe vs rival</strong>, fill that plan (right column), then <strong style="color:#fbbf24">Battle</strong> for AI scorecards.</div>
     <details style="max-width:440px;text-align:left;width:100%"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#94a3b8">Optional: real kitchen timer</summary><p style="font-size:11px;color:#64748b;margin:8px 0 10px">Only if you’re actually cooking along — not required for “beat AI.”</p><button type="button" onclick="startCooking()" style="background:#22c55e;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:800;cursor:pointer;width:100%">Start ${ch.totalTime}-minute timer</button></details>
   </div>`;
   const aiPanel=$("recipe-ai-panel");
@@ -4867,6 +4974,10 @@ function resetTimer(){clearInterval(state.timerInterval);state.timerRunning=fals
 // ── SCORE SCREEN ──────────────────────────────────────────────────────────────
 function renderScore(){
   const sc=$("screen-score");
+  clampBattleVsRivalIndex();
+  const prim=getBattleVsRivalPlan();
+  const vsi=state.battleVsRivalIndex;
+  const youCardTitle=escapeHtml((prim.name||"").trim()||"You");
   const cats=[{k:"taste",l:"Taste",w:"35%"},{k:"creativity",l:"Creativity",w:"25%"},{k:"presentation",l:"Presentation",w:"20%"},{k:"difficulty",l:"Difficulty",w:"20%"}];
   function duelCard(side,title,accent,skey){
     const s=state[skey];
@@ -4892,26 +5003,26 @@ function renderScore(){
     </div>
     <div style="max-width:920px;margin:0 auto;padding:16px 12px">
       <div style="background:#e0f2fe;border:2px solid #7dd3fc;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#0c4a6e">
-        <strong>Battle judge:</strong> AI pre-fills both scorecards from your plan vs rival recipe.
+        <strong>Battle judge:</strong> AI pre-fills both scorecards from the chosen competitor&apos;s plan vs rival recipe.
         <span id="score-auto-status" style="margin-left:6px;color:#0369a1">${state.duelScoreAnimRaf!=null?"Revealing scores…":state.duelAutoScoring?"Auto-judging duel…":"Auto-judge ready."}</span>
       </div>
       ${state.challenge?`<div style="background:#f8fafc;border:2px solid #cbd5e1;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#334155">
         <div style="font-size:10px;font-weight:800;color:#6366f1;text-transform:uppercase;margin-bottom:6px">Challenge</div>
         <div style="font-weight:700">${escapeHtml((state.challenge.ctype&&state.challenge.ctype.emoji)||"🍴")} ${escapeHtml((state.challenge.ctype&&state.challenge.ctype.label)||"—")} · ${escapeHtml(String(state.challenge.diff||"").toUpperCase())} · ${Number(state.challenge.totalTime)||0} min</div>
       </div>`:""}
-      ${(()=>{const uc=state.userCookPlan;const has=(uc.dish||"").trim()||(uc.techniques||"").trim()||(uc.timing||"").trim();if(!has)return"";const aiT=state.recipe&&state.recipe.title?state.recipe.title:"—";return`<div style="background:#fff7ed;border:2px solid #fdba74;border-radius:12px;padding:14px;margin-bottom:14px;text-align:left">
+      ${(()=>{const uc=prim;const has=(uc.dish||"").trim()||(uc.techniques||"").trim()||(uc.timing||"").trim();if(!has)return"";const aiT=state.recipe&&state.recipe.title?state.recipe.title:"—";return`<div style="background:#fff7ed;border:2px solid #fdba74;border-radius:12px;padding:14px;margin-bottom:14px;text-align:left">
         <div style="font-size:10px;font-weight:900;color:#c2410c;text-transform:uppercase;margin-bottom:8px">Pantry Wars · Compared</div>
         <div class="duel-score-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;color:#0f172a">
           <div><span style="color:#818cf8;font-weight:800">Rival chef</span> · ${escapeHtml(aiT)}</div>
-          <div><span style="color:#f59e0b;font-weight:800">You</span> · ${escapeHtml((uc.dish||"").slice(0,160))}${(uc.dish||"").length>160?"…":""}</div>
+          <div><span style="color:#f59e0b;font-weight:800">${youCardTitle}</span> · ${escapeHtml((uc.dish||"").slice(0,160))}${(uc.dish||"").length>160?"…":""}</div>
         </div>
-        ${(uc.techniques||"").trim()?`<div style="font-size:11px;color:#57534e;margin-top:8px;line-height:1.45"><strong>Your techniques:</strong> ${escapeHtml((uc.techniques||"").slice(0,200))}${(uc.techniques||"").length>200?"…":""}</div>`:""}
+        ${(uc.techniques||"").trim()?`<div style="font-size:11px;color:#57534e;margin-top:8px;line-height:1.45"><strong>Competitor ${vsi+1} techniques:</strong> ${escapeHtml((uc.techniques||"").slice(0,200))}${(uc.techniques||"").length>200?"…":""}</div>`:""}
         ${(()=>{const ty=calcTotal(state.scoresYou),ta=calcTotal(state.scoresAI);let w="";if(ty>ta)w=`Weighted score favors you (${ty}/100 vs ${ta}/100).`;else if(ta>ty)w=`Weighted score favors rival chef (${ta}/100 vs ${ty}/100).`;else w=`Weighted score is tied (${ty}/100 each).`;return`<div style="font-size:11px;color:#0f172a;font-weight:700;margin-top:8px">${escapeHtml(w)}</div>`;})()}
         ${state.duelJudgeSummaryConflict?`<div style="font-size:11px;color:#b45309;font-weight:700;margin-top:6px">Heads-up: the AI judge’s story didn’t match the weighted totals — we prepended the <strong>official</strong> call above; trust the numbers for win/loss.</div>`:""}
         ${state.duelAutoSummary?`<div style="font-size:11px;color:#1f2937;line-height:1.5;margin-top:8px"><strong>Judge summary:</strong> ${escapeHtml(state.duelAutoSummary)}</div>`:""}
       </div>`;})()}
       <div class="duel-score-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-        ${duelCard("you","You","#d97706","scoresYou")}
+        ${duelCard("you",youCardTitle,"#d97706","scoresYou")}
         ${duelCard("ai","Rival chef","#4f46e5","scoresAI")}
       </div>
       <div style="background:#fff;border:2px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:14px">
@@ -5043,7 +5154,10 @@ function updateScoreDisplay(){
   const ty=calcTotal(state.scoresYou),ta=calcTotal(state.scoresAI);
   const gy=gradeTotal(ty),ga=gradeTotal(ta);
   const sdy=$("score-display-you"),sda=$("score-display-ai");
-  if(sdy) sdy.innerHTML=`<div><div style="font-size:9px;color:#94a3b8;font-weight:800;letter-spacing:1px">YOU</div><div style="font-size:22px;font-weight:900;color:${gy.gc}">${ty}/100</div></div><div style="font-size:36px;font-weight:900;color:${gy.gc}">${gy.g}</div>`;
+  const bp=getBattleVsRivalPlan();
+  const nm=(bp.name||"").trim();
+  const youSmall=nm?escapeHtml(nm.slice(0,16).toUpperCase()):"YOU";
+  if(sdy) sdy.innerHTML=`<div><div style="font-size:9px;color:#94a3b8;font-weight:800;letter-spacing:1px">${youSmall}</div><div style="font-size:22px;font-weight:900;color:${gy.gc}">${ty}/100</div></div><div style="font-size:36px;font-weight:900;color:${gy.gc}">${gy.g}</div>`;
   if(sda) sda.innerHTML=`<div><div style="font-size:9px;color:#94a3b8;font-weight:800;letter-spacing:1px">RIVAL</div><div style="font-size:22px;font-weight:900;color:${ga.gc}">${ta}/100</div></div><div style="font-size:36px;font-weight:900;color:${ga.gc}">${ga.g}</div>`;
 }
 async function saveLeaderboardFromResults(){
