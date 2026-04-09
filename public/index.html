@@ -268,7 +268,7 @@ const CTYPES = [
   {id:"global_cuisine",label:"Global Cuisine",emoji:"🌍"},
 ];
 const EQUIP=[
-  "Chef's Knife","Paring Knife","Bread Knife","Mandoline Slicer","Bench Scraper",
+  "Mandoline Slicer","Bench Scraper",
   "Frying Pan","Cast Iron","Cast Iron Skillet","Carbon Steel Pan","Saute Pan","Saucepan","Stockpot","Dutch Oven","Braising Pan","Grill Pan","Wok","Roasting Pan","Double Boiler",
   "Pressure Cooker","Slow Cooker","Rice Cooker","Multi-Cooker","Instant Pot","Sous Vide","Sous Vide Machine","Sous Vide Circulator","Deep Fryer","Air Fryer",
   "Oven","Stovetop","Range (Gas/Electric)","Induction Cooktop","Electric Griddle","Hot Plate",
@@ -470,16 +470,67 @@ function equipTechniqueSheetLine(name){
   return "";
 }
 
-const RESTRICT=["No Dairy","No Gluten","No Sugar","No Salt","No Pre-made Sauces","No Butter","No Alcohol","No Nuts","Vegetarian","Vegan"];
+const RESTRICT=[
+  "No Dairy","No Gluten","No Sugar","No Salt","No Pre-made Sauces","No Butter","No Alcohol","No Nuts",
+  "No Eggs","Vegetarian","Vegan",
+  "Only Canned Goods","Only Frozen Ingredients","Only Fresh / Raw Ingredients","No Processed Foods",
+  "Only Pantry Staples","Only Shelf-Stable Items",
+  "Only One Protein",
+  "Max ingredients: 5","Max ingredients: 7","Exactly ingredients: 5",
+  "Banned first letter: P","Banned first letter: S","Banned first letter: A",
+];
 /** Collapse "No No …" from duplicated prefixes (e.g. AI returns "No No Butter") and match built-in casing. */
 function normalizeRestrictionKey(s){
   let t=String(s==null?"":s).trim();
   if(!t) return t;
   if(/^raw\s*only$/i.test(t)) return "";
   while(/^no\s+no(\s|$)/i.test(t)) t=t.replace(/^no\s+/i,"").trim();
-  const low=t.toLowerCase();
+  let low=t.toLowerCase();
+  if(/^no\s+animal\s+products?$/i.test(t)) return "Vegan";
+  if(/^no\s+added\s+salt$/i.test(t)) return "No Salt";
+  if(/^no\s+added\s+sugar$/i.test(t)) return "No Sugar";
+  const banLet=/^(?:no\s+ingredients?\s+starting\s+with|banned\s+first\s+letter)\s*[: ]\s*([a-z])\s*$/i.exec(t);
+  if(banLet) return "Banned first letter: "+String(banLet[1]).toUpperCase();
+  const maxM=/^max\s+(\d+)\s+ingredients?$/i.exec(t);
+  if(maxM) return "Max ingredients: "+maxM[1];
+  const exM=/^exactly\s+(\d+)\s+ingredients?$/i.exec(t);
+  if(exM) return "Exactly ingredients: "+exM[1];
   for(const r of RESTRICT) if(r.toLowerCase()===low) return r;
   return t;
+}
+
+function parseBannedFirstLetterRestriction(r){
+  const k=normalizeRestrictionKey(r);
+  const m=/^Banned first letter:\s*([A-Za-z])\s*$/.exec(k);
+  return m?m[1].toUpperCase():null;
+}
+function parseMaxIngredientsCapFromList(arr){
+  let best=null;
+  for(const x of arr||[]){
+    const k=normalizeRestrictionKey(x);
+    const m=/^Max ingredients:\s*(\d+)\s*$/i.exec(k);
+    if(m){
+      const n=+m[1];
+      if(Number.isFinite(n)&&n>0) best=best==null?n:Math.min(best,n);
+    }
+  }
+  return best;
+}
+function parseExactIngredientsCountsFromList(arr){
+  const out=[];
+  for(const x of arr||[]){
+    const k=normalizeRestrictionKey(x);
+    const m=/^Exactly ingredients:\s*(\d+)\s*$/i.exec(k);
+    if(m){
+      const n=+m[1];
+      if(Number.isFinite(n)&&n>0) out.push(n);
+    }
+  }
+  return out;
+}
+function firstSignificantLetterOfName(name){
+  const m=String(name||"").match(/[A-Za-z]/);
+  return m?m[0].toUpperCase():"";
 }
 function sanitizeRestrictionList(arr){
   const out=[], seen=new Set();
@@ -2808,6 +2859,7 @@ function toggleFromModal(id) {
 function renderBuild() {
   const cfg=DIFF[state.diff];
   state.res=sanitizeRestrictionList(state.res);
+  state.forbEq=(state.forbEq||[]).filter(e=>!(state.reqEq||[]).includes(e));
   if(state.spinConstraints&&state.spinConstraints.length)
     state.spinConstraints=sanitizeSpinConstraints(state.spinConstraints);
   pruneConflictingReq(cfg);
@@ -2968,28 +3020,30 @@ function renderBuild() {
   const eqlbl=el("span",{class:"lbl",style:{marginBottom:"0"}});eqlbl.textContent="Equipment";
   eqHead.append(eqlbl,btn("+ Add","#6366f1","#fff",{padding:"3px 9px",fontSize:"11px"},()=>openModal("equipment")));
   eqCard.appendChild(eqHead);
-  const mustlbl=div({style:{fontSize:"11px",fontWeight:"700",color:"#166534",marginBottom:"4px"}});mustlbl.textContent="Must use";
-  eqCard.appendChild(mustlbl);
-  const mustChips=div({style:{display:"flex",flexWrap:"wrap",gap:"3px",marginBottom:"10px"}});
-  [...EQUIP,...state.reqEq.filter(e=>!EQUIP.includes(e))].forEach(e=>{
-    const on=state.reqEq.includes(e);
+  const eqLegend=div({style:{fontSize:"10px",color:"#64748b",marginBottom:"6px",lineHeight:1.35}});
+  eqLegend.innerHTML="<span style=\"color:#15803d;font-weight:700\">Green ✓</span> = must use · <span style=\"color:#b91c1c;font-weight:700\">Red ✗</span> = forbidden · tap to cycle: <strong>off → must → forbid → off</strong>";
+  eqCard.appendChild(eqLegend);
+  const equipChips=div({style:{display:"flex",flexWrap:"wrap",gap:"3px",marginBottom:"8px"}});
+  const equipNames=[...new Set([...EQUIP,...state.reqEq,...state.forbEq])];
+  equipNames.forEach(e=>{
+    const inReq=state.reqEq.includes(e);
+    const inForb=state.forbEq.includes(e);
     const tip=equipTechniqueSheetLine(e)||"Primary step + named verb (sear, roast, blend, pressure…); often matches your ingredient cook story.";
     const clk=equipmentCookTimeLine(e);
-    const b=el("button",{style:{background:on?"#f0fdf4":"#f8fafc",border:"2px solid "+(on?"#86efac":"#e2e8f0"),borderRadius:"6px",padding:"2px 6px",fontSize:"10px",cursor:"pointer",color:on?"#15803d":"#475569"},title:`Ways to use: ${tip}${clk?" | Typical cook window: "+clk:""}`});
-    b.textContent=(on?"✓ ":"")+e;b.addEventListener("click",()=>{state.reqEq=on?state.reqEq.filter(x=>x!==e):[...state.reqEq,e];renderBuild();});
-    mustChips.appendChild(b);
+    let bg="#f8fafc", border="#e2e8f0", color="#475569", prefix="";
+    if(inReq){ bg="#f0fdf4"; border="#86efac"; color="#15803d"; prefix="✓ "; }
+    else if(inForb){ bg="#fef2f2"; border="#fca5a5"; color="#b91c1c"; prefix="✗ "; }
+    const b=el("button",{style:{background:bg,border:"2px solid "+border,borderRadius:"6px",padding:"2px 6px",fontSize:"10px",cursor:"pointer",color},title:`Ways to use: ${tip}${clk?" | Typical cook window: "+clk:""}`});
+    b.textContent=prefix+e;
+    b.addEventListener("click",()=>{
+      if(!inReq&&!inForb){ state.reqEq=[...state.reqEq,e]; state.forbEq=state.forbEq.filter(x=>x!==e); }
+      else if(inReq){ state.reqEq=state.reqEq.filter(x=>x!==e); state.forbEq=[...state.forbEq,e]; }
+      else{ state.forbEq=state.forbEq.filter(x=>x!==e); }
+      renderBuild();
+    });
+    equipChips.appendChild(b);
   });
-  eqCard.appendChild(mustChips);
-  const forblbl=div({style:{fontSize:"11px",fontWeight:"700",color:"#b91c1c",marginBottom:"4px"}});forblbl.textContent="Forbidden";
-  eqCard.appendChild(forblbl);
-  const forbChips=div({style:{display:"flex",flexWrap:"wrap",gap:"3px",marginBottom:"8px"}});
-  EQUIP.forEach(e=>{
-    const on=state.forbEq.includes(e);
-    const b=el("button",{style:{background:on?"#fef2f2":"#f8fafc",border:"2px solid "+(on?"#fca5a5":"#e2e8f0"),borderRadius:"6px",padding:"2px 6px",fontSize:"10px",cursor:"pointer",color:on?"#b91c1c":"#475569"}});
-    b.textContent=(on?"X ":"")+e;b.addEventListener("click",()=>{state.forbEq=on?state.forbEq.filter(x=>x!==e):[...state.forbEq,e];renderBuild();});
-    forbChips.appendChild(b);
-  });
-  eqCard.appendChild(forbChips);
+  eqCard.appendChild(equipChips);
   grid.appendChild(eqCard);
 
   // REQUIRED INGREDIENTS
@@ -3043,6 +3097,8 @@ function renderBuild() {
         alert(`"${p}" conflicts with: ${bad.join(", ")}`);
         return;
       }
+      const pb=pantryAddBlockedByRestrictions(p,state.req,state.res);
+      if(pb){ alert(pb); return; }
       state.req.push(p);
       onBasketModified();
       renderBuild();
@@ -3095,6 +3151,11 @@ function doLaunch() {
   }
   if(state.req.some(n=>ingredientConflictsWithAny(n,state.res))){
     alert("A required ingredient still conflicts with a restriction. Check your basket.");
+    return;
+  }
+  const brErr=builderRestrictionLaunchErrors(state.req,state.res);
+  if(brErr.length){
+    alert(brErr.join("\n"));
     return;
   }
   if(!pwCanUseAiRound()){
@@ -3861,11 +3922,17 @@ function restrictionsJudgeAddon(ch){
   if(!r.length) return "";
   const req=(ch&&ch.required)||[];
   const veganKimchi=r.some(x=>normalizeRestrictionKey(x)==="Vegan")&&req.some(x=>/\bkimchi\b/i.test(String(x)));
+  const fmt=r.filter(x=>{
+    const k=normalizeRestrictionKey(x);
+    return /^(Only |No Processed|Banned first letter:|Max ingredients:|Exactly ingredients:)/.test(k);
+  });
+  const fmtBlock=fmt.length?`
+- FORMAT / BASKET RULES (when listed): **Only Canned / Frozen / Fresh**, **No Processed Foods**, **Pantry staples**, **Shelf-stable**, **one protein**, **banned first letter**, **max/exact ingredient count** — enforce on the written plan and ingredients; penalize smuggled shortcuts or "chef's privilege" ignores.`:"";
   return `
 RESTRICTIONS — JUDGING LENS (non-negotiable):
 - Penalize HARD if either competitor's plan breaks a stated restriction (e.g. dairy under No Dairy, meat under Vegetarian). "Classic needs cheese" or "just a finish of cream" is still disqualifying-level bad in real comps.
 - Rule compliance outweighs delicious flavor: say so in summary when one side is tastier but illegal.
-- Reward honest substitutes that stay inside the rules while still respecting the challenge type.${veganKimchi?`
+- Reward honest substitutes that stay inside the rules while still respecting the challenge type.${fmtBlock}${veganKimchi?`
 - VEGAN + KIMCHI IN HAUL: Default kimchi is often non-vegan (fish sauce, shrimp paste). Penalize "kimchi" with no **vegan/fish-free** labeling or honest DIY/no-seafood statement; reward explicit vegan product or scratch ferment with no seafood.`:""}`;
 }
 
@@ -5470,7 +5537,7 @@ const MODAL_PROMPTS={
 function openModal(type){
   state.modalType=type;
   const titles={type:"Add Challenge Type",ingredient:"Add Ingredient",pantry_item:"Add to your pantry",restriction:"Add Restriction",equipment:"Add Equipment"};
-  const placeholders={type:"e.g. Diner Food, Brunch...",ingredient:"e.g. Kohlrabi, Wagyu Beef...",pantry_item:"e.g. Gochujang, halloumi, leftover brisket...",restriction:"e.g. No Frying, Kosher...",equipment:"e.g. Tagine, Pizza Stone..."};
+  const placeholders={type:"e.g. Diner Food, Brunch...",ingredient:"e.g. Kohlrabi, Wagyu Beef...",pantry_item:"e.g. Gochujang, halloumi, leftover brisket...",restriction:"e.g. Banned first letter: M, Max ingredients: 6, Only Canned Goods…",equipment:"e.g. Tagine, Pizza Stone..."};
   const ov=$("modal-overlay");
   ov.innerHTML=`
     <div class="modal">
@@ -5624,7 +5691,7 @@ async function doModalLookup(){
 function doModalAdd(data){
   const t=state.modalType;
   if(t==="type"){const nt={id:"c"+Date.now(),label:data.label||data.name,emoji:data.emoji||"🍴",custom:true};state.customTypes.push(nt);state.ctype=nt;}
-  else if(t==="ingredient"){const n=data.name||data.label;if(n&&!state.req.includes(n)){if(ingredientConflictsWithAny(n,state.res)){alert("That ingredient conflicts with a restriction (e.g. dairy under No Dairy).");return;}state.req.push(n);onBasketModified();}}
+  else if(t==="ingredient"){const n=data.name||data.label;if(n&&!state.req.includes(n)){if(ingredientConflictsWithAny(n,state.res)){alert("That ingredient conflicts with a restriction (e.g. dairy under No Dairy).");return;}const pb=pantryAddBlockedByRestrictions(n,state.req,state.res);if(pb){alert(pb);return;}state.req.push(n);onBasketModified();}}
   else if(t==="pantry_item"){
     const n=(data.name||data.label||"").trim();
     if(!n){closeModal();refreshAfterModalAdd();return;}
@@ -5643,7 +5710,7 @@ function doModalAdd(data){
     if(n&&!state.res.includes(n)){state.res=sanitizeRestrictionList([...state.res,n]);onBasketModified();}
     pruneConflictingReq(DIFF[state.diff]);
   }
-  else if(t==="equipment"){const n=data.label;if(n&&!state.reqEq.includes(n))state.reqEq.push(n);}
+  else if(t==="equipment"){const n=(data.label||"").trim();if(n&&!state.reqEq.includes(n)){state.forbEq=state.forbEq.filter(x=>x!==n);state.reqEq.push(n);}}
   closeModal();refreshAfterModalAdd();
 }
 
@@ -5729,6 +5796,50 @@ function ingredientConflictsWithRestriction(ingName, restriction){
     if(ingredientConflictsWithRestriction(ingName,"No Butter")) return true;
     if(/\b(egg|eggs|honey|gelatin|mayo)\b/i.test(n)) return true;
     if(ingredientConflictsWithRestriction(ingName,"Vegetarian")) return true;
+    return false;
+  }
+  if(restriction==="No Eggs"){
+    if(/\b(egg|eggs|mayo|mayonnaise)\b/i.test(n)) return true;
+    if(/\bbaking\s*&\s*bases\b/i.test(cat)&&/\begg\b/i.test(n)) return true;
+    return false;
+  }
+  if(restriction==="Only Canned Goods"){
+    return !/\bcanned\b|\btinned\b/i.test(n);
+  }
+  if(restriction==="Only Frozen Ingredients"){
+    return !/\bfrozen\b/i.test(n)&&!/\bice cream\b/i.test(n);
+  }
+  if(restriction==="Only Fresh / Raw Ingredients"){
+    if(/\bcanned\b|\btinned\b|\bfrozen\b/i.test(n)) return true;
+    if(/\b(crushed tomatoes|tomato paste|coconut milk)\b/i.test(n)&&!/\bfresh\b/i.test(n)) return true;
+    return false;
+  }
+  if(restriction==="No Processed Foods"){
+    if(/\b(chips|cereal|crackers|instant noodles|granola|hot dog|spam|frozen pizza|ready[\s-]to[\s-]eat)\b/i.test(n)) return true;
+    return false;
+  }
+  if(restriction==="Only Pantry Staples"){
+    if(/spices\s*&\s*herbs|oils\s*&\s*vinegars/i.test(cat)) return false;
+    if(/\b(baking|baking\s*&\s*bases)\b/i.test(cat)&&/\b(flour|sugar|salt|baking powder|baking soda|cornstarch|yeast|honey|maple)\b/i.test(n)) return false;
+    if(/\b(all-purpose flour|sugar|brown sugar|cornstarch|baking powder|baking soda|olive oil|vegetable oil|canola oil|vinegar|soy sauce|paprika|cumin|thyme|oregano|basil|black pepper|rice|pasta|spaghetti)\b/i.test(n)) return false;
+    return true;
+  }
+  if(restriction==="Only Shelf-Stable Items"){
+    if(/\bcanned\b|\btinned\b|tomato paste|crushed tomatoes/i.test(n)) return false;
+    if(/canned\s*&\s*jarred/i.test(cat)) return false;
+    if(/spices\s*&\s*herbs|oils\s*&\s*vinegars|grains\s*&\s*legumes|baking\s*&\s*bases/i.test(cat)) return false;
+    if(/dairy|proteins|vegetables|fruits|meat|poultry|seafood/i.test(cat)) return true;
+    return false;
+  }
+  if(restriction==="Only One Protein"){
+    return false;
+  }
+  if(/^Banned first letter:/i.test(restriction)){
+    const L=(/^Banned first letter:\s*([A-Za-z])\s*$/i.exec(restriction)||[])[1];
+    if(!L) return false;
+    return firstSignificantLetterOfName(ingName)===L.toUpperCase();
+  }
+  if(/^Max ingredients:/i.test(restriction)||/^Exactly ingredients:/i.test(restriction)){
     return false;
   }
   if(restriction==="No Salt"){
@@ -5935,6 +6046,8 @@ function getRecipeRestrictionViolations(recipe, restrictions){
       if(/\bkimchi\b/i.test(low)&&!textVeganKimchiCompliant(low))
         msgs.push(`${norm}: kimchi often contains fish sauce or shrimp paste — ingredients must name **vegan / fish-free kimchi** (or brine from that product), or clearly state homemade kimchi with no seafood, in the JSON.`);
     }
+    else if(norm==="No Eggs"&&/\b(eggs?|egg\s+yolk|egg\s+white|mayo|mayonnaise)\b/i.test(low))
+      msgs.push(`${norm}: recipe text still references eggs or mayonnaise-style egg fat — use egg-free paths.`);
     else if(norm==="No Alcohol"&&/\b(wine|beer|rum|vodka|whiskey|whisky|bourbon|brandy|sake|liqueur|champagne|prosecco)\b/i.test(low)
       &&!/\b(alcohol-free|non-alcoholic|na beer)\b/i.test(low))
       msgs.push(`${norm}: mentions alcoholic ingredient`);
@@ -6042,7 +6155,6 @@ function getChickenWingPhysicsViolations(recipe, ch){
 
 function equipmentAliasRegex(name){
   const n=String(name||"").toLowerCase();
-  if(n==="chef's knife"||n==="paring knife"||n==="bread knife") return /\b(chef'?s\s+knife|paring\s+knife|bread\s+knife|knife)\b/i;
   if(n==="cast iron skillet") return /\b(cast[\s-]?iron(?:\s+skillet)?|skillet)\b/i;
   if(n==="carbon steel pan") return /\b(carbon\s+steel\s+pan|steel\s+pan)\b/i;
   if(n==="saute pan") return /\b(saut[eé]\s+pan|frying\s+pan|saute)\b/i;
@@ -8453,6 +8565,10 @@ ACTIVE RESTRICTIONS (fail closed):
 - Flavor architecture without added salt: push acid (citrus, vinegar), bitter (charred veg, greens), tomato paste or charred tomato for "red sauce" memory, aggressive reduction, herbs — especially when the basket has maple/honey/sweet; finish with extra acid so the plate stays savory, not dessert-leaning.
 - MANDATORY in balance.basket or balance.flavor: one explicit sentence on how you solve "no added salt" for judges — acid/umami/char/reduction/latent sodium tradeoffs — not only "cream and butter for richness."
 - If maple, honey, or brown sugar AND cream/butter appear: you MUST also name citrus, vinegar, or pickle brine in steps or balance.flavor — sweet + fat alone is not a no-salt strategy.\n`;
+    else if(norm==="No Eggs")
+      s+=` — BANNED: eggs, yolks, whites, mayo/aioli with egg; use egg-free subs only if other rules allow.\n`;
+    else if(norm==="Only Canned Goods"||norm==="Only Frozen Ingredients"||norm==="Only Fresh / Raw Ingredients"||norm==="No Processed Foods"||norm==="Only Pantry Staples"||norm==="Only Shelf-Stable Items"||norm==="Only One Protein"||/^Max ingredients:/i.test(norm)||/^Exactly ingredients:/i.test(norm)||/^Banned first letter:/i.test(norm))
+      s+=` — **Basket/format rule:** honor it in every ingredients[].item line and in the cooking story; do not smuggle disallowed formats.\n`;
     else s+=` — treat as strict; do not violate in any field.\n`;
   }
   s+=`SELF-CHECK: Output JSON must be restriction-clean on first save. Judges eliminate on rule breaks.\n`;
@@ -8524,10 +8640,24 @@ function filterPoolByRestrictions(pool, restrictions){
   return [...new Set((pool||[]).filter(Boolean))].filter(n=>!ingredientConflictsWithAny(n,r));
 }
 
+function filterPoolForBasketRules(pool, reqArr, resArr){
+  let p=[...(pool||[])].filter(Boolean);
+  const r=sanitizeRestrictionList(resArr||[]);
+  if(r.some(x=>normalizeRestrictionKey(x)==="Only One Protein")&&countBasketProteinAnchors(reqArr)>=1)
+    p=p.filter(n=>classifyRequiredBucket(n)!=="protein");
+  const banned=new Set(r.map(parseBannedFirstLetterRestriction).filter(Boolean));
+  if(banned.size)
+    p=p.filter(n=>{const L=firstSignificantLetterOfName(n);return!L||!banned.has(L);});
+  const maxCap=parseMaxIngredientsCapFromList(r);
+  if(maxCap!=null&&reqArr.length>=maxCap) return [];
+  return p;
+}
+
 function pruneConflictingReq(cfg, cdOpt){
   const need=cfg.req;
   state.req=state.req.filter(n=>!ingredientConflictsWithAny(n,state.res));
   let pool=filterPoolByRestrictions(pantryPool(),state.res).filter(x=>!state.req.includes(x));
+  pool=filterPoolForBasketRules(pool,state.req,state.res);
   const nonBasicPool=pool.filter(n=>!isSpinnerBasicIngredientName(n));
   if(nonBasicPool.length>=Math.max(0, need-state.req.length)) pool=nonBasicPool;
   if(cdOpt&&cdOpt.hot!=null&&cdOpt.spinSerial!=null)
@@ -8577,6 +8707,43 @@ function classifyRequiredBucket(name){
   if(/vegetables|fruits|aromatics/.test(cat) || produceRx.test(n)) return "produce";
 
   return "flavor";
+}
+
+function countBasketProteinAnchors(reqArr){
+  return (reqArr||[]).filter(n=>classifyRequiredBucket(n)==="protein").length;
+}
+function builderRestrictionLaunchErrors(reqArr,resArr){
+  const errs=[];
+  const r=sanitizeRestrictionList(resArr||[]);
+  const maxCap=parseMaxIngredientsCapFromList(r);
+  if(maxCap!=null&&reqArr.length>maxCap)
+    errs.push(`Max ingredients: basket has ${reqArr.length} but the cap is ${maxCap}.`);
+  for(const ex of parseExactIngredientsCountsFromList(r)){
+    if(reqArr.length!==ex)
+      errs.push(`Exactly ingredients: need exactly ${ex} ingredients; you have ${reqArr.length}.`);
+  }
+  const banned=new Set(r.map(parseBannedFirstLetterRestriction).filter(Boolean));
+  for(const ing of reqArr){
+    const L=firstSignificantLetterOfName(ing);
+    if(L&&banned.has(L))
+      errs.push(`Banned first letter ${L}: remove or replace "${ing}".`);
+  }
+  if(r.some(x=>normalizeRestrictionKey(x)==="Only One Protein")&&countBasketProteinAnchors(reqArr)>1)
+    errs.push("Only One Protein: keep a single protein anchor in the basket.");
+  return errs;
+}
+function pantryAddBlockedByRestrictions(name, reqArr, resArr){
+  const r=sanitizeRestrictionList(resArr||[]);
+  const maxCap=parseMaxIngredientsCapFromList(r);
+  if(maxCap!=null&&(reqArr||[]).length>=maxCap)
+    return `Max ingredients (${maxCap}) — remove one or raise the cap.`;
+  if(r.some(x=>normalizeRestrictionKey(x)==="Only One Protein")&&classifyRequiredBucket(name)==="protein"&&countBasketProteinAnchors(reqArr)>=1)
+    return "Only One Protein — basket already has its protein slot filled.";
+  for(const L of r.map(parseBannedFirstLetterRestriction).filter(Boolean)){
+    if(firstSignificantLetterOfName(name)===L)
+      return `Banned first letter ${L} — pick another ingredient.`;
+  }
+  return "";
 }
 
 /** Spinner column titles: slot 1 = protein anchor, 2 = veg/produce, 3–4 = wildcards (pickRequiredPattern buckets). */
@@ -8837,6 +9004,7 @@ function isSpinnerBasicIngredientName(name){
 function pickRequiredPattern(pool,count,resList,cdOpt){
   const r=resList!==undefined?resList:state.res;
   let filtered=filterPoolByRestrictions(pool||[],r||[]);
+  filtered=filterPoolForBasketRules(filtered,[],r);
   if(cdOpt&&cdOpt.hot!=null&&cdOpt.spinSerial!=null)
     filtered=filterIngredientsForCooldown(filtered,cdOpt.spinSerial,cdOpt.hot);
   // Mystery spinner: avoid "base staple" must-use picks when possible.
@@ -8877,25 +9045,21 @@ function pickRequiredPattern(pool,count,resList,cdOpt){
   const leftovers=shuffleArray(uniq.filter(x=>!out.includes(x)));
   const veganSpin=sanitizeRestrictionList(r||[]).some(x=>normalizeRestrictionKey(x)==="Vegan");
   while(out.length<count&&leftovers.length){
+    let pool=filterPoolForBasketRules(leftovers.filter(x=>!out.includes(x)),out,r);
+    if(!pool.length) break;
     if(veganSpin){
       const hasSoy=out.some(n=>/\b(tofu|tempeh|seitan)\b/i.test(String(n)));
-      let pool=leftovers.filter(x=>!out.includes(x));
       if(hasSoy){
         const noSoy=pool.filter(n=>!/\b(tofu|tempeh|seitan)\b/i.test(String(n)));
         if(noSoy.length) pool=noSoy;
       }
       const nonTem=pool.filter(n=>!/\btempeh\b/i.test(String(n)));
       if(nonTem.length&&randomUnit()<0.75) pool=nonTem;
-      const pick=pickUsageBalanced(pool);
-      const ix=leftovers.indexOf(pick);
-      if(ix>=0) leftovers.splice(ix,1);
-      out.push(pick);
-    }else{
-      const pick=pickUsageBalanced(leftovers);
-      const ix=leftovers.indexOf(pick);
-      if(ix>=0) leftovers.splice(ix,1);
-      out.push(pick);
     }
+    const pick=pickUsageBalanced(pool);
+    const ix=leftovers.indexOf(pick);
+    if(ix>=0) leftovers.splice(ix,1);
+    out.push(pick);
   }
   return out.slice(0,count);
 }
