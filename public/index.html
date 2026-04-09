@@ -2931,7 +2931,7 @@ function renderBuild() {
   const backPan=btn("← Pantry","#334155","#94a3b8",{border:"none",padding:"8px 10px",fontSize:"12px"},()=>{showScreen("screen-pantry");renderPantry();});
   const lbHdr=btn("🏆 Leaderboard","#0ea5e9","#fff",{border:"none",padding:"8px 12px",fontSize:"12px"},()=>void openLeaderboardModal());
   const randBtn=btn("🎰 Spin my mystery basket","#f59e0b","#fff",{animation:"rndPulse 2s ease-in-out infinite"},()=>runMysteryRandomize());
-  const launchBtn=btn(`Launch — beat AI → · ${gamesLeftLabel}`,state.req.length===0?"#475569":"#6366f1","#fff",{cursor:state.req.length===0?"not-allowed":"pointer",fontSize:"12px"},()=>{if(state.req.length>0)doLaunch();});
+  const launchBtn=btn(`Launch — beat AI → · ${gamesLeftLabel}`,"#6366f1","#fff",{cursor:"pointer",fontSize:"12px"},()=>doLaunch());
   hbtns.append(backPan,lbHdr,randBtn,launchBtn);
   hdr.append(hleft,hbtns);
   sc.appendChild(hdr);
@@ -2977,7 +2977,7 @@ function renderBuild() {
   Object.entries(DIFF).forEach(([k,d])=>{
     const totalRestr=Math.max(Number(d.res)||0, Number(d.forb)||0);
     const b=el("button",{style:{flex:"1",minWidth:"80px",background:state.diff===k?"#1e293b":"#f8fafc",border:"2px solid "+(state.diff===k?"#6366f1":"#e2e8f0"),borderRadius:"10px",padding:"9px 6px",cursor:"pointer",textAlign:"center"}});
-    b.innerHTML=`<div style="font-size:17px;margin-bottom:2px">${d.emoji}</div><div style="font-size:12px;font-weight:800;color:${state.diff===k?"#fff":"#0f172a"}">${d.label}</div><div style="font-size:10px;color:#94a3b8">${d.req} must-use · ${totalRestr} restriction</div>`;
+    b.innerHTML=`<div style="font-size:17px;margin-bottom:2px">${d.emoji}</div><div style="font-size:12px;font-weight:800;color:${state.diff===k?"#fff":"#0f172a"}">${d.label}</div><div style="font-size:10px;color:#94a3b8">~${d.req} in spin · ${totalRestr} rule${totalRestr===1?"":"s"}</div>`;
     b.addEventListener("click",()=>{
       state.diff=k;
       state.mysterySpinLocked=false;
@@ -3004,28 +3004,16 @@ function renderBuild() {
   const rlbl=el("span",{class:"lbl"});rlbl.textContent="Must-use basket";
   const heroTitle=div({class:"pw-basket-hero-title"});heroTitle.textContent="Your ingredients";
   const heroSub=div({class:"pw-basket-hero-sub"});
-  heroSub.textContent=`${cfg.req} required for ${String(state.diff).toUpperCase()} on this difficulty — add from your pantry or spin random. Hover a chip for cook notes.`;
+  heroSub.textContent="Add as many must-use ingredients as you want (or none). Use Spin my mystery basket in the header for a full random haul, or build the list yourself. Hover a chip for cook notes.";
   heroIntro.append(rlbl,heroTitle,heroSub);
   const rHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"14px",flexWrap:"wrap",marginBottom:"14px"}});
   const rbtns=div({style:{display:"flex",gap:"6px",flexWrap:"wrap",flexShrink:"0"}});
-  rbtns.append(
-    btn("+ Add","#6366f1","#fff",{padding:"8px 14px",fontSize:"12px",fontWeight:"800"},()=>openModal("ingredient")),
-    btn("Random "+cfg.req,"#f1f5f9","#475569",{border:"2px solid #818cf8",padding:"8px 12px",fontSize:"12px",fontWeight:"800"},()=>{
-      const {serial, hot}=beginMysterySpinCooldownTurn();
-      const p=pantryPool();
-      const cd={spinSerial:serial, hot};
-      state.req=pickRequiredPattern(p,cfg.req,state.res,cd);
-      state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,p,state.res,pwChaosOrInsane(),cd);
-      recordRequiredUsage(state.req);
-      finalizeMysterySpinSelection(serial, hot, {req:state.req,res:state.res,forbEq:state.forbEq,reqEq:state.reqEq});
-      renderBuild();
-    })
-  );
+  rbtns.append(btn("+ Add ingredient","#6366f1","#fff",{padding:"8px 14px",fontSize:"12px",fontWeight:"800"},()=>openModal("ingredient")));
   rHead.append(heroIntro,rbtns);
   rCard.appendChild(rHead);
   if(state.req.length===0){
     const e=div({style:{fontSize:"15px",fontWeight:"600",color:"#64748b",marginBottom:"14px",padding:"22px 18px",textAlign:"center",background:"rgba(255,255,255,0.72)",borderRadius:"14px",border:"2px dashed #a5b4fc",lineHeight:1.45}});
-    e.textContent="Nothing in the basket yet — tap Random or add from the pantry strip below.";
+    e.innerHTML="Nothing in the basket yet — use <strong>Spin my mystery basket</strong> above, <strong>+ Add ingredient</strong>, or the pantry strip below.";
     rCard.appendChild(e);
   }
   const reqChips=div({class:"chip-row"});
@@ -3169,11 +3157,9 @@ function renderBuild() {
 
   // LAUNCH BUTTON
   const launchWrap=div({style:{marginTop:"0"}});
-  const lb=el("button",{style:{width:"100%",padding:"13px",fontSize:"14px",fontWeight:"900",borderRadius:"12px",cursor:state.req.length===0?"not-allowed":"pointer",background:state.req.length===0?"#94a3b8":"#6366f1",color:"#fff",border:"none",lineHeight:"1.35"}});
-  lb.textContent=state.req.length===0
-    ? `Add required ingredients to launch · ${gamesLeftLabel}`
-    : `Launch — beat AI · ${state.ctype.emoji} ${state.ctype.label} · ${state.diff.toUpperCase()} · ${gamesLeftLabel}`;
-  lb.addEventListener("click",()=>{if(state.req.length>0)doLaunch();});
+  const lb=el("button",{style:{width:"100%",padding:"13px",fontSize:"14px",fontWeight:"900",borderRadius:"12px",cursor:"pointer",background:"#6366f1",color:"#fff",border:"none",lineHeight:"1.35"}});
+  lb.textContent=`Launch — beat AI · ${state.ctype.emoji} ${state.ctype.label} · ${state.diff.toUpperCase()} · ${gamesLeftLabel}`;
+  lb.addEventListener("click",()=>doLaunch());
   launchWrap.appendChild(lb);
   wrap.appendChild(launchWrap);
   sc.appendChild(wrap);
@@ -3202,10 +3188,6 @@ function challengeFromBuilder(){
 
 function doLaunch() {
   const cfg=DIFF[state.diff];
-  if(state.req.length<cfg.req){
-    alert(`This difficulty needs ${cfg.req} required ingredients that fit your restrictions — you have ${state.req.length}. Add pantry items or ease restrictions.`);
-    return;
-  }
   if(state.req.some(n=>ingredientConflictsWithAny(n,state.res))){
     alert("A required ingredient still conflicts with a restriction. Check your basket.");
     return;
@@ -3503,7 +3485,7 @@ ${challengeIntentJudgeAddon(ch.ctype)}${restrictionsJudgeAddon(ch)}${noSaltRestr
 Challenge:
 - Type: ${ch.ctype.label}
 - Time: ${ch.totalTime} minutes
-- Required: ${ch.required.join(", ")}
+- Required: ${(ch.required&&ch.required.length)?ch.required.join(", "):"none (pantry + course brief only)"}
 - Restrictions: ${(ch.restrictions||[]).join(", ")||"none"}
 
 USER PLAN (competitor ${cVs} — human side scored vs AI):
@@ -4654,7 +4636,10 @@ async function generateRecipe() {
     const re=ch.reqEquip.length?`Must use equipment: ${ch.reqEquip.join(", ")}.`:"";
     const bl=ch.limitBurners?"1 burner only.":"";
     const pantryLines=ch.pantry.length<=35?ch.pantry.join(", "):ch.pantry.slice(0,35).join(", ")+", …";
-    const sig=analyzeBasketForRecipe(ch.required);
+    const reqBasketPromptLine=(ch.required&&ch.required.length)
+      ?`REQUIRED BASKET (each must CARRY the dish, not garnish-only): ${ch.required.join(", ")}`
+      :`REQUIRED BASKET: none named — build **one coherent dish** from **PANTRY** + challenge type; no separate must-use omissions to satisfy; still obey restrictions and equipment.`;
+    const sig=analyzeBasketForRecipe(ch.required||[]);
     let maxSteps=Math.min(8,Math.max(5,Math.floor(ch.totalTime/4)));
     if(sig.hardBasket) maxSteps=Math.min(maxSteps,7);
     const maxComponents=ch.totalTime<=35?3:ch.totalTime<=50?4:5;
@@ -4767,7 +4752,7 @@ ${snackHard?`- HARD: balance.texture MUST name **crunch or crisp** (fry, chip, s
 JSON SYNTAX (must be machine-parseable): Do not put unescaped " inside any string value. For sizes write 2-inch or 2 in, not inch marks with quotes. No raw line breaks inside strings — keep each string on one line or use \\n.
 
 CHALLENGE: ${ch.ctype.label} | DIFFICULTY: ${ch.diff} | TIME: ${ch.totalTime}min (Prep ${ch.prepTime}, Cook ${ch.cookTime})
-${hardDiffBar}REQUIRED BASKET (each must CARRY the dish, not garnish-only): ${ch.required.join(", ")}
+${hardDiffBar}${reqBasketPromptLine}
 PANTRY you may use (only these + basics like salt/oil/water): ${pantryLines}
 ${culinaryEngineBrief(ch)}${basketCookFundamentalsBlock(ch)}${basketClockPlaybookBlock(ch)}${basketTechniqueMatrixBlock(ch)}${basketIngredientToolkitBlock(ch)}${basketTransformationPreflightBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${res}
 ${fe} ${re} ${bl}
@@ -4999,7 +4984,6 @@ function openContestPlanModal(cr){
 async function generateContestRecipe(){
   // Always snapshot the live builder — state.challenge is only set at Launch and goes stale after edits or Back.
   const ch=challengeFromBuilder();
-  if(!(ch.required&&ch.required.length)){alert("Pick at least one required ingredient (or spin the mystery basket) first.");return;}
   if(!pwCanUseAiRound()){
     pwTrackDailyLimitHit("contest_plan_blocked");
     alert(PW_DAILY_LIMIT_MESSAGE);
@@ -5037,7 +5021,7 @@ Tagline: ${(rr.tagline||"").slice(0,160)}
 Write a WINNING, execution-tight plan — not a copy of any rival draft. Different angles, clearer priorities, fewer moving parts.
 
 ${rivalBlock}
-MUST USE: ${ch.required.join(", ")}
+MUST USE: ${(ch.required&&ch.required.length)?ch.required.join(", "):"none — compose from pantry list + course; no named basket items to clear."}
 RESTRICTIONS (mandatory — same binding rules as the rival chef): ${(ch.restrictions||[]).length?(ch.restrictions||[]).join("; "):"none"}
 EQUIPMENT: must ${(ch.reqEquip||[]).join(", ")||"—"} · forbidden ${(ch.forbEquip||[]).join(", ")||"—"}${ch.limitBurners?" · 1 burner only":""}
 ${processEquipmentPromptBlock(ch)}
@@ -5221,7 +5205,7 @@ function renderActive() {
         <div style="background:#fff;border:2px solid #e2e8f0;border-radius:10px;padding:10px 12px">
           ${["PREP","COOK","TOTAL"].map((l,i)=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f1f5f9"><span style="font-size:10px;font-weight:700;color:#94a3b8">${l}</span><span style="font-size:13px;font-weight:800;color:#0f172a">${[ch.prepTime,ch.cookTime,ch.totalTime][i]}m</span></div>`).join("")}
           <div style="margin-top:10px;font-size:10px;font-weight:800;color:#6366f1;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Must Use</div>
-          ${ch.required.map(i=>`<div style="padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:700;color:#0f172a">☐ ${i}</div>`).join("")}
+          ${(ch.required&&ch.required.length)?ch.required.map(i=>`<div style="padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:700;color:#0f172a">☐ ${escapeHtml(i)}</div>`).join(""):`<div style="padding:6px 0;font-size:12px;font-weight:600;color:#64748b">No named items — cook from pantry list + brief.</div>`}
         </div>
         <div style="display:flex;flex-direction:column;gap:8px">
           <div style="background:#eef2ff;border:2px solid #a5b4fc;border-radius:10px;padding:10px 12px">
@@ -8711,18 +8695,7 @@ function filterPoolForBasketRules(pool, reqArr, resArr){
 }
 
 function pruneConflictingReq(cfg, cdOpt){
-  const need=cfg.req;
   state.req=state.req.filter(n=>!ingredientConflictsWithAny(n,state.res));
-  let pool=filterPoolByRestrictions(pantryPool(),state.res).filter(x=>!state.req.includes(x));
-  pool=filterPoolForBasketRules(pool,state.req,state.res);
-  const nonBasicPool=pool.filter(n=>!isSpinnerBasicIngredientName(n));
-  if(nonBasicPool.length>=Math.max(0, need-state.req.length)) pool=nonBasicPool;
-  if(cdOpt&&cdOpt.hot!=null&&cdOpt.spinSerial!=null)
-    pool=filterIngredientsForCooldown(pool,cdOpt.spinSerial,cdOpt.hot);
-  while(state.req.length<need && pool.length){
-    const i=randomIndex(pool.length);
-    state.req.push(pool.splice(i,1)[0]);
-  }
   const p=pantryPool();
   state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,p,state.res,pwChaosOrInsane(),cdOpt);
 }
