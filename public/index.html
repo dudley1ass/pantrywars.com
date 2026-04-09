@@ -1151,15 +1151,38 @@ const PROTEIN_MIN_CLOCK_MINUTES={
   "Whole Chicken":38,
 };
 const GRAIN_MIN_CLOCK_MINUTES={
-  "Barley (Pearl)":25,
   "Arborio Rice":18,
+  "Barley (Pearl)":25,
+  "Farro":30,
+  "Green Lentils":28,
+  "Quinoa":18,
+  "Red Lentils":15,
+  "Split Peas":40,
+  "Polenta":28,
+  "Chickpeas":30,
+  "Wild Rice":42,
+  "Brown Rice":35,
+  "Jasmine Rice":18,
+  "White Rice":18,
 };
 
-function minClockMinutesForPantryName(name){
+/**
+ * Prefix violation text for eval / matrix triage (grep `[PW:`).
+ * Codes: GRAIN_MIN_CLOCK, PROTEIN_MIN_CLOCK, PASTA_PARALLEL_DRAIN, PRESSURE_BUILD_MIN,
+ * PRESSURE_RAMP, PRESSURE_RAMP_DETAIL, CULTURED_DAIRY_HEAT, VOLATILE_AROMATIC_HEAT (+ matrix adds more over time).
+ */
+function pwViol(code,message){
+  return `[PW:${code}] ${message}`;
+}
+
+function proteinMinClockMinutesForName(name){
   const meta=pantryMetaByName(name);
   if(meta&&Number.isFinite(Number(meta.minClockMinutes))){
-    const n=Math.round(Number(meta.minClockMinutes));
-    if(n>0&&n<=600) return n;
+    const cat=String(meta.cat||"");
+    if(/\bproteins?\b/i.test(cat)){
+      const n=Math.round(Number(meta.minClockMinutes));
+      if(n>0&&n<=600) return n;
+    }
   }
   const key=String(name||"").trim();
   if(!key) return null;
@@ -1168,11 +1191,33 @@ function minClockMinutesForPantryName(name){
   for(const k of Object.keys(PROTEIN_MIN_CLOCK_MINUTES)){
     if(k.toLowerCase()===low) return PROTEIN_MIN_CLOCK_MINUTES[k];
   }
+  return null;
+}
+
+function grainMinClockMinutesForName(name){
+  const meta=pantryMetaByName(name);
+  if(meta&&Number.isFinite(Number(meta.minClockMinutes))){
+    const cat=String(meta.cat||"");
+    if(/\bgrains?\s*&\s*legumes\b/i.test(cat)){
+      const n=Math.round(Number(meta.minClockMinutes));
+      if(n>0&&n<=600) return n;
+    }
+  }
+  const key=String(name||"").trim();
+  if(!key) return null;
   if(GRAIN_MIN_CLOCK_MINUTES[key]!=null) return GRAIN_MIN_CLOCK_MINUTES[key];
+  const low=key.toLowerCase();
   for(const k of Object.keys(GRAIN_MIN_CLOCK_MINUTES)){
     if(k.toLowerCase()===low) return GRAIN_MIN_CLOCK_MINUTES[k];
   }
   return null;
+}
+
+function minClockMinutesForPantryName(name){
+  const p=proteinMinClockMinutesForName(name);
+  const g=grainMinClockMinutesForName(name);
+  if(p!=null&&g!=null) return Math.max(p,g);
+  return p!=null?p:g;
 }
 
 /** Prose signals that the plan uses a competition-viable fast lane for collagen / whole-bird cuts. */
@@ -1476,10 +1521,12 @@ function basketCookFundamentalsBlock(ch){
   for(const name of req){
     const meta=pantryMetaByName(name);
     const cs=meta&&meta.cookSheet!=null?String(meta.cookSheet).trim():"";
-    const mcm=minClockMinutesForPantryName(name);
+    const pM=proteinMinClockMinutesForName(name);
+    const gM=grainMinClockMinutesForName(name);
     const bits=[];
     if(cs) bits.push(cs);
-    if(mcm&&t<mcm) bits.push(`**Clock:** classic braise/roast for this cut often needs ~${mcm}+ min; this round is ${t} min — use grind, thin sear, leftover/deli, breakdown + parts, or pressure (if allowed).`);
+    if(pM&&t<pM) bits.push(`**Clock (protein/collagen):** ~${pM}+ min for a classic braise/roast story; this round is ${t} min — grind, thin sear, leftover/deli, breakdown + parts, or pressure (if allowed).`);
+    else if(gM&&t<gM) bits.push(`**Clock (grain/starch):** ~${gM}+ min to cook tender; this round is ${t} min — pre-cooked/leftover, instant/quick form, or dry-toast/garnish-only — not a central simmered base without honest time.`);
     if(bits.length) lines.push(`• ${name}: ${bits.join(" ")}`);
   }
   if(!lines.length) return "";
@@ -1529,6 +1576,8 @@ function classifyIngredientForEngine(name){
     return {cls:"LEAN_POULTRY",hint:"Thin slice, cutlet, butterfly — avoid thick whole roast on short clock."};
   if(/\b(pork belly|belly slab)\b/.test(n))
     return {cls:"FAT_CUT",hint:"Dice/render or pressure path — full crackling slab rarely fits short clock without honest time."};
+  if(/\bjackfruit\b/.test(n))
+    return {cls:"JACKFRUIT",hint:"Young green = **shredded pulled texture** (tacos, sandwich, sloppy Joe-class) — for **Recreate a Classic**, pick a **named pulled-meat classic** the judge recognizes, not a random grain template."};
   return {cls:"GENERAL",hint:"Follow technique matrix + cook fundamentals; match method to clock."};
 }
 
@@ -3567,6 +3616,34 @@ const PW_CHEAP_EVERYDAY_MEAL_EXAMPLES = `CANONICAL CHEAP / EVERYDAY BASELINES (i
 • Snack-level: basic nachos (chips + cheese), quesadilla, popcorn, french fries
 • Takeout cheap: basic lo mein, basic fried rice, chicken nuggets, dollar-menu burger`;
 
+/**
+ * Deterministic basket × challenge pairing — reduces "default template" drift (risotto, fusion noodles, etc.).
+ * Injected into rival + coach prompts after typed intent.
+ */
+function challengeBasketAffinityPreflightBlock(ch){
+  if(!ch) return "";
+  const req=(ch.required||[]).map(s=>String(s).toLowerCase()).join(" ");
+  const lines=[];
+  if(challengeTypeIsRecreateClassic(ch.ctype)&&/\bjackfruit\b/.test(req)){
+    lines.push("• **Jackfruit** + RECREATE A CLASSIC → prioritize a **named pulled-pork / carnitas / sloppy-Joe–class** dish judges recognize — **not** a generic **risotto** or unrelated grain showcase unless **arborio/rice is clearly the star** of the haul.");
+  }
+  if(challengeTypeIsDinerClassic(ch.ctype)&&/\banchovy\b/.test(req)&&/\b(lemon|lemon\s+juice)\b/.test(req)){
+    lines.push("• **Anchovy + lemon** + DINER CLASSIC → **Caesar salad** (or an unmistakable counter-salad cousin) beats anonymous **fusion noodles** unless the title names a **different menu-clear diner dish** and stays in that lane.");
+  }
+  const rSan=sanitizeRestrictionList(ch.restrictions||[]);
+  if(rSan.some(x=>normalizeRestrictionKey(x)==="Vegan")&&/\bmarshmallow\b/.test(req)){
+    lines.push("• **Marshmallow** + **Vegan** → treat **gelatin / egg-white marshmallows** as a hard fail; plan **vegan marshmallow / aquafaba meringue / agar** explicitly **before** composing the dish.");
+  }
+  if(challengeTypeIsElevateCheap(ch.ctype)&&/\b(arborio|risotto)\b/i.test(req)&&/\b(mushroom|porcini|shiitake)\b/i.test(req)){
+    lines.push("• **Arborio + mushrooms** + ELEVATE CHEAP → do **not** silently pivot to **restaurant risotto** unless the **named cheap baseline** is already rice/pilaf-class; keep the **before-dish** visible.");
+  }
+  if(!lines.length) return "";
+  return `CHALLENGE × BASKET AFFINITY (read before picking a recipe template):
+${lines.join("\n")}
+
+`;
+}
+
 /** Short block for competition-coach prompt (same intent as rival chef). */
 function challengeIntentCoachBlock(ctype){
   if(challengeTypeIsRecreateClassic(ctype)){
@@ -3881,7 +3958,8 @@ function physicsRealismJudgeAddon(ch){
   return `
 PHYSICS & CLOCK REALISM (apply to BOTH competitors' plans):
 - Penalize taste/technique credibility when a plan implies outcomes that need hours (fork-tender braised tough cuts, full traditional long braise) in ~${t} min without a credible shortcut (pressure cooker / Instant Pot named when used, honest "inspired by" reframing, oxtail as accent after pressure, stock concentrate, smaller pieces + realistic timing).
-- Reward plans that match technique to time; downscore fantasy timing even if flavor ideas sound clever.`;
+- Reward plans that match technique to time; downscore fantasy timing even if flavor ideas sound clever.
+- **Basket integration vs presence:** score **load-bearing use** separately from "mentioned on the plate." Downscore when a required ingredient could be deleted with only minor loss (sprinkle-only, mute drizzle, parallel lane that never ties to the bite). Upweight when each required item **holds structure, acid, fat, or identity** the dish would collapse without — same spirit as fine-dining interdependence.`;
 }
 
 /** Gluten + GF pasta timing / fish sauce labeling — judging lens when restrictions + basket match. */
@@ -4523,6 +4601,7 @@ ${savoryChocolateBlock}
 ${shelfSweetSavoryBlock}
 ${dessertAwkwardBlock}
 ${challengeIntentCoachBlock(ch.ctype)||""}
+${challengeBasketAffinityPreflightBlock(ch)}
 ${dinerAnchovyWokBlock}
 ${comfortReinventedSaltFreshSplitBlock(ch)}
 ${PW_CHALLENGE_SOUL_APPENDIX}
@@ -4606,6 +4685,10 @@ EVAL MATRIX — COMPETITION REALISM (judges notice; machine checks some):
 - **Day-old / leftover rice**: if the plan needs **cold/dry rice** (fried rice, wok rice) but REQUIRED/PANTRY only has **raw grain**, budget **~18–20 min cook + spread/cool** or state **cooked rice was supplied** — don’t hide that clock cost.
 - **Pasta parallel clock**: **spaghetti/long pasta in the pot does not wait** — treat boil-to-al-dente as its **own countdown**; **drain/strain/reserve on time** even if another lane runs long. Steps with **\`time\` + \`dur\`** must show the **drain** before the line overruns **drop time + boil minutes**.
 - **Squid (flash)**: **~60–90s max** in **ripping heat**; **pat dry / single layer / batches** — **wet surface, crowding, or low gentle heat** → steam → **rubber** (long braise/stew squid is a different story — say so).
+- **Grains / legumes vs clock**: **farro, pearl barley, wild rice, brown rice, green lentils, split peas, polenta (simmered)** need **real simmer minutes** — if the round is shorter than a credible tender cook, use **pre-cooked / leftover**, **quick-cook SKU**, or **dry-toast / garnish-only** — not a fantasy 12-minute center-plate porridge.
+- **Cultured dairy + dry heat**: **crème fraîche, sour cream, yogurt** in **hot oven / air fryer** without **starch binder** (slurry, roux, béchamel) → **break / curdle** — finish off heat or protect.
+- **Volatile aromatics**: **yuzu, finger lime, chervil** — **heat_stable: false** for long cooks; **finish raw / dressing / pass** — not primary **air-fry / broil / 20+ min reduction** flavor spine.
+- **Instant Pot / pressure**: **~8–12 min** (often more) **to seal and reach pressure** before the **at-pressure** timer — never a **2–5 min** step as the whole pressure story.
 - **Hearts of palm (model double-use)**: exemplary pattern = **charred batons / hot structure** + **raw shaved or crema** from the same ingredient — temperature + texture contrast in one bite; worth aiming for when palm is in the haul.
 - **Yellow mustard + dessert**: among the hardest placements — vinegar/turmeric read **condiment**. Needs **heavy reduction** (vinegar off), **trace** use, or **savory contrast** — not an unchallenged sweet/custard spine.
 - **Radish (or peppery brassica) + sweet**: glucosinolates need **~8–10+ min sustained heat** to mellow; **~2 min sauté** stays peppery — extend roast/sauté/caramel or treat as **savory counterpoint**, not faux jam.
@@ -4658,7 +4741,7 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
       const formViol=getProteinFormTransformationViolations(data,ch);
       const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, fruitDriftViol, formatViol, kitchenViol, evalMatrixViol, classicViol, plantViol, formViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy with real acid, brisket/collagen realism, must-use equipment centrality especially Wok vs oven story, blender on filling when assigned, **processEquipment** must list every tool the method needs and must not list forbidden gear (baked tart ⇒ Oven unless you pivot), timeline, basket coverage for every REQUIRED name, named fruit sauces only for fruits in REQUIRED or PANTRY (no strawberry reduction if only plum is in the haul), seitan/tempeh transformation not garnish-only, **protein form vs technique** (e.g. silken tofu = no dredge-fry crumble — see PROTEIN FORM & TRANSFORMATION block), appetizer vs dessert read, competition edge on appetizer/entree — acid/heat/char named in balance.flavor, savory dark chocolate integrated (not dessert drizzle on meat), marshmallow on savory = heat transformation not cold dairy fold, dessert awkward basket (snap peas need technique, tofu/quinoa/caramel need transformation — not parfait drizzle), format honesty, kitchen science, restrictions, **EVAL MATRIX** — no juicy fruit in fritter batter, broil+greens order, pressed-grain rest before sear, no second heat on scallion garnish, **rillettes** only for slow meat in/set in fat (not cold butter + quick pull), **bay leaf in fat** ~5+ min low or ~10 min bloom (not 1–4 min alone), **soy/tamari in 2+ steps** each step names its own acid/cut, **pork tenderloin ~1\" medallions** ≤2.5 min/side (not 3+), **day-old rice** = cook+cool budget or cooked rice in haul, **pasta** = drain/strain aligned to **drop+boil** (parallel clock), **squid flash** = dry + high heat + batches + ~60–90s (not long gentle sauté), **yellow mustard + dessert** mitigation, **radish + sweet** 8–10+ min heat, **restrictionCompliance** when restrictions apply). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy with real acid, brisket/collagen realism, must-use equipment centrality especially Wok vs oven story, blender on filling when assigned, **processEquipment** must list every tool the method needs and must not list forbidden gear (baked tart ⇒ Oven unless you pivot), timeline, basket coverage for every REQUIRED name, named fruit sauces only for fruits in REQUIRED or PANTRY (no strawberry reduction if only plum is in the haul), seitan/tempeh transformation not garnish-only, **protein form vs technique** (e.g. silken tofu = no dredge-fry crumble — see PROTEIN FORM & TRANSFORMATION block), appetizer vs dessert read, competition edge on appetizer/entree — acid/heat/char named in balance.flavor, savory dark chocolate integrated (not dessert drizzle on meat), marshmallow on savory = heat transformation not cold dairy fold, dessert awkward basket (snap peas need technique, tofu/quinoa/caramel need transformation — not parfait drizzle), format honesty, kitchen science, restrictions, **EVAL MATRIX** — no juicy fruit in fritter batter, broil+greens order, pressed-grain rest before sear, no second heat on scallion garnish, **rillettes** only for slow meat in/set in fat (not cold butter + quick pull), **bay leaf in fat** ~5+ min low or ~10 min bloom (not 1–4 min alone), **soy/tamari in 2+ steps** each step names its own acid/cut, **pork tenderloin ~1\" medallions** ≤2.5 min/side (not 3+), **day-old rice** = cook+cool budget or cooked rice in haul, **pasta** = drain/strain aligned to **drop+boil** (parallel clock), **squid flash** = dry + high heat + batches + ~60–90s (not long gentle sauté), **grain/starch min cook vs round** (farro/barley/lentils etc. → pre-cooked or toast-only if clock too short), **cultured dairy** in hot oven/air fry → **starch binder** or off-heat finish, **yuzu/volatile aromatics** → raw/finish not long hot reduction or air-fry spine, **pressure** = **~8–12 min to full pressure** before at-pressure timer (not 2–5 min total fiction), follow **CHALLENGE × BASKET AFFINITY** block when present, **yellow mustard + dessert** mitigation, **radish + sweet** 8–10+ min heat, **restrictionCompliance** when restrictions apply). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
       if(attempt===maxAttempts-1) state.recipeRestrictionWarnings=viol;
     }
     state.recipe=data;
@@ -4791,6 +4874,7 @@ ${savoryDarkChocolateBasketPromptBlock(ch)}
 ${shelfSweetWildcardSavoryPromptBlock(ch)}
 ${dessertAwkwardBasketPromptBlock(ch)}
 ${challengeIntentCoachBlock(ch.ctype)||""}
+${challengeBasketAffinityPreflightBlock(ch)}
 ${dinerWokAnchovyLemonSesameBlock(ch)}
 ${comfortReinventedSaltFreshSplitBlock(ch)}
 ${PW_CHALLENGE_SOUL_APPENDIX}
@@ -4804,7 +4888,7 @@ ${couscousMalangaSeitanTechniqueBlock(ch)}
 ${streetFoodOkraMarjoramLaneBlock(ch)}
 ${comfortWingMacExecutionBlock(ch)}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
-EVAL MATRIX (same as rival): no juicy fruit **in** fritter/tempura batter; broil + kale/spinach → remove/shield greens or separate tray; pressed grain cakes need brief rest before sear; torch/heat-gun second pass must not target scallion/herb garnish — add herbs after heat. **Rillettes** = slow meat in/set in fat (confit); not cold butter + quick-seared pull — say **pulled [protein]** instead. **Bay leaf + fat**: ~5–7 min low or ~10 min off-heat bloom — not 1–4 min only. **Soy in 2+ steps** = sodium stack: **acid/cut per step** (not one lime for dressing+glaze). **Pork tenderloin ~1\" medallions**: **2–2.5 min/side** max — **3+ min/side** overshoots ~145°F. **Day-old rice**: if haul is raw grain only → **~18–20 min cook+cool** or say rice was pre-cooked. **Pasta**: **drain at al dente on its own clock** — don’t let other steps run past **drop + boil time** without a **drain/strain** step aligned on **\`time\`/\`dur\`**. **Squid flash**: **dry, ripping heat, single layer/batches, ~60–90s** — not wet, crowded, or minutes-long gentle sauté. **Hearts of palm**: charred + raw shaved/crema = strong double-use. **Yellow mustard + dessert**: reduction/trace/savory contrast — not raw condiment in custard. **Radish + sweet**: 8–10+ min heat or savory-only — not 2 min sauté to sweet.
+EVAL MATRIX (same as rival): no juicy fruit **in** fritter/tempura batter; broil + kale/spinach → remove/shield greens or separate tray; pressed grain cakes need brief rest before sear; torch/heat-gun second pass must not target scallion/herb garnish — add herbs after heat. **Rillettes** = slow meat in/set in fat (confit); not cold butter + quick-seared pull — say **pulled [protein]** instead. **Bay leaf + fat**: ~5–7 min low or ~10 min off-heat bloom — not 1–4 min only. **Soy in 2+ steps** = sodium stack: **acid/cut per step** (not one lime for dressing+glaze). **Pork tenderloin ~1\" medallions**: **2–2.5 min/side** max — **3+ min/side** overshoots ~145°F. **Day-old rice**: if haul is raw grain only → **~18–20 min cook+cool** or say rice was pre-cooked. **Pasta**: **drain at al dente on its own clock** — don’t let other steps run past **drop + boil time** without a **drain/strain** step aligned on **\`time\`/\`dur\`**. **Squid flash**: **dry, ripping heat, single layer/batches, ~60–90s** — not wet, crowded, or minutes-long gentle sauté. **Grains**: farro/barley/wild rice/brown rice/green lentil/split pea/polenta need honest simmer time or pre-cooked/toast-only. **Cultured dairy**: no hot oven/air fry without starch binder. **Yuzu/chervil**: finish raw — not air-fry spine. **Pressure**: +8–12 min to pressure before timer. **Hearts of palm**: charred + raw shaved/crema = strong double-use. **Yellow mustard + dessert**: reduction/trace/savory contrast — not raw condiment in custard. **Radish + sweet**: 8–10+ min heat or savory-only — not 2 min sauté to sweet.
 {"title":"","tagline":"","processEquipment":["Oven"],"restrictionCompliance":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":"","dur":"optional e.g. 5 min"}],"lastMinuteTip":"one sentence"}
 restrictionCompliance: **""** if no restrictions. If RESTRICTIONS apply, one sentence naming the rule + compliant technique (e.g. "No Peeler — knife plank peel").
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts. Self-check every ingredient and step before returning.`;
@@ -4837,7 +4921,7 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
       const formViol=getProteinFormTransformationViolations(data,ch);
       const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, fruitDriftViol, formatViol, kitchenViol, evalMatrixViol, classicViol, plantViol, formViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (must-use equipment centrality, **processEquipment** lists required tools and excludes forbidden gear, blender on filling when assigned, timeline, basket coverage for every MUST USE name, named fruit sauces only for fruits in REQUIRED or PANTRY, seitan/tempeh transformation not garnish-only, **protein form vs technique** (silken vs firm tofu — see PROTEIN FORM & TRANSFORMATION), appetizer course fit, competition edge on appetizer/entree — acid/heat/char in flavorBalance, savory dark chocolate integrated when in basket (not dessert sauce on savory base), marshmallow on savory = heat move not cold ricotta fold, dessert snap/snow peas need blanch/sauté/char not raw garnish, format honesty, kitchen science — real emulsion names, bread not flour slices, **EVAL MATRIX** + **rillettes** + **bay / soy sodium / pork 1\" medallion sear / day-old rice clock / pasta parallel drain / squid flash 60–90s / mustard / radish sweet** + **restrictionCompliance** when restrictions apply). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (must-use equipment centrality, **processEquipment** lists required tools and excludes forbidden gear, blender on filling when assigned, timeline, basket coverage for every MUST USE name, named fruit sauces only for fruits in REQUIRED or PANTRY, seitan/tempeh transformation not garnish-only, **protein form vs technique** (silken vs firm tofu — see PROTEIN FORM & TRANSFORMATION), appetizer course fit, competition edge on appetizer/entree — acid/heat/char in flavorBalance, savory dark chocolate integrated when in basket (not dessert sauce on savory base), marshmallow on savory = heat move not cold ricotta fold, dessert snap/snow peas need blanch/sauté/char not raw garnish, format honesty, kitchen science — real emulsion names, bread not flour slices, **EVAL MATRIX** + **rillettes** + **bay / soy sodium / pork 1\" medallion sear / day-old rice clock / pasta parallel drain / squid flash 60–90s / grain min-clock / cultured dairy heat / volatile aromatics / pressure build 8–12m / mustard / radish sweet** + **CHALLENGE × BASKET AFFINITY** when injected + **restrictionCompliance** when restrictions apply). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
       if(att===maxAttempts-1) state.contestRecipeRestrictionWarnings=viol;
     }
     state.contestRecipe=data;
@@ -6390,9 +6474,9 @@ function getProteinMinClockViolations(recipe, ch){
   if(recipeProseSuggestsShortClockCompPath(low)) return msgs;
   if(/\b(pressure|instant\s*pot|pre[\s-]?cooked|pre[\s-]?braised|leftover|smoked|sous\s*vide|\d+\s*h(?:ou)?rs?\b)\b/i.test(low)) return msgs;
   for(const name of ch.required||[]){
-    const minM=minClockMinutesForPantryName(name);
+    const minM=proteinMinClockMinutesForName(name);
     if(minM==null||total>=minM) continue;
-    msgs.push(`Timeline: **${name}** usually needs **~${minM}+ min** for a classic braise/roast — this round is **${total} min**. Use grind / paper-thin sear / leftover or deli (named), breakdown + parts, or pressure (if allowed), and say so in steps; or change the cut.`);
+    msgs.push(pwViol("PROTEIN_MIN_CLOCK",`Timeline: **${name}** usually needs **~${minM}+ min** for a classic braise/roast — this round is **${total} min**. Use grind / paper-thin sear / leftover or deli (named), breakdown + parts, or pressure (if allowed), and say so in steps; or change the cut.`));
   }
   return msgs;
 }
@@ -6408,14 +6492,14 @@ function getGrainMinClockViolations(recipe, ch){
   if(fastLane) return msgs;
   for(const name of ch.required||[]){
     const key=String(name||"").trim();
-    const minM=GRAIN_MIN_CLOCK_MINUTES[key];
+    const minM=grainMinClockMinutesForName(key);
     if(minM==null||total>=minM) continue;
     const n=key.toLowerCase();
     // Only flag if recipe actually attempts a tender cooked grain path.
     const usedAsCooked=(new RegExp(`\\b${n.replace(/[.*+?^${}()|[\\]\\\\]/g,"\\$&")}\\b`,"i")).test(low)
-      && /\b(boil|simmer|cook\s+until|tender|porridge|pudding|risotto|pilaf|soften|stew)\b/i.test(low);
+      && /\b(boil|simmer|cook\s+until|tender|porridge|pudding|risotto|pilaf|soften|stew|farrotto)\b/i.test(low);
     if(!usedAsCooked) continue;
-    msgs.push(`Timeline: **${key}** typically needs **~${minM}+ min** to cook tender; this is a **${total} min** round. Use pre-cooked/leftover/instant form, or pivot ${key} to toasted/crisp garnish instead of central cooked base.`);
+    msgs.push(pwViol("GRAIN_MIN_CLOCK",`Timeline: **${key}** typically needs **~${minM}+ min** to cook tender; this is a **${total} min** round. Use pre-cooked/leftover/instant form, or pivot ${key} to toasted/crisp garnish instead of central cooked base.`));
   }
   return msgs;
 }
@@ -6563,7 +6647,7 @@ function getPastaParallelAlDenteDrainViolations(recipe, ch){
   if(drainAt!=null&&drainAt<=deadline+2) return msgs;
   const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
   if(/\b(shock|ice\s+bath)\b/.test(low)&&/\b(pasta|spaghetti)\b/.test(low)&&drainAt!=null&&drainAt<=deadline+3) return msgs;
-  msgs.push(`Pasta timeline — **parallel cook tracking**: pasta in the pot **does not wait** for the rest of the line — drop at **${formatChallengeTimelineClock(t0)}** with **~${cookM} min** to al dente means **drain/strain/reserve by ~${formatChallengeTimelineClock(deadline)}** on the same clock. The timeline still runs to **~${formatChallengeTimelineClock(maxEnd)}** without a matching **drain / al dente** beat → **overcooked pasta risk**.`);
+  msgs.push(pwViol("PASTA_PARALLEL_DRAIN",`Pasta timeline — **parallel cook tracking**: pasta in the pot **does not wait** for the rest of the line — drop at **${formatChallengeTimelineClock(t0)}** with **~${cookM} min** to al dente means **drain/strain/reserve by ~${formatChallengeTimelineClock(deadline)}** on the same clock. The timeline still runs to **~${formatChallengeTimelineClock(maxEnd)}** without a matching **drain / al dente** beat → **overcooked pasta risk**.`));
   return msgs;
 }
 
@@ -6769,7 +6853,27 @@ function pressureBuildBudgetLanguagePresent(low){
     || /\bpreheat(?:ed)?\s+.{0,48}(pressure\s+cook(?:er)?|instant\s+pot|electric\s+pressure)\b/.test(L)
     || /\bhot\s+(?:start|fill|liquid)\b/.test(L)&&/\bpressure\b/.test(L)
     || (/\bbefore\s+(?:the\s+)?(?:clock|round|challenge)\b/.test(L)&&/\bpressure\b/.test(L))
-    || /\b(natural|quick)\s+release\b/.test(L)&&/\b(\d{1,2})\s*min\b/.test(L);
+    || /\b(natural|quick)\s+release\b/.test(L)&&/\b(\d{1,2})\s*min\b/.test(L)
+    || /\b([8-9]|1[0-2])\s*min(?:ute)?s?\b[\s\S]{0,72}\b(?:to|until)\s+(?:full\s+)?pressure\b/i.test(L);
+}
+
+/** Short "at pressure" times (minutes) parsed from steps + prose — used for mandatory build overhead. */
+function findShortAtPressureCookMinutes(recipe,low){
+  let minM=null;
+  for(const s of (recipe&&recipe.steps)||[]){
+    const b=(String(s.what||"")+" "+String(s.how||"")).toLowerCase();
+    if(!/\b(pressure|instant\s*pot|multi[\s-]?cooker)\b/.test(b)) continue;
+    const d=minutesFromStepDur(s&&s.dur);
+    if(d>=1&&d<=8) minM=minM==null?d:Math.min(minM,d);
+  }
+  const L=String(low||"");
+  const re=/\b(\d{1,2})\s*min(?:ute)?s?\b[\s\S]{0,120}?(?:at\s+|under\s+)?(?:high\s+)?pressure\b/gi;
+  let m;
+  while((m=re.exec(L))!==null){
+    const n=+m[1];
+    if(n>=1&&n<=8) minM=minM==null?n:Math.min(minM,n);
+  }
+  return minM;
 }
 
 /** Pressure / IP: timed phase is not the whole story — seal, pressurize, depressurize need minutes on the clock. */
@@ -6780,6 +6884,13 @@ function getPressureCookerRampViolations(recipe, ch){
   const usesPc=/\b(pressure\s+cook(?:er)?|instant\s+pot|electric\s+pressure|multi[\s-]?cooker|stovetop\s+pressure)\b/i.test(low)
     ||(/\bpressure\b/.test(low)&&/\block\b/.test(low)&&/\b(lid|seal|vent|valve|psi)\b/i.test(low));
   const timedPhase=/\b(\d{1,2})\s*min\b[\s\S]{0,160}?\b(?:high\s+)?pressure\b|\b(?:high\s+)?pressure\b[\s\S]{0,120}?\b(\d{1,2})\s*min\b/i.test(low);
+  if(usesPc&&timedPhase&&!pressureBuildBudgetLanguagePresent(low)){
+    const shortM=findShortAtPressureCookMinutes(recipe,low);
+    if(shortM!=null&&shortM<=8){
+      msgs.push(pwViol("PRESSURE_BUILD_MIN",`Pressure / Instant Pot: **~8–12 min** (often more on full liquid / bone-in) to **seal and reach full pressure** is fixed overhead **before** the at-pressure timer — **${shortM} min** for the whole pressure line alone is not credible. Add **explicit come-to-pressure + release** minutes (or **hot start / less liquid** named honestly).`));
+      return msgs;
+    }
+  }
   if(!usesPc||!timedPhase) return msgs;
   if(pressureBuildBudgetLanguagePresent(low)) return msgs;
 
@@ -6798,9 +6909,9 @@ function getPressureCookerRampViolations(recipe, ch){
     if(d>longestDur) longestDur=d;
   }
   if(earliestBig!=null&&earliestBig<14&&longestDur>=15)
-    msgs.push(`Pressure cooker: **seal + come to high pressure** on **bone-in / full liquid** loads often needs **~8–12+ min** (many stovetop) or **~5–10+ min** (many electrics) **before** the counted pressure phase — plus **natural/quick release** minutes. Your timeline may compress that into **lock lid → cook**. Add **explicit build / at-pressure** minutes (or **preheated / smaller load / hot liquid**) and **release** time${longestDur>=22?" — oxtail-class braises rarely forgive a 2-minute implied pressurize":""}.`);
+    msgs.push(pwViol("PRESSURE_RAMP_DETAIL",`Pressure cooker: **seal + come to high pressure** on **bone-in / full liquid** loads often needs **~8–12+ min** (many stovetop) or **~5–10+ min** (many electrics) **before** the counted pressure phase — plus **natural/quick release** minutes. Your timeline may compress that into **lock lid → cook**. Add **explicit build / at-pressure** minutes (or **preheated / smaller load / hot liquid**) and **release** time${longestDur>=22?" — oxtail-class braises rarely forgive a 2-minute implied pressurize":""}.`));
   else
-    msgs.push(`Pressure cooker: budget **pressurization + depressurization** in the timeline — not only **minutes at pressure**. Heavy loads need several minutes to **reach** full pressure before the timer story is valid.`);
+    msgs.push(pwViol("PRESSURE_RAMP",`Pressure cooker: budget **pressurization + depressurization** in the timeline — not only **minutes at pressure**. Heavy loads need several minutes to **reach** full pressure before the timer story is valid.`));
 
   return msgs;
 }
@@ -7149,7 +7260,7 @@ function getRequiredBasketIntegrationDepthViolations(recipe, ch){
   const msgs=[];
   if(!recipe||!ch) return msgs;
   const diff=String(ch.diff||"").toLowerCase();
-  if(diff!=="hard"&&diff!=="insane") return msgs;
+  if(!["medium","hard","insane"].includes(diff)) return msgs;
   const req=(ch.required||[]).map(s=>String(s).trim()).filter(Boolean);
   if(!req.length) return msgs;
   const ingredientBlob=recipeIngredientLinesForCompliance(recipe).toLowerCase();
@@ -7166,7 +7277,7 @@ function getRequiredBasketIntegrationDepthViolations(recipe, ch){
     const finishOnly=tokenRe.test(stepsBlob)&&finishCue.test(stepsBlob)&&!processCue.test(stepsBlob);
     const garnishHeavy=(/\b(garnish|sprinkle|dust|zest|drizzle)\b/i.test(stepsBlob)&&tokenRe.test(stepsBlob)&&!processCue.test(stepsBlob));
     if((finishOnly||garnishHeavy)&&!challengeTypeIsSnack(ch.ctype)){
-      msgs.push(`Integration depth (${diff.toUpperCase()}): REQUIRED "${name}" reads **finish-only** (grate/sprinkle/drizzle) with no clear transformation step. Keep it load-bearing: name one process move (sear/blend/reduce/fold/bind/etc.), not only a pass garnish.`);
+      msgs.push(pwViol("BASKET_INTEGRATION_DEPTH",`Integration depth (${diff.toUpperCase()}): REQUIRED "${name}" reads **finish-only** (grate/sprinkle/drizzle) with no clear transformation step. Keep it load-bearing: name one process move (sear/blend/reduce/fold/bind/etc.), not only a pass garnish.`));
     }
   }
   return msgs;
@@ -7402,6 +7513,32 @@ function getRecipeRestrictionComplianceLineViolations(recipe, ch){
     msgs.push(`restrictionCompliance must reference at least one listed restriction by name (e.g. No Dairy, No Peeler, No Gluten) and how the plan complies.`);
   return msgs;
 }
+/** Cultured dairy in hot dry environments without starch binder — curdle / break (eval matrix). */
+function getCulturedDairyHighHeatViolations(recipe){
+  const msgs=[];
+  if(!recipe) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  if(!/\b(cr[eè]me\s+fra[iî]che|sour\s+cream|\byogurt\b|greek\s+yogurt|full[\s-]fat\s+yogurt)\b/i.test(low)) return msgs;
+  const hot=/\b(air\s*fry|air[\s-]fryer|broil\b|convection\s+roast)\b/i.test(low)
+    ||/\b(oven|roast|bake)\b/i.test(low)&&/\b(39[0-9]|4[0-4][0-9]|450|475|500|high\s+heat\s+oven|hot\s+oven)\b/i.test(low);
+  if(!hot) return msgs;
+  const binder=/\b(cornstarch|corn\s+starch|flour\s+roux|roux|b[eé]chamel|bechamel|slurry|arrowroot|tapioca\s+starch|starch[\s-]?thicken|flour\s+to\s+thicken|wondra|tempura\s+batter)\b/i.test(low);
+  if(binder) return msgs;
+  msgs.push(pwViol("CULTURED_DAIRY_HEAT",`Dairy matrix — **crème fraîche / sour cream / yogurt** curdle or break under **hot oven / air-fryer–class dry heat** without a **starch guard** (slurry, roux, béchamel body). **Finish off heat**, lower temp with a lid, or **name the binder** in the saucing step.`));
+  return msgs;
+}
+/** Yuzu / delicate citrus-oil notes — not primary drivers through long or dry high heat (eval matrix). */
+function getVolatileAromaticHighHeatViolations(recipe){
+  const msgs=[];
+  if(!recipe) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  if(!/\b(yuzu|finger\s+lime|chervil)\b/i.test(low)) return msgs;
+  const harm=/\b(air\s*fry|air[\s-]fryer|broil\b|oven\s+at\b|roast\s+at\b)\b/i.test(low)||/\b(39[0-9]|4[0-2][0-9]|425|450)\s*°?\s*[fc]?\b/i.test(low);
+  const longCook=/\b(yuzu|finger\s+lime|chervil)\b[\s\S]{0,200}\b(simmer|boil|reduce)\b[\s\S]{0,140}\b(1[5-9]|20|25|30|35|40)\s*min\b/i.test(low);
+  if(!harm&&!longCook) return msgs;
+  msgs.push(pwViol("VOLATILE_AROMATIC_HEAT",`Flavor matrix — **yuzu / delicate citrus oils / chervil-class herbs** are **volatile** — **air fry, hot oven, or 15+ min reduction** as the **main** heat story cooks off perfume or turns harsh. Prefer **raw, dressing, short finish, or pass garnish**; put heat on the **carrier** (protein, veg), not the oil itself.`));
+  return msgs;
+}
 /** ~1" pork tenderloin medallions: 3+ min/side overshoots ~145°F on lean disks — matrix caps ~2–2.5 min/side. */
 function getPorkTenderloinOneInchMedallionSearMatrixViolations(recipe){
   const msgs=[];
@@ -7424,6 +7561,8 @@ function getRecipeEvalMatrixViolations(recipe, ch){
     ...getRecipePressedGrainShapeViolations(recipe),
     ...getRecipeHeatOnFreshGarnishViolations(recipe),
     ...getBayLeafFatInfusionViolations(recipe),
+    ...getCulturedDairyHighHeatViolations(recipe),
+    ...getVolatileAromaticHighHeatViolations(recipe),
     ...getPorkTenderloinOneInchMedallionSearMatrixViolations(recipe),
     ...getSoySauceSodiumStackingViolations(recipe),
     ...getYellowMustardDessertMatrixViolations(recipe, ch),
