@@ -2078,6 +2078,31 @@ function applyPantryPreset(presetId){
   renderPantry();
 }
 
+/**
+ * Guy's Grocery Games–style staple list for Step 2: used when "Exactly N must-use ingredients"
+ * is in play so the randomizer does not pre-fill the basket — you pick N from this pool; add-ons use the same pool.
+ * Does not navigate away from Build; pass silent:true to skip re-rendering Step 1.
+ */
+function syncBattlePantryToGggPreset(opts){
+  opts=opts||{};
+  const ids=pantryPresetIds("ggg");
+  if(!ids.length) return false;
+  state.pantryItems=ids.slice();
+  state.activePantryPreset="ggg";
+  const names=gggPantryNamesForFeasibility();
+  window.USER_PANTRY=names.length?names:PANTRY.slice();
+  const sp=$("screen-pantry");
+  if(!opts.silent&&sp&&!sp.classList.contains("hidden")) renderPantry();
+  return true;
+}
+
+/** Name list for GGG preset — used for feasibility checks before state sync. */
+function gggPantryNamesForFeasibility(){
+  const ids=pantryPresetIds("ggg");
+  if(!ids.length) return [];
+  return pantryCatalog().filter(i=>ids.includes(i.id)).map(i=>i.name).filter(Boolean);
+}
+
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 /** Uniform integer in [0, max) — uses crypto when available. */
 function randomIndex(max){
@@ -3033,7 +3058,7 @@ function renderBuild() {
   rCard.appendChild(rHead);
   if(exPick!=null&&state.req.length!==exPick){
     const warn=div({style:{marginBottom:"14px",padding:"12px 14px",background:"#fffbeb",border:"2px solid #fcd34d",borderRadius:"12px",fontSize:"12px",color:"#92400e",lineHeight:1.45}});
-    warn.innerHTML=`<strong>Exactly ${exPick} must-use ingredients</strong> — this restriction needs that count in the basket. Use <strong>Pick ${exPick} from pantry list</strong> to choose from your Step 1 pantry (GGG, Chopped, etc.), or add/remove chips until you have ${exPick}.`;
+    warn.innerHTML=`<strong>Exactly ${exPick} must-use ingredients</strong> — this restriction needs that count in the basket. For this rule the app loads the <strong>GGG Pantry</strong> preset for your pick and for add-ons (spinner does not pre-fill must-use items). Use <strong>Pick ${exPick} from pantry list</strong>, or add/remove chips until you have ${exPick}.`;
     rCard.appendChild(warn);
   }
   if(state.req.length===0){
@@ -5684,8 +5709,9 @@ function ingredientsEligibleForBasketPicker(resArr, selectedArr){
 }
 
 /**
- * Popup: pick must-use basket from full Step 1 pantry (GGG / Chopped / etc.), respecting restrictions.
- * opts.exactCount — must select exactly N; opts.maxCount — select up to N.
+ * Popup: pick must-use basket from the battle pantry pool, respecting restrictions.
+ * opts.exactCount — must select exactly N (GGG Pantry is loaded first; same pool as add-ons).
+ * opts.maxCount — select up to N from your Step 1 pantry list.
  */
 function openBasketIngredientCountPickerModal(opts){
   opts=opts||{};
@@ -5694,6 +5720,7 @@ function openBasketIngredientCountPickerModal(opts){
   const mode=exactCount!=null?"exact":"max";
   const limit=exactCount!=null?exactCount:maxCount;
   if(!limit) return;
+  if(mode==="exact") syncBattlePantryToGggPreset({silent:true});
   let selected=[...(state.req||[])].filter(n=>typeof n==="string"&&String(n).trim());
   selected=selected.filter(n=>!ingredientConflictsWithAny(n,state.res));
   const banned0=new Set((state.res||[]).map(parseBannedFirstLetterRestriction).filter(Boolean));
@@ -5713,7 +5740,9 @@ function openBasketIngredientCountPickerModal(opts){
   xb.addEventListener("click",()=>closeBasketPickerOverlay());
   head.append(titleEl,xb);
   const sub=div({style:{fontSize:"12px",color:"#64748b",lineHeight:1.45}});
-  sub.textContent="Shown: everything in your Step 1 pantry that fits the restrictions you have on now (Chopped, MasterChef, GGG, custom, etc.). Confirm your must-use basket here — everything else in that pantry stays available as add-ons for the battle.";
+  sub.textContent=mode==="exact"
+    ?"For Exactly N must-use rules, the list below is the GGG Pantry staple set (loaded automatically). Pick your N here; everything else in that same list stays available as add-ons for the battle. Restrictions still filter what you can select."
+    :"Shown: everything in your Step 1 pantry that fits the restrictions you have on now. Confirm your must-use basket here — everything else in that pantry stays available as add-ons for the battle.";
   const status=el("div",{id:"basket-picker-status",style:{fontSize:"13px",fontWeight:"700",color:"#3730a3"}});
   const search=el("input",{id:"basket-picker-search",type:"text",placeholder:"Search ingredients…",style:{width:"100%",boxSizing:"border-box",background:"#f8fafc",border:"2px solid #e2e8f0",borderRadius:"8px",padding:"10px 12px",fontSize:"13px",color:"#0f172a"}});
   const gridWrap=el("div",{style:{flex:"1",minHeight:"180px",maxHeight:"50vh",overflowY:"auto",border:"2px solid #e2e8f0",borderRadius:"10px",padding:"8px",background:"#fff"}});
@@ -9425,7 +9454,8 @@ function spinConstraintDisplayItems(){
 
 function mysterySpinResultPanelHtml(){
   const cfg=DIFF[state.diff];
-  const need=cfg.req;
+  const ex=getExactIngredientCountFromRestrictions(state.res);
+  const need=ex!=null?(!state.req||!state.req.length?0:ex):cfg.req;
   const constraints=spinConstraintDisplayItems();
   const nConstraints=constraints.length;
   const parts=[];
@@ -9444,9 +9474,13 @@ function mysterySpinResultPanelHtml(){
   parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">AI clock</span><div class="rnd-slot rnd-done-time">${Number(state.total)||30} min</div></div>`);
   const ct=`${state.ctype.emoji} ${state.ctype.label}`;
   parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Challenge</span><div class="rnd-slot rnd-done-ct">${escapeHtml(ct)}</div></div>`);
+  const exactNote=ex!=null&&(!state.req||!state.req.length)
+    ?`<div style="font-size:12px;font-weight:700;color:#b45309;margin-top:10px;padding:10px 12px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;line-height:1.45;text-align:center">Exactly <strong>${ex}</strong> must-use ingredients — the spinner did <strong>not</strong> pre-pick any. The <strong>GGG Pantry</strong> list is loaded for your pick and for add-ons. Use <strong>Pick ${ex} from pantry list</strong> (or the popup if it opened).</div>`
+    :"";
   return `<div class="basket-spin-wrap">
     <div class="basket-spin-h"><span>🎰 Mystery basket</span><span style="font-size:11px;font-weight:700;color:#64748b">${escapeHtml(cfg.label)} · locked in</span></div>
     <div class="basket-spin-slots">${parts.join("")}</div>
+    ${exactNote}
     <div style="font-size:11px;color:#64748b;margin-top:10px;text-align:center;line-height:1.45"><strong>AI clock</strong> is how long the rival-chef recipe assumes (20–45 min). <strong>Hover</strong> (or keyboard-focus) a <strong>must-use</strong> ingredient for <strong>what it is</strong>, <strong>time &amp; prep</strong> (when listed), flavor notes, and a chef tip. On <strong>Equipment</strong>, hover a <strong>must-use</strong> tool for <strong>ways to use it</strong> (often overlaps with how you’d cook the basket). <strong>Must-use equipment</strong> sometimes rolls on spin — check <strong>Equipment</strong> below. Change <strong>restrictions</strong>, required ingredients, or equipment there, or <strong>spin again</strong> for a new haul.</div>
   </div>`;
 }
@@ -9467,7 +9501,7 @@ function runMysteryRandomize(){
     return;
   }
   const exN=getExactIngredientCountFromRestrictions(state.res);
-  const need=exN!=null?Math.max(cfg.req, exN):cfg.req;
+  const need=exN!=null?0:cfg.req;
   const constraints=spinConstraintDisplayItems();
   const nConstraints=constraints.length;
   const ctypePool=[...CTYPES,...state.customTypes];
@@ -9603,16 +9637,18 @@ function doRandomize(){
   const cd={spinSerial:serial, hot};
   const d=DIFF[state.diff];
   const nConstraints=Math.max(Number(d.res)||0, Number(d.forb)||0);
-  const pool=window.USER_PANTRY||PANTRY;
+  let pool=(window.USER_PANTRY&&window.USER_PANTRY.length)?window.USER_PANTRY:PANTRY;
   const needBase=Math.max(0, Number(d.req)||0);
   let draw=drawUnifiedConstraintsFeasible(nConstraints, pool, needBase, serial, hot);
   let resTry=sanitizeRestrictionList(draw.restrictions);
   const exR=getExactIngredientCountFromRestrictions(resTry);
+  const gggNames=gggPantryNamesForFeasibility();
+  let feasPool=exR!=null&&gggNames.length?gggNames:pool;
   const needSlots=exR!=null?Math.max(needBase, exR):needBase;
   if(needSlots>needBase){
-    const draw2=drawUnifiedConstraintsFeasible(nConstraints, pool, needSlots, serial, hot);
+    const draw2=drawUnifiedConstraintsFeasible(nConstraints, feasPool, needSlots, serial, hot);
     const res2=sanitizeRestrictionList(draw2.restrictions);
-    if(pantryFeasibleCount(pool, res2)>=needSlots){ draw=draw2; resTry=res2; }
+    if(pantryFeasibleCount(feasPool, res2)>=needSlots){ draw=draw2; resTry=res2; }
   }
   state.spinConstraints=sanitizeSpinConstraints(draw.spinConstraints);
   state.res=resTry;
@@ -9624,6 +9660,8 @@ function doRandomize(){
   state.ctype=allTypes[randomIndex(allTypes.length)];
   const ex=getExactIngredientCountFromRestrictions(state.res);
   if(ex!=null){
+    syncBattlePantryToGggPreset({silent:true});
+    pool=(window.USER_PANTRY&&window.USER_PANTRY.length)?window.USER_PANTRY:PANTRY;
     state.req=[];
     state.pendingExactBasketPick={n:ex};
   }else{
