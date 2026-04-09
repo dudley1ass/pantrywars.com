@@ -569,6 +569,11 @@ function parseExactIngredientsCountsFromList(arr){
   }
   return out;
 }
+/** Smallest exact count if multiple "Exactly ingredients: N" slip through — tightest brief wins. */
+function getExactIngredientCountFromRestrictions(arr){
+  const ns=parseExactIngredientsCountsFromList(arr||[]);
+  return ns.length?Math.min(...ns):null;
+}
 function firstSignificantLetterOfName(name){
   const m=String(name||"").match(/[A-Za-z]/);
   return m?m[0].toUpperCase():"";
@@ -613,7 +618,7 @@ const FULL_PANTRY = [
   {id:5,  name:"Honey",               cat:"Baking & Bases",          flavor:["sweet"],                texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Reduces to sticky glaze fast. Varietal honey defines flavor."},
   {id:6,  name:"Maple Syrup",         cat:"Baking & Bases",          flavor:["sweet"],                texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Grade B darker = more flavor for cooking."},
   {id:7,  name:"Sugar (Brown)",       cat:"Baking & Bases",          flavor:["sweet"],                texture:[],                    richness:"lean",   acidity:"none", intensity:"medium", notes:"Molasses content adds depth. Great in glazes."},
-  {id:8,  name:"Spaghetti",           cat:"Grains & Legumes",        flavor:["umami"],                texture:["chewy"],             richness:"lean",   acidity:"none", intensity:"mild",   notes:"Salt water aggressively. Reserve pasta water — thickens wheat sauces. GF spaghetti: longer boil (~10–14 min); pasta-water finito less reliable than wheat."},
+  {id:8,  name:"Spaghetti (thin)",    cat:"Grains & Legumes",        flavor:["umami"],                texture:["chewy"],             richness:"lean",   acidity:"none", intensity:"mild",   notes:"Standard grocery **thin long wheat noodles** (spaghetti cut / spaghettini-class), not bucatini or thick ribbon. Salt water aggressively. Reserve pasta water for emulsified sauces. GF long pasta: longer boil (~10–14 min); starch-water gloss less reliable than wheat."},
   {id:9,  name:"Arborio Rice",        cat:"Grains & Legumes",        flavor:["umami"],                texture:["creamy","chewy"],    richness:"medium", acidity:"none", intensity:"medium", notes:"Never stop stirring. Finish off heat with butter and parm.",cookSheet:"Risotto 18–28 min active simmer adding hot liquid; toast grains first. Not a 5-minute grain."},
   {id:10, name:"Quinoa",              cat:"Grains & Legumes",        flavor:["bitter"],               texture:["crunchy","soft"],    richness:"lean",   acidity:"none", intensity:"mild",   notes:"Toast dry in pan before liquid for nutty depth."},
   {id:11, name:"Chickpeas",           cat:"Grains & Legumes",        flavor:["umami"],                texture:["creamy","crunchy"],  richness:"lean",   acidity:"none", intensity:"mild",   notes:"Roast canned at 425F for crispy croutons. Puree into hummus.",cookSheet:"Canned: drain, warm 5 min or roast 15–20 min. Dry: soak overnight + simmer 1–2 hr until tender. Mash, fry, or purée."},
@@ -910,8 +915,11 @@ const FULL_PANTRY = [
   {id:302,name:"Mayonnaise",            cat:"Canned & Jarred",         flavor:["rich","tangy"],       texture:["creamy"],            richness:"rich",   acidity:"mild", intensity:"medium", notes:"Aioli base; crisp coat (Kewpie-style)."},
   {id:303,name:"Mustard (Yellow)",      cat:"Canned & Jarred",         flavor:["tangy","sharp"],       texture:["smooth"],            richness:"lean",   acidity:"high", intensity:"strong", notes:"Rub; emulsify; ballpark."},
   {id:304,name:"Energy Drink",          cat:"Canned & Jarred",         flavor:["sweet","citrus"],      texture:[],                    richness:"lean",   acidity:"high", intensity:"medium", notes:"Reduce to syrup; chaos glaze."},
-  {id:305,name:"Breakfast Cereal",      cat:"Sweet Items",             flavor:["sweet","malty"],       texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"medium", notes:"Crush for crust; dessert bar."},
-  {id:306,name:"Ice Cream",             cat:"Sweet Items",             flavor:["sweet","rich"],        texture:["creamy","cold"],     richness:"rich",   acidity:"none", intensity:"medium", notes:"Melt for sauce; affogato; sandwich."},
+  {id:305,name:"Corn Flakes",           cat:"Sweet Items",             flavor:["sweet","malty"],       texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"mild",   notes:"Plain toasted corn flakes — crush for fry crust or sweet-savory crunch; lower coating sugar than frosted types, still burns fast in hot oil."},
+  {id:306,name:"Cap'n Crunch",          cat:"Sweet Items",             flavor:["sweet","malty"],       texture:["crunchy"],           richness:"lean",   acidity:"none", intensity:"strong", notes:"High-sugar puffed oat/corn — loud crunch and fast caramel/burn; crush for dessert crust or risky-savory garnish in trace amounts."},
+  {id:307,name:"Lucky Charms",          cat:"Sweet Items",             flavor:["sweet","vanilla"],     texture:["crunchy","soft"],    richness:"lean",   acidity:"none", intensity:"strong", notes:"Oat shapes + marshmallow bits — two textures; marshmallow melts with heat; cereal crushes for colorful crust (kid-basket energy)."},
+  {id:308,name:"Frosted Mini-Wheats",   cat:"Sweet Items",             flavor:["sweet","malty"],       texture:["crunchy","firm"],    richness:"lean",   acidity:"none", intensity:"medium", notes:"Shredded wheat biscuits with frosting — crush to irregular crumb; absorbs moisture fast once broken."},
+  {id:309,name:"Ice Cream",             cat:"Sweet Items",             flavor:["sweet","rich"],        texture:["creamy","cold"],     richness:"rich",   acidity:"none", intensity:"medium", notes:"Melt for sauce; affogato; sandwich."},
 ];
 
 const PANTRY = FULL_PANTRY.map(i => i.name);
@@ -926,7 +934,7 @@ const INGREDIENT_TOOLKIT_BY_NAME={
   "Honey":{ingredientToolkitAi:"Toolkit (Honey): sweeten, caramelize, balance acid/salt — sugar as glaze, crunch, or preserve.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nDissolve → Sweet base → Syrup, brine\nCaramelize → Bitter-sweet → Sauce, flan\nCream → Ganache / fondant → Dessert\nDrizzle finish → Shine → Plate\nWhip with whites → Structure → Meringue\n\nRoles: sweet · color · texture"},
   "Maple Syrup":{ingredientToolkitAi:"Toolkit (Maple Syrup): sweeten, caramelize, balance acid/salt — sugar as glaze, crunch, or preserve.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nDissolve → Sweet base → Syrup, brine\nCaramelize → Bitter-sweet → Sauce, flan\nCream → Ganache / fondant → Dessert\nDrizzle finish → Shine → Plate\nWhip with whites → Structure → Meringue\n\nRoles: sweet · color · texture"},
   "Sugar (Brown)":{ingredientToolkitAi:"Toolkit (Sugar (Brown)): sweeten, caramelize, balance acid/salt — sugar as glaze, crunch, or preserve.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nDissolve → Sweet base → Syrup, brine\nCaramelize → Bitter-sweet → Sauce, flan\nCream → Ganache / fondant → Dessert\nDrizzle finish → Shine → Plate\nWhip with whites → Structure → Meringue\n\nRoles: sweet · color · texture"},
-  "Spaghetti":{ingredientToolkitAi:"Toolkit (Spaghetti): cook tender, purée, crisp, or thicken — starch/legume as body, binder, or salad chew.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nSimmer → Tender grains/beans → Side, bowl base\nMash / purée → Creamy body → Dip, soup\nToast dry → Nutty → Salad, pilaf\nFry / roast → Crisp shell → Garnish, snack\nStarch water / aquafaba → Thicken / bind → Sauce\n\nRoles: bulk · protein · starch"},
+  "Spaghetti (thin)":{ingredientToolkitAi:"Toolkit (Spaghetti thin): long wheat noodles — boil to al dente; pasta water emulsifies butter/olive oil + cheese for cling; not thick ribbon pasta.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nBoil salted → Al dente long noodles → Marinara, aglio e olio\nToss with starchy water → Emulsified sauce → Cling without cream\nBreak / fry spare → Crisp garnish → Unusual crunch (honest timing)\n\nRoles: starch backbone · sauce vehicle · (spaghetti cut = thin long strand)"},
   "Arborio Rice":{ingredientToolkitAi:"Toolkit (Arborio Rice): cook tender, purée, crisp, or thicken — starch/legume as body, binder, or salad chew.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nSimmer → Tender grains/beans → Side, bowl base\nMash / purée → Creamy body → Dip, soup\nToast dry → Nutty → Salad, pilaf\nFry / roast → Crisp shell → Garnish, snack\nStarch water / aquafaba → Thicken / bind → Sauce\n\nRoles: bulk · protein · starch"},
   "Quinoa":{ingredientToolkitAi:"Toolkit (Quinoa): cook tender, purée, crisp, or thicken — starch/legume as body, binder, or salad chew.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nSimmer → Tender grains/beans → Side, bowl base\nMash / purée → Creamy body → Dip, soup\nToast dry → Nutty → Salad, pilaf\nFry / roast → Crisp shell → Garnish, snack\nStarch water / aquafaba → Thicken / bind → Sauce\n\nRoles: bulk · protein · starch"},
   "Chickpeas":{ingredientToolkitAi:"Toolkit (Chickpeas): cook tender, purée, crisp, or thicken — starch/legume as body, binder, or salad chew.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nSimmer → Tender grains/beans → Side, bowl base\nMash / purée → Creamy body → Dip, soup\nToast dry → Nutty → Salad, pilaf\nFry / roast → Crisp shell → Garnish, snack\nStarch water / aquafaba → Thicken / bind → Sauce\n\nRoles: bulk · protein · starch"},
@@ -1223,7 +1231,10 @@ const INGREDIENT_TOOLKIT_BY_NAME={
   "Mayonnaise":{ingredientToolkitAi:"Toolkit (Mayonnaise): emulsified fat — spread, crisp coat.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nSpread / sear coat → Crisp exterior → Protein\nWhisk base → Aioli → Dip\n\nRoles: fat · emulsifier"},
   "Mustard (Yellow)":{ingredientToolkitAi:"Toolkit (Mustard (Yellow)): tangy acid spice — rub, emulsify.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nRub / emulsify → Tang → Sauce\nSquirt → Classic → Sandwich\n\nRoles: acid · spice"},
   "Energy Drink":{ingredientToolkitAi:"Toolkit (Energy Drink): sweet citrus reduce — novelty glaze.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nReduce → Syrup glaze → Protein (chef chaos)\n\nRoles: sweet · acid · caffeine chaos"},
-  "Breakfast Cereal":{ingredientToolkitAi:"Toolkit (Breakfast Cereal): sweet malt crunch — crush for crust.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nCrush → Crust → Dessert or fried\nWhole → Layer → Parfait\n\nRoles: crunch · sugar"},
+  "Corn Flakes":{ingredientToolkitAi:"Toolkit (Corn Flakes): plain toasted corn crunch — crush for crust; less sugar than frosted cereals but still burns fast in hot oil.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nCrush → Dredge / crust → Fry fish, chicken, dessert bar\nWhole → Layer → Parfait, yogurt\nToast dry carefully → Deeper corn note — watch burn\n\nRoles: neutral-sweet crunch · crust"},
+  "Cap'n Crunch":{ingredientToolkitAi:"Toolkit (Cap'n Crunch): very sweet crunchy oat/corn — crush for dessert crust; high sugar = fast caramel and scorch in pan.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nCrush → Crust / topping → Fried dessert, ice cream\nWhole → Textural fold-in → Trail-mix energy (sparingly savory)\n\nRoles: loud sugar · crunch"},
+  "Lucky Charms":{ingredientToolkitAi:"Toolkit (Lucky Charms): oat cereal + marshmallow — two textures; marshmallow dissolves with heat; colorful crush for stunt plates.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nSeparate or crush → Marshmallow vs oat roles → Dessert garnish\nCrush dry → Crust → Milk-soak or fry (brand-sweet)\n\nRoles: crunch + soft sweet · color"},
+  "Frosted Mini-Wheats":{ingredientToolkitAi:"Toolkit (Frosted Mini-Wheats): shredded wheat + frosting — crush to coarse crumb; soaks up liquid once broken.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nCrush → Crumb crust → Cheesecake bar, fry coat\nBrief soak → Soft layer → Parfait (plan sog window)\n\nRoles: malt-wheat crunch · absorbs moisture"},
   "Ice Cream":{ingredientToolkitAi:"Toolkit (Ice Cream): cold fat sugar — melt, affogato.",ingredientToolkit:"Ingredient toolkit (transform → result → use)\nMelt → Sauce → Dessert contrast\nScoop → Temp contrast → Pie\n\nRoles: fat · sugar · temp contrast"},
 };
 
@@ -1978,6 +1989,8 @@ let state = {
   duelJudgeSummaryConflict:false,
   timerRem:0, timerRunning:false, timerInterval:null,
   modalType:null,
+  /** Set by mystery spin when draw includes "Exactly ingredients: N" — cleared after user confirms picker. */
+  pendingExactBasketPick:null,
   leaderboard:null,
 };
 
@@ -3009,8 +3022,20 @@ function renderBuild() {
   const rHead=div({style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"14px",flexWrap:"wrap",marginBottom:"14px"}});
   const rbtns=div({style:{display:"flex",gap:"6px",flexWrap:"wrap",flexShrink:"0"}});
   rbtns.append(btn("+ Add ingredient","#6366f1","#fff",{padding:"8px 14px",fontSize:"12px",fontWeight:"800"},()=>openModal("ingredient")));
+  const exPick=getExactIngredientCountFromRestrictions(state.res);
+  const maxPick=parseMaxIngredientsCapFromList(state.res);
+  if(exPick!=null){
+    rbtns.append(btn(`Pick ${exPick} from pantry list`,"#7c3aed","#fff",{padding:"8px 14px",fontSize:"12px",fontWeight:"800"},()=>openBasketIngredientCountPickerModal({exactCount:exPick})));
+  }else if(maxPick!=null){
+    rbtns.append(btn(`Pick up to ${maxPick} from list`,"#0d9488","#fff",{padding:"8px 14px",fontSize:"12px",fontWeight:"800"},()=>openBasketIngredientCountPickerModal({maxCount:maxPick})));
+  }
   rHead.append(heroIntro,rbtns);
   rCard.appendChild(rHead);
+  if(exPick!=null&&state.req.length!==exPick){
+    const warn=div({style:{marginBottom:"14px",padding:"12px 14px",background:"#fffbeb",border:"2px solid #fcd34d",borderRadius:"12px",fontSize:"12px",color:"#92400e",lineHeight:1.45}});
+    warn.innerHTML=`<strong>Exactly ${exPick} must-use ingredients</strong> — this restriction needs that count in the basket. Use <strong>Pick ${exPick} from pantry list</strong> to choose from your Step 1 pantry (GGG, Chopped, etc.), or add/remove chips until you have ${exPick}.`;
+    rCard.appendChild(warn);
+  }
   if(state.req.length===0){
     const e=div({style:{fontSize:"15px",fontWeight:"600",color:"#64748b",marginBottom:"14px",padding:"22px 18px",textAlign:"center",background:"rgba(255,255,255,0.72)",borderRadius:"14px",border:"2px dashed #a5b4fc",lineHeight:1.45}});
     e.innerHTML="Nothing in the basket yet — use <strong>Spin my mystery basket</strong> above, <strong>+ Add ingredient</strong>, or the pantry strip below.";
@@ -3094,14 +3119,25 @@ function renderBuild() {
     btn("Random "+totalRestr,"#f1f5f9","#475569",{border:"2px solid #e2e8f0",padding:"3px 7px",fontSize:"11px"},()=>{
       const {serial, hot}=beginMysterySpinCooldownTurn();
       const p=pantryPool();
-      const draw=drawUnifiedConstraintsFeasible(totalRestr, p, cfg.req, serial, hot);
+      const needBase=Math.max(0, Number(cfg.req)||0);
+      let draw=drawUnifiedConstraintsFeasible(totalRestr, p, needBase, serial, hot);
+      let resTry=sanitizeRestrictionList(draw.restrictions);
+      const exR=getExactIngredientCountFromRestrictions(resTry);
+      const needSlots=exR!=null?Math.max(needBase, exR):needBase;
+      if(needSlots>needBase){
+        const draw2=drawUnifiedConstraintsFeasible(totalRestr, p, needSlots, serial, hot);
+        const res2=sanitizeRestrictionList(draw2.restrictions);
+        if(pantryFeasibleCount(p, res2)>=needSlots){ draw=draw2; resTry=res2; }
+      }
       state.spinConstraints=sanitizeSpinConstraints(draw.spinConstraints);
-      state.res=sanitizeRestrictionList(draw.restrictions);
+      state.res=resTry;
       state.forbEq=draw.forbEquip;
       rollMustUseEquipment(state.diff, state.forbEq, serial, hot);
       pruneConflictingReq(cfg, {spinSerial:serial, hot});
       finalizeMysterySpinSelection(serial, hot, {req:state.req,res:state.res,forbEq:state.forbEq,reqEq:state.reqEq});
       renderBuild();
+      const ex=getExactIngredientCountFromRestrictions(state.res);
+      if(ex!=null) setTimeout(()=>openBasketIngredientCountPickerModal({exactCount:ex}), 0);
     })
   );
   resHead.append(reslbl,resbtns);resCard.appendChild(resHead);
@@ -3111,10 +3147,15 @@ function renderBuild() {
     const b=el("button",{style:{background:on?"#fef2f2":"#f8fafc",border:"2px solid "+(on?"#fca5a5":"#e2e8f0"),borderRadius:"6px",padding:"3px 7px",fontSize:"11px",cursor:"pointer",color:on?"#b91c1c":"#475569",fontWeight:on?"700":"500"}});
     b.textContent=(on?"X ":"")+r;
     b.addEventListener("click",()=>{
+      const turningOn=!on;
       state.res=on?state.res.filter(x=>x!==r):[...state.res,r];
       pruneConflictingReq(cfg);
       onBasketModified();
       renderBuild();
+      if(turningOn&&/^Exactly ingredients:/i.test(normalizeRestrictionKey(r))){
+        const ex=getExactIngredientCountFromRestrictions(state.res);
+        if(ex!=null) setTimeout(()=>openBasketIngredientCountPickerModal({exactCount:ex}), 0);
+      }
     });
     resChips.appendChild(b);
   });
@@ -3796,6 +3837,27 @@ function challengeBasketAffinityPreflightBlock(ch){
   }
   if(!lines.length) return "";
   return `CHALLENGE × BASKET AFFINITY (read before picking a recipe template):
+${lines.join("\n")}
+
+`;
+}
+
+function basketRequiredNameMatch(ch, rx){
+  return (ch&&ch.required||[]).some(n=>rx.test(String(n||"")));
+}
+
+/** When the basket triggers matrix "strong moves," emit binding generation requirements (not post-hoc tips). */
+function basketGenerationMandatesBlock(ch){
+  if(!ch) return "";
+  const lines=[];
+  if(basketRequiredNameMatch(ch, /\bhearts?\s+of\s+palm\b/i)){
+    lines.push(`• **Hearts of palm** is on the **must-use** list — **MANDATORY**: use it **two distinct ways** in **one composed dish**: (1) a **hot treatment** (char, blister, sear, grill, griddle, roast on **batons/planks/slabs**) AND (2) a **cool/raw treatment** (**shaved, ribbons, thin slice**, or a **crema/purée** from the same ingredient). Both must appear in **ingredients** and **steps** with honest prep names. **balance.basket** must briefly name **both** roles. One vague treatment or salad-only exit without clear hot + cool does **not** satisfy this haul.`);
+  }
+  if(basketRequiredNameMatch(ch, /\bsquid\b/i)){
+    lines.push(`• **Squid** is on the **must-use** list — **MANDATORY** flash path unless you commit to a **named long braise/stew** story in title/tagline and steps: default = **dry surfaces → ripping-hot pan → do not crowd → work in batches → ~60–90s total cook**; say so plainly in steps. Long gentle sauté with squid reads as a miss for this clock.`);
+  }
+  if(!lines.length) return "";
+  return `BASKET GENERATION MANDATES (binding for this haul — comply in JSON; not optional affinity tips):
 ${lines.join("\n")}
 
 `;
@@ -4767,7 +4829,7 @@ ${savoryChocolateBlock}
 ${shelfSweetSavoryBlock}
 ${dessertAwkwardBlock}
 ${challengeIntentCoachBlock(ch.ctype)||""}
-${challengeBasketAffinityPreflightBlock(ch)}
+${basketGenerationMandatesBlock(ch)}${challengeBasketAffinityPreflightBlock(ch)}
 ${dinerAnchovyWokBlock}
 ${comfortReinventedSaltFreshSplitBlock(ch)}
 ${PW_CHALLENGE_SOUL_APPENDIX}
@@ -4855,9 +4917,10 @@ EVAL MATRIX — COMPETITION REALISM (judges notice; machine checks some):
 - **Cultured dairy + dry heat**: **crème fraîche, sour cream, yogurt** in **hot oven / air fryer** without **starch binder** (slurry, roux, béchamel) → **break / curdle** — finish off heat or protect.
 - **Volatile aromatics**: **yuzu, finger lime, chervil** — **heat_stable: false** for long cooks; **finish raw / dressing / pass** — not primary **air-fry / broil / 20+ min reduction** flavor spine.
 - **Instant Pot / pressure**: **~8–12 min** (often more) **to seal and reach pressure** before the **at-pressure** timer — never a **2–5 min** step as the whole pressure story.
-- **Hearts of palm (model double-use)**: exemplary pattern = **charred batons / hot structure** + **raw shaved or crema** from the same ingredient — temperature + texture contrast in one bite; worth aiming for when palm is in the haul.
+- **Hearts of palm**: when palm is on the **must-use** list, **BASKET GENERATION MANDATES** above is the brief (two named treatments). When palm is **not** required, **charred/hot structure + raw shaved or crema** is still an exemplary optional pattern.
 - **Yellow mustard + dessert**: among the hardest placements — vinegar/turmeric read **condiment**. Needs **heavy reduction** (vinegar off), **trace** use, or **savory contrast** — not an unchallenged sweet/custard spine.
 - **Radish (or peppery brassica) + sweet**: glucosinolates need **~8–10+ min sustained heat** to mellow; **~2 min sauté** stays peppery — extend roast/sauté/caramel or treat as **savory counterpoint**, not faux jam.
+- **Crisp crumb/chip crust + wet slaw/pickle**: pressed **chips/crackers/panko** into **tart shell / vessel / mushroom cap** gives a **moisture-sponge** surface — same class as **panko on wet fill**. **Do not** mound **dressed slaw or wet pickle** on that crust in **mid-ASSEMBLE** with **minutes before service**; **add the wet layer on final PLATE** or in the **last ~30–60s before judges** (or serve slaw **beside** / **pass separately**) so crunch survives the pass.
 
 BALANCE (honest):
 - Let basket supply flavor/texture; no extra components just to sound cheffy.
@@ -4902,12 +4965,13 @@ Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
       const formatViol=getRecipeFormatHonestyViolations(data);
       const kitchenViol=getKitchenScienceHonestyViolations(data);
       const evalMatrixViol=getRecipeEvalMatrixViolations(data,ch);
+      const mandateViol=getBasketGenerationMandateViolations(data,ch);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
       const plantViol=getPlantProteinTransformationViolations(data,ch);
       const formViol=getProteinFormTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, fruitDriftViol, formatViol, kitchenViol, evalMatrixViol, classicViol, plantViol, formViol);
+      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, fruitDriftViol, formatViol, kitchenViol, evalMatrixViol, mandateViol, classicViol, plantViol, formViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy with real acid, brisket/collagen realism, must-use equipment centrality especially Wok vs oven story, blender on filling when assigned, **processEquipment** must list every tool the method needs and must not list forbidden gear (baked tart ⇒ Oven unless you pivot), timeline, basket coverage for every REQUIRED name, named fruit sauces only for fruits in REQUIRED or PANTRY (no strawberry reduction if only plum is in the haul), seitan/tempeh transformation not garnish-only, **protein form vs technique** (e.g. silken tofu = no dredge-fry crumble — see PROTEIN FORM & TRANSFORMATION block), appetizer vs dessert read, competition edge on appetizer/entree — acid/heat/char named in balance.flavor, savory dark chocolate integrated (not dessert drizzle on meat), marshmallow on savory = heat transformation not cold dairy fold, dessert awkward basket (snap peas need technique, tofu/quinoa/caramel need transformation — not parfait drizzle), format honesty, kitchen science, restrictions, **EVAL MATRIX** — no juicy fruit in fritter batter, broil+greens order, pressed-grain rest before sear, no second heat on scallion garnish, **rillettes** only for slow meat in/set in fat (not cold butter + quick pull), **bay leaf in fat** ~5+ min low or ~10 min bloom (not 1–4 min alone), **soy/tamari in 2+ steps** each step names its own acid/cut, **pork tenderloin ~1\" medallions** ≤2.5 min/side (not 3+), **day-old rice** = cook+cool budget or cooked rice in haul, **pasta** = drain/strain aligned to **drop+boil** (parallel clock), **squid flash** = dry + high heat + batches + ~60–90s (not long gentle sauté), **grain/starch min cook vs round** (farro/barley/lentils etc. → pre-cooked or toast-only if clock too short), **cultured dairy** in hot oven/air fry → **starch binder** or off-heat finish, **yuzu/volatile aromatics** → raw/finish not long hot reduction or air-fry spine, **pressure** = **~8–12 min to full pressure** before at-pressure timer (not 2–5 min total fiction), follow **CHALLENGE × BASKET AFFINITY** block when present, **yellow mustard + dessert** mitigation, **radish + sweet** 8–10+ min heat, **restrictionCompliance** when restrictions apply). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (No Salt strategy with real acid, brisket/collagen realism, must-use equipment centrality especially Wok vs oven story, blender on filling when assigned, **processEquipment** must list every tool the method needs and must not list forbidden gear (baked tart ⇒ Oven unless you pivot), timeline, basket coverage for every REQUIRED name, named fruit sauces only for fruits in REQUIRED or PANTRY (no strawberry reduction if only plum is in the haul), seitan/tempeh transformation not garnish-only, **protein form vs technique** (e.g. silken tofu = no dredge-fry crumble — see PROTEIN FORM & TRANSFORMATION block), appetizer vs dessert read, competition edge on appetizer/entree — acid/heat/char named in balance.flavor, savory dark chocolate integrated (not dessert drizzle on meat), marshmallow on savory = heat transformation not cold dairy fold, dessert awkward basket (snap peas need technique, tofu/quinoa/caramel need transformation — not parfait drizzle), format honesty, kitchen science, restrictions, **BASKET GENERATION MANDATES** when injected (e.g. hearts of palm = hot + raw/crema both named), **EVAL MATRIX** — no juicy fruit in fritter batter, broil+greens order, pressed-grain rest before sear, no second heat on scallion garnish, **rillettes** only for slow meat in/set in fat (not cold butter + quick pull), **bay leaf in fat** ~5+ min low or ~10 min bloom (not 1–4 min alone), **soy/tamari in 2+ steps** each step names its own acid/cut, **pork tenderloin ~1\" medallions** ≤2.5 min/side (not 3+), **day-old rice** = cook+cool budget or cooked rice in haul, **pasta** = drain/strain aligned to **drop+boil** (parallel clock), **squid flash** = dry + high heat + batches + ~60–90s (not long gentle sauté), **grain/starch min cook vs round** (farro/barley/lentils etc. → pre-cooked or toast-only if clock too short), **cultured dairy** in hot oven/air fry → **starch binder** or off-heat finish, **yuzu/volatile aromatics** → raw/finish not long hot reduction or air-fry spine, **pressure** = **~8–12 min to full pressure** before at-pressure timer (not 2–5 min total fiction), follow **CHALLENGE × BASKET AFFINITY** block when present, **yellow mustard + dessert** mitigation, **radish + sweet** 8–10+ min heat, **restrictionCompliance** when restrictions apply). For Recreate a Classic, keep classic-function mapping. Verify every ingredient line and every step "how" and "dur".`;
       if(attempt===maxAttempts-1) state.recipeRestrictionWarnings=viol;
     }
     state.recipe=data;
@@ -5039,7 +5103,7 @@ ${savoryDarkChocolateBasketPromptBlock(ch)}
 ${shelfSweetWildcardSavoryPromptBlock(ch)}
 ${dessertAwkwardBasketPromptBlock(ch)}
 ${challengeIntentCoachBlock(ch.ctype)||""}
-${challengeBasketAffinityPreflightBlock(ch)}
+${basketGenerationMandatesBlock(ch)}${challengeBasketAffinityPreflightBlock(ch)}
 ${dinerWokAnchovyLemonSesameBlock(ch)}
 ${comfortReinventedSaltFreshSplitBlock(ch)}
 ${PW_CHALLENGE_SOUL_APPENDIX}
@@ -5053,7 +5117,7 @@ ${couscousMalangaSeitanTechniqueBlock(ch)}
 ${streetFoodOkraMarjoramLaneBlock(ch)}
 ${comfortWingMacExecutionBlock(ch)}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
-EVAL MATRIX (same as rival): no juicy fruit **in** fritter/tempura batter; broil + kale/spinach → remove/shield greens or separate tray; pressed grain cakes need brief rest before sear; torch/heat-gun second pass must not target scallion/herb garnish — add herbs after heat. **Rillettes** = slow meat in/set in fat (confit); not cold butter + quick-seared pull — say **pulled [protein]** instead. **Bay leaf + fat**: ~5–7 min low or ~10 min off-heat bloom — not 1–4 min only. **Soy in 2+ steps** = sodium stack: **acid/cut per step** (not one lime for dressing+glaze). **Pork tenderloin ~1\" medallions**: **2–2.5 min/side** max — **3+ min/side** overshoots ~145°F. **Day-old rice**: if haul is raw grain only → **~18–20 min cook+cool** or say rice was pre-cooked. **Pasta**: **drain at al dente on its own clock** — don’t let other steps run past **drop + boil time** without a **drain/strain** step aligned on **\`time\`/\`dur\`**. **Squid flash**: **dry, ripping heat, single layer/batches, ~60–90s** — not wet, crowded, or minutes-long gentle sauté. **Grains**: farro/barley/wild rice/brown rice/green lentil/split pea/polenta need honest simmer time or pre-cooked/toast-only. **Cultured dairy**: no hot oven/air fry without starch binder. **Yuzu/chervil**: finish raw — not air-fry spine. **Pressure**: +8–12 min to pressure before timer. **Hearts of palm**: charred + raw shaved/crema = strong double-use. **Yellow mustard + dessert**: reduction/trace/savory contrast — not raw condiment in custard. **Radish + sweet**: 8–10+ min heat or savory-only — not 2 min sauté to sweet.
+EVAL MATRIX (same as rival): no juicy fruit **in** fritter/tempura batter; broil + kale/spinach → remove/shield greens or separate tray; pressed grain cakes need brief rest before sear; torch/heat-gun second pass must not target scallion/herb garnish — add herbs after heat. **Rillettes** = slow meat in/set in fat (confit); not cold butter + quick-seared pull — say **pulled [protein]** instead. **Bay leaf + fat**: ~5–7 min low or ~10 min off-heat bloom — not 1–4 min only. **Soy in 2+ steps** = sodium stack: **acid/cut per step** (not one lime for dressing+glaze). **Pork tenderloin ~1\" medallions**: **2–2.5 min/side** max — **3+ min/side** overshoots ~145°F. **Day-old rice**: if haul is raw grain only → **~18–20 min cook+cool** or say rice was pre-cooked. **Pasta**: **drain at al dente on its own clock** — don’t let other steps run past **drop + boil time** without a **drain/strain** step aligned on **\`time\`/\`dur\`**. **Squid flash**: **dry, ripping heat, single layer/batches, ~60–90s** — not wet, crowded, or minutes-long gentle sauté. **Grains**: farro/barley/wild rice/brown rice/green lentil/split pea/polenta need honest simmer time or pre-cooked/toast-only. **Cultured dairy**: no hot oven/air fry without starch binder. **Yuzu/chervil**: finish raw — not air-fry spine. **Pressure**: +8–12 min to pressure before timer. **Chip/crumb tart shell + wet slaw**: slaw at **PLATE** / last seconds — not early **ASSEMBLE** hold. **Hearts of palm**: when palm is on **MUST USE**, **BASKET GENERATION MANDATES** is law; otherwise char + raw/crema is an exemplary optional pattern. **Yellow mustard + dessert**: reduction/trace/savory contrast — not raw condiment in custard. **Radish + sweet**: 8–10+ min heat or savory-only — not 2 min sauté to sweet.
 {"title":"","tagline":"","processEquipment":["Oven"],"restrictionCompliance":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":"","dur":"optional e.g. 5 min"}],"lastMinuteTip":"one sentence"}
 restrictionCompliance: **""** if no restrictions. If RESTRICTIONS apply, one sentence naming the rule + compliant technique (e.g. "No Peeler — knife plank peel").
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts. Self-check every ingredient and step before returning.`;
@@ -5081,12 +5145,13 @@ Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. 
       const formatViol=getRecipeFormatHonestyViolations(data);
       const kitchenViol=getKitchenScienceHonestyViolations(data);
       const evalMatrixViol=getRecipeEvalMatrixViolations(data,ch);
+      const mandateViol=getBasketGenerationMandateViolations(data,ch);
       const classicViol=getRecreateClassicTransformationViolations(data,ch);
       const plantViol=getPlantProteinTransformationViolations(data,ch);
       const formViol=getProteinFormTransformationViolations(data,ch);
-      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, fruitDriftViol, formatViol, kitchenViol, evalMatrixViol, classicViol, plantViol, formViol);
+      const viol=restrictionViol.concat(noSaltViol, brisketViol, equipmentViol, timelineViol, basketViol, fruitDriftViol, formatViol, kitchenViol, evalMatrixViol, mandateViol, classicViol, plantViol, formViol);
       if(!viol.length) break;
-      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (must-use equipment centrality, **processEquipment** lists required tools and excludes forbidden gear, blender on filling when assigned, timeline, basket coverage for every MUST USE name, named fruit sauces only for fruits in REQUIRED or PANTRY, seitan/tempeh transformation not garnish-only, **protein form vs technique** (silken vs firm tofu — see PROTEIN FORM & TRANSFORMATION), appetizer course fit, competition edge on appetizer/entree — acid/heat/char in flavorBalance, savory dark chocolate integrated when in basket (not dessert sauce on savory base), marshmallow on savory = heat move not cold ricotta fold, dessert snap/snow peas need blanch/sauté/char not raw garnish, format honesty, kitchen science — real emulsion names, bread not flour slices, **EVAL MATRIX** + **rillettes** + **bay / soy sodium / pork 1\" medallion sear / day-old rice clock / pasta parallel drain / squid flash 60–90s / grain min-clock / cultured dairy heat / volatile aromatics / pressure build 8–12m / mustard / radish sweet** + **CHALLENGE × BASKET AFFINITY** when injected + **restrictionCompliance** when restrictions apply). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
+      regenNote=`Previous output failed quality gates: ${viol.join(" | ")}. Rewrite the entire JSON in full compliance (must-use equipment centrality, **processEquipment** lists required tools and excludes forbidden gear, blender on filling when assigned, timeline, basket coverage for every MUST USE name, named fruit sauces only for fruits in REQUIRED or PANTRY, seitan/tempeh transformation not garnish-only, **protein form vs technique** (silken vs firm tofu — see PROTEIN FORM & TRANSFORMATION), appetizer course fit, competition edge on appetizer/entree — acid/heat/char in flavorBalance, savory dark chocolate integrated when in basket (not dessert sauce on savory base), marshmallow on savory = heat move not cold ricotta fold, dessert snap/snow peas need blanch/sauté/char not raw garnish, format honesty, kitchen science — real emulsion names, bread not flour slices, **BASKET GENERATION MANDATES** when injected (e.g. hearts of palm two-way), **EVAL MATRIX** + **rillettes** + **bay / soy sodium / pork 1\" medallion sear / day-old rice clock / pasta parallel drain / squid flash 60–90s / grain min-clock / cultured dairy heat / volatile aromatics / pressure build 8–12m / mustard / radish sweet** + **CHALLENGE × BASKET AFFINITY** when injected + **restrictionCompliance** when restrictions apply). For Recreate a Classic, map each classic function to a basket strategy (transform, do not substitute).`;
       if(att===maxAttempts-1) state.contestRecipeRestrictionWarnings=viol;
     }
     state.contestRecipe=data;
@@ -5600,6 +5665,147 @@ function openModal(type){
 
 function closeModal(){$("modal-overlay").classList.add("hidden");}
 
+function closeBasketPickerOverlay(){
+  const ov=$("modal-overlay");
+  if(ov){ ov.classList.add("hidden"); ov.innerHTML=""; }
+}
+
+/** Ingredients from Step 1 pantry pool that obey restrictions + basket rules for the current selection. */
+function ingredientsEligibleForBasketPicker(resArr, selectedArr){
+  let p=filterPoolByRestrictions(pantryPool(), resArr||[]);
+  const r=sanitizeRestrictionList(resArr||[]);
+  const banned=new Set(r.map(parseBannedFirstLetterRestriction).filter(Boolean));
+  if(banned.size)
+    p=p.filter(n=>{const L=firstSignificantLetterOfName(n);return!L||!banned.has(L);});
+  const sel=selectedArr||[];
+  if(r.some(x=>normalizeRestrictionKey(x)==="Only One Protein")&&countBasketProteinAnchors(sel)>=1)
+    p=p.filter(n=>classifyRequiredBucket(n)!=="protein");
+  return [...new Set(p)].sort((a,b)=>a.localeCompare(b));
+}
+
+/**
+ * Popup: pick must-use basket from full Step 1 pantry (GGG / Chopped / etc.), respecting restrictions.
+ * opts.exactCount — must select exactly N; opts.maxCount — select up to N.
+ */
+function openBasketIngredientCountPickerModal(opts){
+  opts=opts||{};
+  const exactCount=opts.exactCount!=null&&Number.isFinite(Number(opts.exactCount))?Math.max(1,Math.round(Number(opts.exactCount))):null;
+  const maxCount=opts.maxCount!=null&&Number.isFinite(Number(opts.maxCount))?Math.max(1,Math.round(Number(opts.maxCount))):null;
+  const mode=exactCount!=null?"exact":"max";
+  const limit=exactCount!=null?exactCount:maxCount;
+  if(!limit) return;
+  let selected=[...(state.req||[])].filter(n=>typeof n==="string"&&String(n).trim());
+  selected=selected.filter(n=>!ingredientConflictsWithAny(n,state.res));
+  const banned0=new Set((state.res||[]).map(parseBannedFirstLetterRestriction).filter(Boolean));
+  if(banned0.size) selected=selected.filter(n=>{const L=firstSignificantLetterOfName(n);return!L||!banned0.has(L);});
+  if(mode==="exact"&&selected.length>exactCount) selected=selected.slice(0, exactCount);
+
+  const ov=$("modal-overlay");
+  ov.innerHTML="";
+  const modal=el("div",{class:"modal",style:{maxWidth:"min(520px,96vw)",maxHeight:"92vh",display:"flex",flexDirection:"column",gap:"12px",boxSizing:"border-box"}});
+  const title=mode==="exact"
+    ?`Pick exactly ${exactCount} must-use ingredients`
+    :`Pick up to ${maxCount} must-use ingredients`;
+  const head=div({style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:"10px"}});
+  const titleEl=div({style:{fontSize:"16px",fontWeight:"800",color:"#0f172a",lineHeight:1.35}});titleEl.textContent=title;
+  const xb=el("button",{type:"button",style:{background:"#f1f5f9",border:"none",borderRadius:"6px",padding:"4px 12px",fontSize:"18px",cursor:"pointer",lineHeight:1}},[]);
+  xb.textContent="×";
+  xb.addEventListener("click",()=>closeBasketPickerOverlay());
+  head.append(titleEl,xb);
+  const sub=div({style:{fontSize:"12px",color:"#64748b",lineHeight:1.45}});
+  sub.textContent="Shown: everything in your Step 1 pantry that fits the restrictions you have on now (Chopped, MasterChef, GGG, custom, etc.). Confirm your must-use basket here — everything else in that pantry stays available as add-ons for the battle.";
+  const status=el("div",{id:"basket-picker-status",style:{fontSize:"13px",fontWeight:"700",color:"#3730a3"}});
+  const search=el("input",{id:"basket-picker-search",type:"text",placeholder:"Search ingredients…",style:{width:"100%",boxSizing:"border-box",background:"#f8fafc",border:"2px solid #e2e8f0",borderRadius:"8px",padding:"10px 12px",fontSize:"13px",color:"#0f172a"}});
+  const gridWrap=el("div",{style:{flex:"1",minHeight:"180px",maxHeight:"50vh",overflowY:"auto",border:"2px solid #e2e8f0",borderRadius:"10px",padding:"8px",background:"#fff"}});
+  const grid=el("div",{id:"basket-picker-grid",style:{display:"flex",flexWrap:"wrap",gap:"6px",alignContent:"flex-start"}});
+
+  function updateStatus(){
+    const st=$("basket-picker-status");
+    if(!st) return;
+    if(mode==="exact") st.textContent=`Selected: ${selected.length} / ${exactCount}`;
+    else st.textContent=`Selected: ${selected.length} (max ${maxCount})`;
+  }
+
+  function tryToggle(name){
+    const idx=selected.indexOf(name);
+    if(idx>=0){ selected.splice(idx,1); return true; }
+    if(mode==="exact"&&selected.length>=exactCount){
+      alert(`Exactly ${exactCount} ingredients — remove one first, or tap a selected chip to swap.`);
+      return false;
+    }
+    if(mode==="max"&&selected.length>=maxCount){
+      alert(`Max ${maxCount} must-use ingredients — remove one first.`);
+      return false;
+    }
+    if(ingredientConflictsWithAny(name,state.res)) return false;
+    const r=sanitizeRestrictionList(state.res||[]);
+    const L=firstSignificantLetterOfName(name);
+    const banned=new Set(r.map(parseBannedFirstLetterRestriction).filter(Boolean));
+    if(L&&banned.has(L)){ alert(`"${name}" is blocked by a banned first-letter rule.`); return false; }
+    if(r.some(x=>normalizeRestrictionKey(x)==="Only One Protein")&&classifyRequiredBucket(name)==="protein"&&countBasketProteinAnchors(selected)>=1){
+      alert("Only One Protein — deselect your protein ingredient before adding another.");
+      return false;
+    }
+    selected.push(name);
+    return true;
+  }
+
+  function paintGrid(){
+    const pool=ingredientsEligibleForBasketPicker(state.res, selected);
+    const q=(search.value||"").trim().toLowerCase();
+    const list=q?pool.filter(n=>n.toLowerCase().includes(q)):pool;
+    grid.innerHTML="";
+    for(const name of list){
+      const on=selected.includes(name);
+      const b=el("button",{type:"button",style:{
+        background:on?"#eef2ff":"#f8fafc",
+        border:"2px solid "+(on?"#6366f1":"#e2e8f0"),
+        borderRadius:"8px",
+        padding:"6px 10px",
+        fontSize:"12px",
+        fontWeight:on?"800":"600",
+        cursor:"pointer",
+        color:on?"#312e81":"#334155",
+      }},[]);
+      b.textContent=(on?"✓ ":"")+name;
+      b.addEventListener("click",()=>{ tryToggle(name); paintGrid(); updateStatus(); });
+      grid.appendChild(b);
+    }
+    if(!list.length){
+      const empty=div({style:{padding:"20px",textAlign:"center",color:"#94a3b8",fontSize:"13px"}});
+      empty.textContent="Nothing matches search + restrictions. Widen search or relax restrictions.";
+      grid.appendChild(empty);
+    }
+  }
+
+  search.addEventListener("input",()=>paintGrid());
+  const foot=div({style:{display:"flex",gap:"8px",justifyContent:"flex-end",flexWrap:"wrap",marginTop:"4px"}});
+  foot.append(
+    btn("Cancel","#f1f5f9","#475569",{border:"2px solid #e2e8f0"},()=>closeBasketPickerOverlay()),
+    btn(mode==="exact"?"Use this basket":"Confirm selection","#6366f1","#fff",{},()=>{
+      if(mode==="exact"&&selected.length!==exactCount){
+        alert(`Pick exactly ${exactCount} ingredients (you have ${selected.length}).`);
+        return;
+      }
+      if(mode==="max"&&selected.length>maxCount){
+        alert(`At most ${maxCount} ingredients.`);
+        return;
+      }
+      state.req=[...selected];
+      state.pendingExactBasketPick=null;
+      onBasketModified();
+      closeBasketPickerOverlay();
+      if($("screen-build")&&!$("screen-build").classList.contains("hidden")) renderBuild();
+    })
+  );
+  gridWrap.appendChild(grid);
+  modal.append(head,sub,status,search,gridWrap,foot);
+  ov.appendChild(modal);
+  ov.classList.remove("hidden");
+  updateStatus();
+  paintGrid();
+}
+
 /** Normalize AI JSON for custom pantry rows so they carry the same optional fields as FULL_PANTRY (cookSheet, clock playbooks, toolkits, cook matrix, technique matrix). */
 function normalizeCustomPantryFromAi(data){
   const src=data&&typeof data==="object"?data:{};
@@ -5750,6 +5956,12 @@ function doModalAdd(data){
     const n=normalizeRestrictionKey(data.label);
     if(n&&!state.res.includes(n)){state.res=sanitizeRestrictionList([...state.res,n]);onBasketModified();}
     pruneConflictingReq(DIFF[state.diff]);
+    const ex=getExactIngredientCountFromRestrictions(state.res);
+    const openedExact=ex!=null&&n&&/^Exactly ingredients:/i.test(String(n));
+    closeModal();
+    refreshAfterModalAdd();
+    if(openedExact) setTimeout(()=>openBasketIngredientCountPickerModal({exactCount:ex}), 0);
+    return;
   }
   else if(t==="equipment"){const n=(data.label||"").trim();if(n&&!state.reqEq.includes(n)){state.forbEq=state.forbEq.filter(x=>x!==n);state.reqEq.push(n);}}
   closeModal();refreshAfterModalAdd();
@@ -6612,6 +6824,60 @@ function getComfortWingMacChipViolations(recipe, ch){
   return msgs;
 }
 
+/**
+ * Chip/cracker/panko structural crust + wet slaw/pickle: early assembly soggies the crunch by the pass
+ * (nacho-crumb tart shell, stuffed mushroom panko on wet fill, etc.).
+ */
+function getCrispSubstrateWetTopperTimingViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const hasCrispSubstrate=/\b(chip\s+crust|crust\s+of\s+chips|crushed\s+chips?|chip\s+crumbs?|nacho\s+crumb|tortilla\s+chips?\s+.*\b(crust|base|shell)|crumb\s+crust|cracker\s+crumb|cracker\s+crust|panko\s+(?:layer|top|topping|on\s+the\s+mushroom|on\s+mushroom))\b/i.test(low)
+    ||(/\b(tart\s+shell|mini[\s-]?tart|tartlet|phyllo\s+cup|fillo\s+cup)\b/i.test(low)&&/\b(chip|chips|crumb|cracker|nacho)\b/i.test(low));
+  const hasWetTop=/\b(slaw|pickled\s+cabbage|cabbage\s+slaw|quick[\s-]?pickle|dress(?:ed|ing)?\s+(?:the\s+)?slaw)\b/i.test(low);
+  if(!hasCrispSubstrate||!hasWetTop) return msgs;
+
+  const lastSecondLang=/\b(last\s+second|last\s+moment|just\s+before\s+(?:service|judges?|the\s+pass)|at\s+the\s+pass|seconds\s+before|immediately\s+before\s+handing|right\s+before\s+judges?|add\s+slaw\s+at\s+plating|slaw\s+at\s+plating|plating[-\s]?only|pass\s+slaw\s+separate|serve\s+slaw\s+(?:on\s+the\s+)?side)\b/i.test(low);
+  if(lastSecondLang) return msgs;
+
+  const steps=Array.isArray(recipe.steps)?recipe.steps:[];
+  const timeToSec=t=>{
+    const m=String(t||"").match(/^\s*(\d{1,2})\s*:\s*(\d{2})\s*$/);
+    if(!m) return null;
+    return (+m[1])*60+(+m[2]);
+  };
+
+  const blobSlawOnCrisp=s=>{
+    const b=(String(s&&s.what||"")+" "+String(s&&s.how||"")).toLowerCase();
+    if(!/\b(slaw|pickled\s+cabbage|cabbage\s+slaw)\b/i.test(b)) return false;
+    if(!/\b(on|onto|over|top|layer|mound|add|spoon|dress|garnish|assemble)\b/i.test(b)) return false;
+    return /\b(crust|shell|tart|tartlet|chip|chips|crumb|filling|nacho)\b/i.test(b);
+  };
+
+  const secs=steps.map(s=>timeToSec(s.time)).filter(x=>x!=null);
+  const maxSec=secs.length?Math.max(...secs):null;
+
+  let latestWetSec=null;
+  for(const s of steps){
+    if(!blobSlawOnCrisp(s)) continue;
+    const sec=timeToSec(s.time);
+    if(sec==null) continue;
+    if(latestWetSec==null||sec>latestWetSec) latestWetSec=sec;
+  }
+
+  if(maxSec!=null&&latestWetSec!=null&&maxSec-latestWetSec>=150){
+    msgs.push(`Texture hold: **crisp chip/crumb/shell crust** + **wet slaw/pickle** — wet layer went on **~${Math.round((maxSec-latestWetSec)/60)}+ min** before the last timed step; it will **soften** by the pass (same class as **panko on wet fill** / chip crust on wings). **Add slaw on final PLATE** or **last ~30–60s before judges**; keep crust dry until then (or pass slaw **beside**).`);
+    return msgs;
+  }
+
+  const assembleHit=steps.some(s=>String(s.phase||"").toUpperCase()==="ASSEMBLE"&&blobSlawOnCrisp(s));
+  const plateSlaw=steps.some(s=>String(s.phase||"").toUpperCase()==="PLATE"&&/\b(slaw|pickled\s+cabbage|cabbage\s+slaw)\b/i.test(String(s.what||"")+" "+String(s.how||"")));
+  if(assembleHit&&!plateSlaw)
+    msgs.push(`Texture hold: **crisp crumb/chip crust** + **wet slaw** — **ASSEMBLE** puts slaw onto the crust but **PLATE** never re-applies or last-second slaw. Judges get **sog** if service waits. **Mound/dress slaw at PLATE** (or last pass moment only), not minutes early — same fix as **panko topping on a wet mushroom fill**.`);
+
+  return msgs;
+}
+
 /** Texture contrast + memorability + dominance — injected into rival + coach prompts (skipped for snack / easy). */
 function textureMemorabilityDominanceBlock(ch){
   if(!ch) return "";
@@ -7177,6 +7443,7 @@ function getRecipeTimelineViolations(recipe, ch){
   msgs.push(...getCouscousMalangaSeitanViolations(recipe,ch));
   msgs.push(...getStreetFoodOkraMarjoramTempehViolations(recipe,ch));
   msgs.push(...getComfortWingMacChipViolations(recipe,ch));
+  msgs.push(...getCrispSubstrateWetTopperTimingViolations(recipe,ch));
   msgs.push(...getShortClockHardKitchenLoadViolations(recipe,ch));
   msgs.push(...getAppetizerCourseFitViolations(recipe,ch));
   msgs.push(...getAppetizerPortionSanityViolations(recipe,ch));
@@ -7764,6 +8031,22 @@ function getPorkTenderloinOneInchMedallionSearMatrixViolations(recipe){
   msgs.push(`Pork tenderloin matrix — **~1" medallions**: sear **2–2.5 min/side** max for ~145°F center on lean pork; **${perSide} min/side** overshoots — thin disk geometry brings heat to the center fast. Shorten sear per side, adjust thickness, or finish lower/off heat.`);
   return msgs;
 }
+function getBasketGenerationMandateViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe||!ch) return msgs;
+  if(!(ch.required||[]).some(x=>/\bhearts?\s+of\s+palm\b/i.test(String(x)))) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  if(!/\bhearts?\s+of\s+palm\b/.test(low)){
+    msgs.push(`Basket mandate — **hearts of palm**: must-use item must appear in **ingredients** and **steps** with **two treatments** (**hot char/sear/grill/blister** + **raw/shaved/ribbon/crema or purée**).`);
+    return msgs;
+  }
+  const charHot=/\b(char|charred|blister|grill|grilled|sear(?:ed|ing)?|blacken|torched|hot\s+skillet|cast[\s-]iron|caramel(?:ized|ised)?|glaze|griddle|roast(?:ed)?)\b/.test(low);
+  const rawCool=/\b(raw|shav(?:e|ed|ing)|ribbon|ribbons|thin(?:ly)?\s+slic|crema|pur[eé]e|cool\s+shav|cold\s+shav|uncooked)\b/.test(low);
+  if(!charHot||!rawCool)
+    msgs.push(`Basket mandate — **hearts of palm**: **both** a **hot/char/sear/grill/roast** treatment and a **raw/shaved/ribbon/crema (or purée)** treatment must be explicit in the written plan when palm is in the haul.`);
+  return msgs;
+}
+
 function getRecipeEvalMatrixViolations(recipe, ch){
   return [
     ...getRecipeFruitFritterBatterViolations(recipe),
@@ -7799,8 +8082,8 @@ function getHeartsOfPalmDoubleUseKudos(recipe, ch){
   const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
   const inBasket=(ch&&ch.required||[]).some(x=>/\bhearts?\s+of\s+palm\b/i.test(String(x)));
   if(!inBasket&&!/\bhearts?\s+of\s+palm\b/.test(low)) return notes;
-  const charHot=/\b(char|charred|blister|grill|grilled|sear(?:ed|ing)?|blacken|torched|hot\s+skillet|cast[\s-]iron|caramel(?:ized|ised)?|glaze|griddle)\b/.test(low);
-  const rawCool=/\b(raw|shav(?:e|ed|ing)|ribbon|ribbons|thin(?:ly)?\s+slic|crema|cool\s+shav|cold\s+shav|uncooked)\b/.test(low);
+  const charHot=/\b(char|charred|blister|grill|grilled|sear(?:ed|ing)?|blacken|torched|hot\s+skillet|cast[\s-]iron|caramel(?:ized|ised)?|glaze|griddle|roast(?:ed)?)\b/.test(low);
+  const rawCool=/\b(raw|shav(?:e|ed|ing)|ribbon|ribbons|thin(?:ly)?\s+slic|crema|pur[eé]e|cool\s+shav|cold\s+shav|uncooked)\b/.test(low);
   if(charHot&&rawCool)
     notes.push("Hearts of palm two ways (charred baton + raw shaved or crema): excellent double-use — hot structure vs cool in the same bite; model treatment for judges.");
   return notes;
@@ -8764,6 +9047,9 @@ function builderRestrictionLaunchErrors(reqArr,resArr){
 }
 function pantryAddBlockedByRestrictions(name, reqArr, resArr){
   const r=sanitizeRestrictionList(resArr||[]);
+  const exactN=getExactIngredientCountFromRestrictions(r);
+  if(exactN!=null&&(reqArr||[]).length>=exactN)
+    return `Exactly ${exactN} ingredients — basket is full; remove one or change the restriction.`;
   const maxCap=parseMaxIngredientsCapFromList(r);
   if(maxCap!=null&&(reqArr||[]).length>=maxCap)
     return `Max ingredients (${maxCap}) — remove one or raise the cap.`;
@@ -9180,7 +9466,8 @@ function runMysteryRandomize(){
     renderBuild();
     return;
   }
-  const need=cfg.req;
+  const exN=getExactIngredientCountFromRestrictions(state.res);
+  const need=exN!=null?Math.max(cfg.req, exN):cfg.req;
   const constraints=spinConstraintDisplayItems();
   const nConstraints=constraints.length;
   const ctypePool=[...CTYPES,...state.customTypes];
@@ -9285,7 +9572,10 @@ function runMysteryRandomize(){
     state.mysterySpinLocked=true;
     recordMysterySpinTofuPresence(state.req);
     trackPWEvent("basket_generated", pwParamsBuilder());
+    const pend=state.pendingExactBasketPick;
+    state.pendingExactBasketPick=null;
     renderBuild();
+    if(pend&&pend.n!=null) setTimeout(()=>openBasketIngredientCountPickerModal({exactCount:pend.n}), 0);
   }
   let ticks=0;
   const iv=setInterval(()=>{
@@ -9314,17 +9604,33 @@ function doRandomize(){
   const d=DIFF[state.diff];
   const nConstraints=Math.max(Number(d.res)||0, Number(d.forb)||0);
   const pool=window.USER_PANTRY||PANTRY;
-  const draw=drawUnifiedConstraintsFeasible(nConstraints, pool, d.req, serial, hot);
+  const needBase=Math.max(0, Number(d.req)||0);
+  let draw=drawUnifiedConstraintsFeasible(nConstraints, pool, needBase, serial, hot);
+  let resTry=sanitizeRestrictionList(draw.restrictions);
+  const exR=getExactIngredientCountFromRestrictions(resTry);
+  const needSlots=exR!=null?Math.max(needBase, exR):needBase;
+  if(needSlots>needBase){
+    const draw2=drawUnifiedConstraintsFeasible(nConstraints, pool, needSlots, serial, hot);
+    const res2=sanitizeRestrictionList(draw2.restrictions);
+    if(pantryFeasibleCount(pool, res2)>=needSlots){ draw=draw2; resTry=res2; }
+  }
   state.spinConstraints=sanitizeSpinConstraints(draw.spinConstraints);
-  state.res=sanitizeRestrictionList(draw.restrictions);
+  state.res=resTry;
   state.forbEq=draw.forbEquip;
   rollMustUseEquipment(state.diff, state.forbEq, serial, hot);
   state.lim=false;
   state.cut=d.cut;
   const allTypes=[...CTYPES,...state.customTypes];
   state.ctype=allTypes[randomIndex(allTypes.length)];
-  state.req=pickRequiredPattern(pool,d.req,state.res,cd);
-  state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,pool,state.res,pwChaosOrInsane(),cd);
+  const ex=getExactIngredientCountFromRestrictions(state.res);
+  if(ex!=null){
+    state.req=[];
+    state.pendingExactBasketPick={n:ex};
+  }else{
+    state.pendingExactBasketPick=null;
+    state.req=pickRequiredPattern(pool,d.req,state.res,cd);
+    state.req=ensureCourseBasketViability(state.req,state.ctype,state.diff,pool,state.res,pwChaosOrInsane(),cd);
+  }
   recordRequiredUsage(state.req);
   const t=SPIN_AI_TIMES[randomIndex(SPIN_AI_TIMES.length)];
   state.total=t;state.prep=Math.round(t*0.35);state.cook=Math.round(t*0.65);
