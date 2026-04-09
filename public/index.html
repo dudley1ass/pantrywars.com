@@ -407,6 +407,58 @@ function minRoundMinutesForEquipment(name){
   return null;
 }
 
+function isSousVideFamilyEquipment(eq){
+  const s=String(eq||"").toLowerCase();
+  return /\bsous\s*v|immersion\s+circulator/.test(s);
+}
+
+/** Max typical bath-hold minutes from a technique-matrix **Sous vide** cell (e.g. "15–25m", "60m+"). */
+function maxSousVideHoldMinutesFromTechniqueString(sv){
+  const t=String(sv||"").toLowerCase();
+  if(!t||t==="—"||t.includes("❌")) return null;
+  if(/\b60\s*m\+|\d{2,3}\s*m\+/.test(t)) return 999;
+  let max=null;
+  for(const m of t.matchAll(/(\d+)\s*[–-]\s*(\d+)\s*m/g)){
+    const a=+m[1],b=+m[2];
+    max=Math.max(max??0,a,b);
+  }
+  const one=t.match(/\b(\d+)\s*m\b/);
+  if(one) max=Math.max(max??0,+one[1]);
+  return max;
+}
+
+function requiredBasketHasProteinForSousVideGate(ch){
+  for(const name of (ch&&ch.required)||[]){
+    const meta=pantryMetaByName(name);
+    if(meta&&/\bproteins?\b/i.test(String(meta.cat||""))) return true;
+  }
+  return false;
+}
+
+/** True if typical SV bath hold for this ingredient is ≤30 min (matrix + name heuristics). */
+function ingredientShortSousVideHoldViable(name){
+  const n=String(name||"").toLowerCase();
+  if(/\b(brisket|oxtail|beef\s+short\s+rib|short\s+rib|pork\s+belly|whole\s+chicken|lamb\s+shank|beef\s+shank)\b/.test(n)) return false;
+  const tm=techniqueMatrixForName(name);
+  if(tm&&tm.sousVide!=null){
+    const mx=maxSousVideHoldMinutesFromTechniqueString(tm.sousVide);
+    if(mx!=null&&mx<=30) return true;
+    if(mx!=null&&mx>30) return false;
+  }
+  if(/\b(shrimp|scallop|prawn|salmon|cod|halibut|tilapia|trout|sea\s+bass|mahi|snapper|tuna\s+steak|calamari|squid|eggs?|fish\s+fillet)\b/.test(n)) return true;
+  if(/\b(tofu|paneer|tempeh|seitan)\b/.test(n)) return true;
+  return false;
+}
+
+function basketHasShortSousVideHoldProtein(ch){
+  for(const name of (ch&&ch.required)||[]){
+    const meta=pantryMetaByName(name);
+    if(!meta||!/\bproteins?\b/i.test(String(meta.cat||""))) continue;
+    if(ingredientShortSousVideHoldViable(name)) return true;
+  }
+  return false;
+}
+
 function equipTechniqueSheetLine(name){
   const n=String(name||"").trim();
   if(!n) return "";
@@ -1168,8 +1220,8 @@ const GRAIN_MIN_CLOCK_MINUTES={
 
 /**
  * Prefix violation text for eval / matrix triage (grep `[PW:`).
- * Codes: GRAIN_MIN_CLOCK, PROTEIN_MIN_CLOCK, PASTA_PARALLEL_DRAIN, PRESSURE_BUILD_MIN,
- * PRESSURE_RAMP, PRESSURE_RAMP_DETAIL, CULTURED_DAIRY_HEAT, VOLATILE_AROMATIC_HEAT (+ matrix adds more over time).
+ * Codes: GRAIN_MIN_CLOCK, PROTEIN_MIN_CLOCK, BASKET_INTEGRATION_DEPTH, PASTA_PARALLEL_DRAIN, PRESSURE_BUILD_MIN,
+ * PRESSURE_RAMP, PRESSURE_RAMP_DETAIL, CULTURED_DAIRY_HEAT, VOLATILE_AROMATIC_HEAT, SOUS_VIDE_CLOCK, SOUS_VIDE_PROTEIN (+ matrix adds more over time).
  */
 function pwViol(code,message){
   return `[PW:${code}] ${message}`;
@@ -1547,8 +1599,13 @@ function basketEquipmentTechniquesBlock(ch){
     const tip=equipTechniqueSheetLine(name)||fallback;
     const clk=equipmentCookTimeLine(name);
     const minEq=minRoundMinutesForEquipment(name);
-    const floor=(minEq&&t<minEq)?` **Clock floor:** ${name} usually needs ~${minEq}+ min round (or pre-cooked/setup) for meaningful use.`:"";
-    lines.push(`• ${name}: ${tip}${clk?" **Typical cook window:** "+clk:""}${floor}`);
+    const floor=(minEq&&t<minEq)
+      ?(isSousVideFamilyEquipment(name)
+        ?` **Clock floor:** ${name} usually needs ~${minEq}+ min round — **no in-round sous vide** under ~45 min unless **pre-cooked + retherm** only; at **45+ min** pair SV with a **required protein** whose matrix **SV** hold is **≤~30 min** (not lone brisket/oxtail class).`
+        :` **Clock floor:** ${name} usually needs ~${minEq}+ min round (or pre-cooked/setup) for meaningful use.`)
+      :"";
+    const svHold=(isSousVideFamilyEquipment(name)&&t>=45)?` **Sous vide × basket:** anchor on a **required protein** with **SV ≤~30 min** in the matrix (or explicit **pre-cooked** long-cut retherm).`:"";
+    lines.push(`• ${name}: ${tip}${clk?" **Typical cook window:** "+clk:""}${floor}${svHold}`);
   }
   if(!lines.length) return "";
   return `MUST-USE EQUIPMENT — TECHNIQUES (~${t} min round; **match protein/technique to gear time** — e.g. grill = open high heat + smoke/char, not baked tart; **torch = selective finish that does pan-inaccessible work** (brûlée, brine lacquer), not duplicate sear on sliced meat; blender = prep not sear):
@@ -8113,16 +8170,34 @@ function getEquipmentClockFeasibilityViolations(recipe, ch){
   const steps=(recipe.steps||[]).map(s=>`${String(s&&s.what||"")} ${String(s&&s.how||"")} ${String(s&&s.dur||"")}`.toLowerCase()).join(" ");
   const blob=(low+" "+steps).toLowerCase();
   const prepAhead=/\b(pre[\s-]?cook|pre[\s-]?cooked|already\s+cooked|leftover|overnight|ahead\s+of\s+time|day[-\s]?old|store[\s-]?bought)\b/i.test(blob);
+  let sousVideShortRoundWarned=false;
+  let anySousVideUsed=false;
+  let sousVideLabel="";
   for(const raw of (ch.reqEquip||[])){
     const eq=String(raw||"").trim();
     if(!eq) continue;
     const minM=minRoundMinutesForEquipment(eq);
-    if(!minM||total>=minM) continue;
     const used=mentionsEquipment(blob, eq);
-    // If must-use is declared but round is too short for meaningful in-round effect, force explicit pre-cook/setup story.
-    if(used&&!prepAhead){
+    if(isSousVideFamilyEquipment(eq)&&used){
+      anySousVideUsed=true;
+      if(!sousVideLabel) sousVideLabel=eq;
+    }
+    if(!minM||total>=minM) continue;
+    if(!used) continue;
+    if(isSousVideFamilyEquipment(eq)){
+      if(!sousVideShortRoundWarned){
+        sousVideShortRoundWarned=true;
+        msgs.push(pwViol("SOUS_VIDE_CLOCK",`Equipment clock: **${eq}** is **not allowed as primary in-round gear** when the challenge is **${total} min** — credible bath + finish needs **~45+ min** total. Pick a faster must-use tool, or use a **45+ min** round, or **pre-cooked + honest retherm** minutes only (not a fresh long SV cook).`));
+      }
+      continue;
+    }
+    if(!prepAhead){
       msgs.push(`Equipment clock: **${eq}** is usually not meaningful on a ${total} min round (typical floor ~${minM}+ min) unless you state a pre-cooked/setup path. Use a faster must-use tool or explicitly pre-stage.`);
     }
+  }
+  if(anySousVideUsed&&total>=45&&requiredBasketHasProteinForSousVideGate(ch)&&!basketHasShortSousVideHoldProtein(ch)){
+    const label=sousVideLabel||"Sous vide";
+    msgs.push(pwViol("SOUS_VIDE_PROTEIN",`Sous vide × basket: must-use **${label}** requires a **required protein** whose typical **SV bath hold is ~30 min or less** (matrix **SV** column — e.g. finfish, eggs, tender portions in the ≤30 band) so **heat-up + bath + sear** fits the round — **brisket/oxtail/belly/whole-bird/long-pork** class needs **pre-cooked** or a different hero technique.`));
   }
   return msgs;
 }
