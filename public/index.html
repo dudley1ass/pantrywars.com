@@ -361,19 +361,21 @@ const EQUIPMENT_TECHNIQUE_SHEET={
   "Food Processor":"Shred, slice, rough paste, pesto, crumb; matches heavy prep for veg, nuts, cheese.",
   "Cast Iron":"Sear, shallow fry, bake in pan, fond + deglaze, cornbread; overlaps with beef/pork/aromatic sears.",
   Wok:"Stir-fry, high-heat toss, dry-toast spices, quick steam-fry; matches fast veg + protein + aromatics.",
-  "Sous Vide":"Even edge-to-edge temp; finish with sear/torch — steps must match real time on the clock.",
+  "Sous Vide":"Even edge-to-edge temp; finish with sear/torch — **competition default: commercial bath at target when the bag goes in**; budget **~45+ min from cold** only if the brief assumes a **cold-start** bath.",
   Torch:"**Pan-inaccessible finish** — brûlée sugar, caramelize **brine/pickle syrup/honey brush** into a lacquer (vinegar lifts; sugars brown), blister meringue/cheese tops, spot-melt fat. **Weak:** re-torching **already-seared meat slices** for edge char — cast iron already delivered Maillard; that reads cosmetic. Prefer flame that changes **flavor register**, not only color.",
   "Sheet Pan":"Tray roast, one-pan dinners, even browning for veg + protein together; aligns with oven timing.",
-  "Rice Cooker":"Hands-off rice/grain cooking with auto shutoff; reliable but not fast for short rounds.",
+  "Rice Cooker":"Hands-off rice/grain; **egg / specialty modes** vary — budget set/probe time, not only the rice beep.",
   "Slow Cooker":"Low-and-slow braise/stew tool; usually too slow for competition clocks.",
   "Pressure Cooker":"Rapid tenderizing for grains/collagen; account for pressurize + release time.",
   "Multi-Cooker":"Pressure/saute/slow-cook combo; choose one mode that fits the round.",
-  "Sous Vide Machine":"Precise low-temp bath; best for long windows plus finishing sear.",
-  "Sous Vide Circulator":"Immersion bath control; quality tool but often clock-heavy.",
+  "Sous Vide Machine":"Precise low-temp bath; **station default: water at temp at go** — **~45+ min** only for a **cold bath** story.",
+  "Sous Vide Circulator":"Immersion bath control; **station default: bath at temp at go** — **~45+ min** only for a **cold bath** story.",
   "Dehydrator":"Drying and crisping over long cycles; generally incompatible with short rounds.",
   "Fermentation Crock":"Long fermentation vessel; not an in-round cook method.",
-  "Ice Cream Maker":"Churn/freeze dessert textures; usually needs pre-chilled base/time buffer.",
-  "Smoker":"Smoke layering over longer windows; hard to fit <45 min unless tiny components only.",
+  "Ice Cream Maker":"**Station default: commercial / staged machine** (pre-frozen bowl or churn-ready); in-round = churn + set — base chill still honest.",
+  "Smoker":"**Station default: chamber hot / at smoke temp at go** (commercial pit). **~45+ min from cold** only if the brief assumes **cold pit**.",
+  "Commercial Fryer":"Batch fry at volume; **station default: oil at frying temp when the first basket drops** — long heat-up only if **cold oil** is the story.",
+  "Deep Fryer":"**Station default: oil at frying temp at go** — long heat-up only if **cold oil** is explicit.",
   "Meat Grinder":"Fast texture pivot for tough cuts and fillings; minutes, not hours.",
   "Pasta Maker":"Fresh noodle sheets/shapes; excellent texture but prep-heavy on short clocks.",
 };
@@ -393,19 +395,21 @@ const EQUIPMENT_COOK_TIME_HINTS={
   "Food Processor":"Prep **~2–10m** — shred/pulse; not cook time.",
   "Cast Iron":"Sear / shallow fry / pan-roast small cuts **~6–18m**; fond+deglaze — overlaps **Stovetop**; preheat matters.",
   Wok:"Stir-fry / dry-toss **~3–12m** high heat; not a long braise vessel — pick wok **or** oven story for the main clock.",
-  "Sous Vide":"Bath often **~45–90m+** for thick cuts + **sear finish ~3–8m** — must fit **total** round or forbidden.",
+  "Sous Vide":"**Default: bath at temp at clock start** (competition station). **~45 min from cold** only for a **cold-bath** narrative; thick cuts often **45–90m+** hold.",
   Torch:"Finish only **~30s–4m** — brûlée, **brine/syrup caramel lacquer**, meringue/cheese blister; **not** primary protein cook **and not** fake “torch the sliced steak” after a full sear.",
   "Sheet Pan":"Tray roast **~20–45m** typical for veg+protein together — one oven story; aligns with **Oven** clock.",
-  "Rice Cooker":"Most rice cycles **~20–45m**; brown rice often longer — risky on short clocks unless pre-cooked.",
+  "Rice Cooker":"Most rice cycles **~20–45m**; brown rice often longer — risky on short clocks unless pre-cooked. **Eggs / egg-button modes** vary by machine — budget **probe/set** time, not only \"done\" beep.",
   "Slow Cooker":"Typical cycle **2–8h** — not a 20–40 min competition method.",
   "Pressure Cooker":"Pressure phase + build/release often **~18–45m** total for meaningful change; count hidden minutes.",
   "Multi-Cooker":"Mode-dependent; pressure path often **~18–45m** total including build/release.",
-  "Sous Vide Machine":"Usually **~45–120m+** including heat and hold; finish sear extra.",
-  "Sous Vide Circulator":"Usually **~45–120m+** including heat and hold; finish sear extra.",
+  "Sous Vide Machine":"**Station: bath hot at go**; **~45+ min** only if **cold bath**; long holds **45–120m+** common.",
+  "Sous Vide Circulator":"**Station: bath hot at go**; **~45+ min** only if **cold bath**; long holds **45–120m+** common.",
   "Dehydrator":"Usually **1–8h+** — long-cycle tool, not short-round primary cook.",
   "Fermentation Crock":"Fermentation is **hours–days**; not in-round transformation.",
-  "Ice Cream Maker":"Churn/freeze commonly **~20–40m** after base prep and chilling.",
-  "Smoker":"Meaningful smoke cook usually **~45m–many hours** depending cut.",
+  "Ice Cream Maker":"**Machine staged ready at go**; churn/freeze commonly **~20–40m** in-round after honest base prep (chill time not invented mid-round).",
+  "Smoker":"**Default: hot chamber at clock start**; long smokes **45m–many hours** — **cold pit** bring-up only when explicitly that story.",
+  "Commercial Fryer":"**Default: oil at frying temp at go** (station). Budget long heat-up only if **cold oil** is explicit.",
+  "Deep Fryer":"**Default: oil at frying temp at go** (station). Budget long heat-up only if **cold oil** is explicit.",
   "Meat Grinder":"Texture conversion **~3–8m** active; then cook path still required.",
   "Pasta Maker":"Dough + sheet/cut **~15–35m** before cooking; clock-heavy under 30 min.",
 };
@@ -420,6 +424,8 @@ const EQUIPMENT_MIN_ROUND_MINUTES={
   "Rice Cooker":20,
   "Ice Cream Maker":30,
   "Smoker":45,
+  "Commercial Fryer":20,
+  "Deep Fryer":20,
   "Pasta Maker":25,
   "Pressure Cooker":20,
   "Multi-Cooker":20,
@@ -451,6 +457,25 @@ function minRoundMinutesForEquipment(name){
 function isSousVideFamilyEquipment(eq){
   const s=String(eq||"").toLowerCase();
   return /\bsous\s*v|immersion\s+circulator/.test(s);
+}
+
+function isSmokerEquipment(eq){
+  return /\bsmoker\b/.test(String(eq||"").toLowerCase());
+}
+
+function isCommercialFryerEquipment(eq){
+  const s=String(eq||"").toLowerCase();
+  return /\bcommercial\s+fryer\b/.test(s)||/\bdeep\s+fryer\b/.test(s);
+}
+
+function isIceCreamMakerEquipment(eq){
+  return /\bice\s*cream\s*maker\b/i.test(String(eq||""));
+}
+
+/** Sous vide, smoker, commercial fryer — long preheat / pre-stage story (prompt + validation alignment). */
+function challengeRequiresLongPreheatStagingEquipment(ch){
+  const req=(ch&&ch.reqEquip)||[];
+  return req.some(eq=>isSousVideFamilyEquipment(eq)||isSmokerEquipment(eq)||isCommercialFryerEquipment(eq));
 }
 
 /** Max typical bath-hold minutes from a technique-matrix **Sous vide** cell (e.g. "15–25m", "60m+"). */
@@ -1282,6 +1307,17 @@ const PROTEIN_TECHNIQUE_MATRIX={
 };
 
 /**
+ * Cross-cutting matrix rows (not per-protein cells) — clock / eval hooks.
+ * two_batch_fry: single-batch prose + ambiguous pan ⇒ undercounted active fry/sear time.
+ */
+const PW_TECHNIQUE_MATRIX_CROSSCUT={
+  two_batch_fry:{
+    clock_impact:"must_account_for_second_batch_time_in_timeline",
+    note:"single_batch_assumption_understates_cook_time_when_pan_size_is_ambiguous",
+  },
+};
+
+/**
  * Minimum round length (minutes) for a credible **default** braise/roast story for this cut — vs challenge totalTime when the item is MUST USE.
  * Honest short-clock paths (grind, paper-thin sear, leftover, pressure if allowed) skip the check via getProteinMinClockViolations.
  * Custom pantry rows can set `minClockMinutes` to override or extend.
@@ -1311,7 +1347,8 @@ const GRAIN_MIN_CLOCK_MINUTES={
 /**
  * Prefix violation text for eval / matrix triage (grep `[PW:`).
  * Codes: GRAIN_MIN_CLOCK, PROTEIN_MIN_CLOCK, BASKET_INTEGRATION_DEPTH, PASTA_PARALLEL_DRAIN, PRESSURE_BUILD_MIN,
- * PRESSURE_RAMP, PRESSURE_RAMP_DETAIL, CULTURED_DAIRY_HEAT, VOLATILE_AROMATIC_HEAT, SOUS_VIDE_CLOCK, SOUS_VIDE_PROTEIN (+ matrix adds more over time).
+ * PRESSURE_RAMP, PRESSURE_RAMP_DETAIL, CULTURED_DAIRY_HEAT, VOLATILE_AROMATIC_HEAT, SOUS_VIDE_CLOCK, SOUS_VIDE_PROTEIN,
+ * TWO_BATCH_FRY (+ matrix adds more over time).
  */
 function pwViol(code,message){
   return `[PW:${code}] ${message}`;
@@ -1691,7 +1728,7 @@ function basketEquipmentTechniquesBlock(ch){
     const minEq=minRoundMinutesForEquipment(name);
     const floor=(minEq&&t<minEq)
       ?(isSousVideFamilyEquipment(name)
-        ?` **Clock floor:** ${name} usually needs ~${minEq}+ min round — **no in-round sous vide** under ~45 min unless **pre-cooked + retherm** only; at **45+ min** pair SV with a **required protein** whose matrix **SV** hold is **≤~30 min** (not lone brisket/oxtail class).`
+        ?` **Clock floor:** ${name} — **station default: bath at target at go** (commercial kitchen). Under **45 min** total: **pre-cooked + retherm** or short-hold proteins only. **~${minEq}+ min from cold bath** only if the plan assumes **cold start**; at **45+ min** pair SV with a **required protein** whose matrix **SV** hold is **≤~30 min** (not lone brisket/oxtail class).`
         :` **Clock floor:** ${name} usually needs ~${minEq}+ min round (or pre-cooked/setup) for meaningful use.`)
       :"";
     const svHold=(isSousVideFamilyEquipment(name)&&t>=45)?` **Sous vide × basket:** anchor on a **required protein** with **SV ≤~30 min** in the matrix (or explicit **pre-cooked** long-cut retherm).`:"";
@@ -4176,6 +4213,11 @@ ELEVATE A CHEAP MEAL — JUDGING LENS:
 /** Auto-judge: recreate = one named classic, recognition over novelty. */
 function recreateClassicJudgeAddon(ch){
   if(!challengeTypeIsRecreateClassic(ch.ctype)) return "";
+  const noEmu=(ch.restrictions||[]).some(x=>normalizeRestrictionKey(x)==="No Emulsifying");
+  const emuLine=noEmu
+    ?`
+- **No Emulsifying + classic:** many classics lean on emulsion (Caesar, hollandaise-class, mayo-anchored). Penalize hidden mayo/aioli; reward honest pivots (**vinaigrette-forward**, broken dressing, acid-fat whip without forbidden emulsion language) or **inspired-by** in title when the classic is impossible on-rule.`
+    :"";
   return `
 RECREATE A CLASSIC — JUDGING LENS:
 - Penalize plans that never state a specific classic (fish and chips, chicken parmesan, etc.) or hide behind region/style words only.
@@ -4185,7 +4227,7 @@ RECREATE A CLASSIC — JUDGING LENS:
 - Penalize archetype drift: e.g. piccata must read lemon/briny; carbonara is not cream-forward; fish and chips needs **crisp chip energy + real batter or honest grill-pan shallow fry** — not grilled fish with soft veg “chips” unless the title says inspired-by and roles are mapped.
 - **Title honesty:** do not put an ingredient in **title or tagline** (e.g. "caper," "lobster," "truffle") unless it appears in the **printed ingredient list** — "date-caper **style**" is OK only if prose admits **no capers** and the title does not promise them.
 - If restrictions forbid dairy/meat/etc., penalize heavily for smuggling forbidden ingredients — authenticity of the classic never overrides posted rules.
-- Penalize impossible physics on the clock: long-braise classics executed as if collagen broke down in a fraction of the time, "full" bourguignon/cassoulet with no honest time or pressure story. Reward time-honest pivots (inspired-by title, steak-cut + sauce, pressure when credible).`;
+- Penalize impossible physics on the clock: long-braise classics executed as if collagen broke down in a fraction of the time, "full" bourguignon/cassoulet with no honest time or pressure story. Reward time-honest pivots (inspired-by title, steak-cut + sauce, pressure when credible).${emuLine}`;
 }
 
 function physicsRealismJudgeAddon(ch){
@@ -4832,7 +4874,10 @@ ${processEquipmentPromptBlock(ch)}
 
 ${restrictionHardPriorityBlock(ch)}
 ${equipmentHardPriorityBlock(ch)}
+${mustUsePreheatStagingBlock(ch)}
+${instantPotPassivePrepBlock(ch)}
 ${recreateClassicGrillFidelityBlock(ch)}
+${recreateClassicRestrictionTensionBlock(ch)}
 ${courseBlock}
 ${competitionEdgeBlock}
 ${savoryChocolateBlock}
@@ -4923,6 +4968,7 @@ EVAL MATRIX — COMPETITION REALISM (judges notice; machine checks some):
 - **Day-old / leftover rice**: if the plan needs **cold/dry rice** (fried rice, wok rice) but REQUIRED/PANTRY only has **raw grain**, budget **~18–20 min cook + spread/cool** or state **cooked rice was supplied** — don’t hide that clock cost.
 - **Pasta parallel clock**: **spaghetti/long pasta in the pot does not wait** — treat boil-to-al-dente as its **own countdown**; **drain/strain/reserve on time** even if another lane runs long. Steps with **\`time\` + \`dur\`** must show the **drain** before the line overruns **drop time + boil minutes**.
 - **Squid (flash)**: **~60–90s max** in **ripping heat**; **pat dry / single layer / batches** — **wet surface, crowding, or low gentle heat** → steam → **rubber** (long braise/stew squid is a different story — say so).
+- **Two-batch fry / sear** (`two_batch_fry` — **clock_impact:** must_account_for_second_batch_time_in_timeline): **"work in batches if needed"** (or **two batches** / **second batch**) without **second-pass minutes** understates active cook time when **pan size / capacity is ambiguous** — book **~same fry/sear time again** for batch 2 (or split steps / \`dur\`) and name **skillet size** (e.g. **12-inch**) so single-layer vs two-batch is legible.
 - **Grains / legumes vs clock**: **farro, pearl barley, wild rice, brown rice, green lentils, split peas, polenta (simmered)** need **real simmer minutes** — if the round is shorter than a credible tender cook, use **pre-cooked / leftover**, **quick-cook SKU**, or **dry-toast / garnish-only** — not a fantasy 12-minute center-plate porridge.
 - **Cultured dairy + dry heat**: **crème fraîche, sour cream, yogurt** in **hot oven / air fryer** without **starch binder** (slurry, roux, béchamel) → **break / curdle** — finish off heat or protect.
 - **Volatile aromatics**: **yuzu, finger lime, chervil** — **heat_stable: false** for long cooks; **finish raw / dressing / pass** — not primary **air-fry / broil / 20+ min reduction** flavor spine.
@@ -5104,7 +5150,10 @@ PANTRY ADD-ONS: ${pantryLines}
 
 ${culinaryEngineBrief(ch)}${basketCookFundamentalsBlock(ch)}${basketClockPlaybookBlock(ch)}${basketTechniqueMatrixBlock(ch)}${basketIngredientToolkitBlock(ch)}${basketTransformationPreflightBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${restrictionHardPriorityBlock(ch)}
 ${equipmentHardPriorityBlock(ch)}
+${mustUsePreheatStagingBlock(ch)}
+${instantPotPassivePrepBlock(ch)}
 ${recreateClassicGrillFidelityBlock(ch)}
+${recreateClassicRestrictionTensionBlock(ch)}
 ${whiteChocolateHonestyBlock(ch.required)}
 ${elevateCheapContestCoachBlock(ch)}
 ${courseEnforcementBlock(ch, analyzeBasketForRecipe(ch.required||[]))}
@@ -5127,7 +5176,7 @@ ${couscousMalangaSeitanTechniqueBlock(ch)}
 ${streetFoodOkraMarjoramLaneBlock(ch)}
 ${comfortWingMacExecutionBlock(ch)}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
-EVAL MATRIX (same as rival): no juicy fruit **in** fritter/tempura batter; broil + kale/spinach → remove/shield greens or separate tray; pressed grain cakes need brief rest before sear; torch/heat-gun second pass must not target scallion/herb garnish — add herbs after heat. **Rillettes** = slow meat in/set in fat (confit); not cold butter + quick-seared pull — say **pulled [protein]** instead. **Bay leaf + fat**: ~5–7 min low or ~10 min off-heat bloom — not 1–4 min only. **Soy in 2+ steps** = sodium stack: **acid/cut per step** (not one lime for dressing+glaze). **Pork tenderloin ~1\" medallions**: **2–2.5 min/side** max — **3+ min/side** overshoots ~145°F. **Day-old rice**: if haul is raw grain only → **~18–20 min cook+cool** or say rice was pre-cooked. **Pasta**: **drain at al dente on its own clock** — don’t let other steps run past **drop + boil time** without a **drain/strain** step aligned on **\`time\`/\`dur\`**. **Squid flash**: **dry, ripping heat, single layer/batches, ~60–90s** — not wet, crowded, or minutes-long gentle sauté. **Grains**: farro/barley/wild rice/brown rice/green lentil/split pea/polenta need honest simmer time or pre-cooked/toast-only. **Cultured dairy**: no hot oven/air fry without starch binder. **Yuzu/chervil**: finish raw — not air-fry spine. **Pressure**: +8–12 min to pressure before timer. **Chip/crumb tart shell + wet slaw**: slaw at **PLATE** / last seconds — not early **ASSEMBLE** hold. **Hearts of palm**: when palm is on **MUST USE**, **BASKET GENERATION MANDATES** is law; otherwise char + raw/crema is an exemplary optional pattern. **Yellow mustard + dessert**: reduction/trace/savory contrast — not raw condiment in custard. **Radish + sweet**: 8–10+ min heat or savory-only — not 2 min sauté to sweet.
+EVAL MATRIX (same as rival): no juicy fruit **in** fritter/tempura batter; broil + kale/spinach → remove/shield greens or separate tray; pressed grain cakes need brief rest before sear; torch/heat-gun second pass must not target scallion/herb garnish — add herbs after heat. **Rillettes** = slow meat in/set in fat (confit); not cold butter + quick-seared pull — say **pulled [protein]** instead. **Bay leaf + fat**: ~5–7 min low or ~10 min off-heat bloom — not 1–4 min only. **Soy in 2+ steps** = sodium stack: **acid/cut per step** (not one lime for dressing+glaze). **Pork tenderloin ~1\" medallions**: **2–2.5 min/side** max — **3+ min/side** overshoots ~145°F. **Day-old rice**: if haul is raw grain only → **~18–20 min cook+cool** or say rice was pre-cooked. **Pasta**: **drain at al dente on its own clock** — don’t let other steps run past **drop + boil time** without a **drain/strain** step aligned on **\`time\`/\`dur\`**. **Squid flash**: **dry, ripping heat, single layer/batches, ~60–90s** — not wet, crowded, or minutes-long gentle sauté. **Two-batch fry/sear** (`two_batch_fry`): **"in batches if needed"** ⇒ book **batch-2 minutes** (or **2×** per-batch time) + **pan size** when capacity unclear. **Grains**: farro/barley/wild rice/brown rice/green lentil/split pea/polenta need honest simmer time or pre-cooked/toast-only. **Cultured dairy**: no hot oven/air fry without starch binder. **Yuzu/chervil**: finish raw — not air-fry spine. **Pressure**: +8–12 min to pressure before timer. **Chip/crumb tart shell + wet slaw**: slaw at **PLATE** / last seconds — not early **ASSEMBLE** hold. **Hearts of palm**: when palm is on **MUST USE**, **BASKET GENERATION MANDATES** is law; otherwise char + raw/crema is an exemplary optional pattern. **Yellow mustard + dessert**: reduction/trace/savory contrast — not raw condiment in custard. **Radish + sweet**: 8–10+ min heat or savory-only — not 2 min sauté to sweet.
 {"title":"","tagline":"","processEquipment":["Oven"],"restrictionCompliance":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":"","dur":"optional e.g. 5 min"}],"lastMinuteTip":"one sentence"}
 restrictionCompliance: **""** if no restrictions. If RESTRICTIONS apply, one sentence naming the rule + compliant technique (e.g. "No Peeler — knife plank peel").
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts. Self-check every ingredient and step before returning.`;
@@ -7017,7 +7066,12 @@ function sousVidePreheatLanguagePresent(low){
     || (/\bbefore\s+(?:the\s+)?(?:clock|round|challenge)\b/.test(L)&&/\b(?:bath|preheat|circulator|sous\s*v?ide)\b/.test(L))
     || /\bstation\s+(?:bath|circulator)\s+(?:at|is\s+at|already)\b/.test(L)
     || /\b(?:bath|circulator)\s+(?:is\s+)?already\s+at\s+(?:the\s+)?target/i.test(L)
-    || /\bat\s+(?:clock\s+start|the\s+go|temp)\b[\s\S]{0,120}\b(?:bath|circulator)\b/i.test(L);
+    || /\bat\s+(?:clock\s+start|the\s+go|temp)\b[\s\S]{0,120}\b(?:bath|circulator)\b/i.test(L)
+    || /\bpre[\s-]?staged?\b/.test(L)&&/\b(?:bath|water|oil|circulator|sous|fryer|smoker|chamber)\b/.test(L)
+    || /\bcommissary\b/.test(L)&&/\b(?:bath|circulator|sous)\b/.test(L)
+    || /\b(?:bath|water)\s+(?:is\s+)?ready\b/.test(L)
+    || /\bat\s+working\s+temp(?:erature)?\s+before\s+(?:the\s+)?(?:round|clock)\b/.test(L)
+    || /\b(?:oil|fryer)\s+(?:is\s+)?(?:at|pre[\s-]?heated|ready)\b/.test(L);
 }
 
 function stepTimelineMinutes(timeStr){
@@ -7430,6 +7484,37 @@ function getNoriCrispWetRaguAdvisory(recipe){
 }
 
 /**
+ * Matrix `two_batch_fry` (PW_TECHNIQUE_MATRIX_CROSSCUT): hedged multi-batch sear/fry without booking batch-2 time.
+ */
+function getTwoBatchFryClockViolations(recipe, ch){
+  const msgs=[];
+  if(!recipe) return msgs;
+  const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
+  const frySear=/\b(fry|fries|frying|sear|sears|searing|shallow[\s-]*fry|pan[\s-]*fry|skillet|saut[eé]|brown(?:ing)?|toast|crisp|golden\s+brown)\b/i.test(low);
+  if(!frySear) return msgs;
+  const hedge=/\b(work|cook|fry|sear|brown|toast)\s+in\s+batches?(?:\s*(?:if\s+needed|as\s+needed))?\b/i.test(low)
+    ||/\bbatches?\s+if\s+needed\b/i.test(low)
+    ||(/\b(two|2)\s+batches?\b/i.test(low)&&/\bif\s+needed\b/i.test(low));
+  const multiHint=/\b(second\s+batch|two\s+batches|2\s+batches|another\s+batch|repeat\s+for\s+(?:the\s+)?(?:second|remaining))\b/i.test(low);
+  if(!hedge&&!multiHint) return msgs;
+  const bookedSecond=/\b\d{1,2}\s*min\s+per\s+batch\b/i.test(low)
+    ||(/\b(first|1(?:st)?)\s+batch\b/i.test(low)&&/\b(second|2(?:nd)?)\s+batch\b/i.test(low)&&/\b\d{1,2}\s*min\b/.test(low))
+    ||/\b(second|another)\s+batch\b[\s\S]{0,160}\b\d{1,2}\s*min\b/i.test(low)
+    ||/\b\d{1,2}\s*min\s*[×x]\s*2\b/i.test(low)
+    ||/\b(two|2)\s*[×x]\s*\d{1,2}\s*min\b/i.test(low)
+    ||/\bfollowed\s+by\s+(?:a\s+)?second\s+\d{1,2}\s*min/i.test(low);
+  const provedOneBatch=/\b(single\s+batch|one\s+batch\s+only|fits?\s+all\s+in\s+one|entire\s+(?:recipe|batch)\s+in\s+one\s+(?:layer|batch|go))\b/i.test(low)
+    ||/\b(?:all|everything)\s+(?:in\s+)?one\s+(?:uncrowded\s+)?(?:layer|batch)\b/i.test(low);
+  if(bookedSecond||provedOneBatch) return msgs;
+  const panHint=low.match(/\b(\d{1,2})\s*[-]?\s*(?:inch|in|")\s*(?:skillet|pan|frying)/i)
+    ||low.match(/\b(large|small|medium)\s+(?:skillet|cast[\s-]?iron|frying\s+pan)\b/i);
+  const panStr=panHint?panHint[0].trim():"pan size not stated";
+  const mx=PW_TECHNIQUE_MATRIX_CROSSCUT.two_batch_fry;
+  msgs.push(pwViol("TWO_BATCH_FRY",`Two-batch fry/sear (${mx.clock_impact}): hedged batching understates the clock when **${mx.note}**. Name **pan size** (e.g. 12-inch skillet) and either book **~the same active fry/sear minutes again** for batch 2 (plus any handoff) or prove **one uncrowded layer** fits the full mound — **${panStr}**.`));
+  return msgs;
+}
+
+/**
  * Rough timeline check: summed step durations vs challenge clock.
  * Catches "20 min braise + rest in 25 min" style fantasy.
  */
@@ -7458,6 +7543,7 @@ function getRecipeTimelineViolations(recipe, ch){
   msgs.push(...getSousVideBathPreheatViolations(recipe,ch));
   msgs.push(...getSquidFlashHeatExecutionViolations(recipe,ch));
   msgs.push(...getPastaParallelAlDenteDrainViolations(recipe,ch));
+  msgs.push(...getTwoBatchFryClockViolations(recipe,ch));
   msgs.push(...getSnackFlavorDensityAdvisoryViolations(recipe,ch));
   msgs.push(...getActiveAttentionOverlapViolations(recipe,ch));
   msgs.push(...getShortClockRoastCaramelRiskViolations(recipe,ch));
@@ -8437,7 +8523,7 @@ function shortClockGrainPhysicsPromptBlock(ch){
 
 /** Competition-show default: hot ovens/fryers/grills and boiling stockpots — rival + coach prompts only; validators keep SV/pressure honest. */
 function competitionStationStagingBlock(){
-  return `- **Show stations (Chopped-style default):** **Ovens**, **deep fryers** (oil at working fry temp), and **live grills** are **already at heat** when the clock starts — count **bake / fry / sear / char** time, not a separate **preheat** or **"heat the oil"** minute sink unless the challenge text removes that equipment or you **deliberately** write a cold-start story. **Large pasta / blanching stockpots** are treated as **already at a boil** — do not waste the opening minutes only bringing that main pot up unless you need a **second small pot** from cold for a different use.
+  return `- **Show stations (Chopped-style default):** **Ovens are on and preheated** for any bake/roast/broil — **not only when "Oven" is listed must-use** (stations run hot). **Deep fryers** (oil at working fry temp) and **live grills** are **already at heat** when the clock starts — count **bake / fry / sear / char** time, not a separate **preheat** or **"heat the oil"** minute sink unless the challenge text removes that equipment or you **deliberately** write a cold-start story. **Large pasta / blanching stockpots** are treated as **already at a boil** — do not waste the opening minutes only bringing that main pot up unless you need a **second small pot** from cold for a different use.
 `;
 }
 
@@ -8942,6 +9028,36 @@ function recreateClassicGrillFidelityBlock(ch){
 RECREATE A CLASSIC + GRILL (must-use): Frying is the default soul for **fish and chips** and other fry-forward classics. Use the grill as **radiant heat** for **cast-iron skillet, plancha, or heavy griddle on the grates** (flat surface + oil) — NOT a fragile polenta/crumb crust **directly on open grates** as the main fish cook. **Chips** must read **crisp** (shallow fry, high-heat crisp, twice-cook, air-fry) — not only soft grilled planks. **Batter** = hydrated flour/beer/tempura **or** honest basket mapping (e.g. polenta + dark chocolate bloomed with fat for a malt note) paired with the flat-on-grill method — not egg wash + dry dredge mislabeled “batter.” If you cannot hit the classic, use **inspired-by** in title/tagline and map fry + crisp roles in balance.basket.\n`;
 }
 
+/** Long-preheat must-use gear: station default = hot; cold-start is the explicit exception. */
+function mustUsePreheatStagingBlock(ch){
+  if(!challengeRequiresLongPreheatStagingEquipment(ch)) return "";
+  return `
+LONG-PREHEAT MUST-USE (clock rule vs STATION DEFAULT): **Sous vide, smoker, deep/commercial fryer** are **commercial / station gear** — **bath water hot at target**, **chamber hot**, **fryer oil at temp** **when the round starts**, unless the brief explicitly tells a **cold-start** story. Use the **~45 min from cold** path only when **cold bath / cold oil / cold pit** is what the plan actually assumes; otherwise in-round minutes are **hold, smoke, fry batch, retherm, finish** — not heating empty equipment from room temperature.
+`;
+}
+
+/** Pressure paths hide passive minutes — remind coach to use parallel prep. */
+function instantPotPassivePrepBlock(ch){
+  const req=(ch&&ch.reqEquip)||[];
+  if(!req.some(eq=>{
+    const s=String(eq).toLowerCase();
+    return /\binstant\s*pot\b/.test(s)||/\bpressure\s+cooker\b/.test(s)||/\bmulti[\s-]?cooker\b/.test(s);
+  })) return "";
+  return `
+INSTANT POT / PRESSURE / MULTI-COOKER: **Come-up**, **pressure cook**, and **natural release** minutes are often **passive on the clock** — plan **parallel prep** (knife, sauce, veg, plating) during those windows; do not pretend the protein finished when the timer beeps if NR is part of the story.
+`;
+}
+
+/** Recreate Classic + technique restrictions that fight the archetype (e.g. no emulsion + Caesar-class). */
+function recreateClassicRestrictionTensionBlock(ch){
+  if(!ch||!challengeTypeIsRecreateClassic(ch.ctype)) return "";
+  const r=sanitizeRestrictionList(ch.restrictions||[]);
+  if(!r.some(x=>normalizeRestrictionKey(x)==="No Emulsifying")) return "";
+  return `
+RECREATE A CLASSIC + NO EMULSIFYING: If the named classic normally depends on **mayo / emulsified dressing / hollandaise-class** sauce, you must either (1) deliver an **honest non-emulsion architecture** (vinaigrette-forward, broken dressing, named acid–fat balance without emulsion verbs) that still maps to the classic, or (2) use **inspired-by** in title/tagline and explain the mapping in **balance.basket**. Do not smuggle emulsion under other names.
+`;
+}
+
 function equipmentHardPriorityBlock(ch){
   const req=(ch&&ch.reqEquip)||[];
   const forb=(ch&&ch.forbEquip)||[];
@@ -8953,6 +9069,7 @@ function equipmentHardPriorityBlock(ch){
 `;
   if(forb.length) s+=`- FORBIDDEN: ${forb.join(", ")}.\n`;
   if(req.length) s+=`- MUST USE: ${req.join(", ")}.\n`;
+  if(req.length) s+=`- STATION DEFAULT (competition kitchen — **commercial / station-grade** gear): Unless the brief explicitly narrates a **cold start**, assume **must-use thermal equipment is staged at working temperature when the round clock starts**: **sous vide bath at target temp** (hot-filled / kettle-backed — not a full cold-volume heat-up on the clock), **deep fryer / fryer oil at frying temperature**, **ovens on and preheated** (competition stations — **available even when Oven is not listed** must-use; any bake/roast/broil step still names honest oven time), **smoker chamber hot / stabilized**, **salamander / griddle / range as needed**, **water for pasta / stock pots already boiling** where the story needs it. **Ice cream makers** are **staged ready** (pre-frozen bowl insert or churn-ready machine — base still honestly chilled). Write the timeline for **active cook, hold, churn, and finish** in-round — not for warming empty gear from room temperature.\n`;
   if(oneBurner) s+=`- LIMIT: 1 burner only — avoid multi-burner choreography.\n`;
   if(forb.some(x=>String(x).toLowerCase()==="stovetop")){
     s+=`- Outside-the-box allowance: if Stovetop is forbidden, pan/skillet work is allowed ONLY when explicitly tied to an allowed non-stovetop heat source (e.g. cast-iron skillet on grill/plancha), never on a burner/range.\n`;
@@ -8965,6 +9082,14 @@ function equipmentHardPriorityBlock(ch){
 - On tarts/custards: use the blender for the filling or roast purée (silky base) — not only a small drizzle or plate garnish.\n`;
   if(req.some(x=>/\boven\b/i.test(String(x))))
     s+=`- OVEN (must-use): Put **dry oven heat** in at least one **step** (PREP preheat, COOK, SAUCE, or ASSEMBLE) — e.g. preheat oven, roast, bake, broil, gratin, bake until set. Saying "oven" only in balance text without a matching step **fails** validation. Stovetop-only (sear, boil, simmer, skillet) does **not** satisfy Oven.\n`;
+  if(req.some(x=>isSousVideFamilyEquipment(x)))
+    s+=`- SOUS VIDE / CIRCULATOR: **Station default** = bath **already at target when the bag goes in** (see above). Only if the brief explicitly assumes a **cold bath from scratch** must you budget **~45+ min** credible for heat-up + hold + sear — otherwise count **hold + retherm + sear** on the clock.\n`;
+  if(req.some(x=>isSmokerEquipment(x)))
+    s+=`- SMOKER: **Station default** = chamber **hot / at smoke temp at go**. Only a **cold pit / cold start** story needs **~45+ min** bring-up for meaningful smoke — otherwise in-round = smoke + cook + finish time.\n`;
+  if(req.some(x=>isCommercialFryerEquipment(x)))
+    s+=`- DEEP / COMMERCIAL FRYER: **Station default** = **oil at frying temperature when the first basket drops**. Only budget long **oil heat-up from cold** if the brief explicitly says so.\n`;
+  if(req.some(x=>isIceCreamMakerEquipment(x)))
+    s+=`- ICE CREAM MAKER: **Station default** = **commercial / staged machine** — pre-frozen bowl or churn-ready setup at go; in-round = **churn + set/harden** honestly — not freezing the insert from warm during the round.\n`;
   const st=req.some(x=>String(x).toLowerCase().includes("stovetop"));
   const noSv=forb.some(x=>/\bsous/i.test(String(x)));
   const ovenReq=req.some(x=>/\boven\b/i.test(String(x)));
