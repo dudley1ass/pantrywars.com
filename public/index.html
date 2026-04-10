@@ -517,7 +517,6 @@ const RESTRICT=[
   "Only Canned Goods","Only Frozen Ingredients","Only Fresh / Raw Ingredients","No Processed Foods",
   "Only Pantry Staples","Only Shelf-Stable Items",
   "Only One Protein",
-  "Max ingredients: 5","Max ingredients: 7","Exactly ingredients: 5",
   "No Frying","No Roasting","No Baking","No Grilling",
   "No Oil","No Added Fat",
   "No Blending","No Chopping (whole ingredients only)","No Peeling","No Straining","No Emulsifying",
@@ -534,45 +533,12 @@ function normalizeRestrictionKey(s){
   if(/^no\s+animal\s+products?$/i.test(t)) return "Vegan";
   if(/^no\s+added\s+salt$/i.test(t)) return "No Salt";
   if(/^no\s+added\s+sugar$/i.test(t)) return "No Sugar";
-  const maxM=/^max\s+(\d+)\s+ingredients?$/i.exec(t);
-  if(maxM) return "Max ingredients: "+maxM[1];
-  const exM=/^exactly\s+(\d+)\s+ingredients?$/i.exec(t);
-  if(exM) return "Exactly ingredients: "+exM[1];
   for(const r of RESTRICT) if(r.toLowerCase()===low) return r;
   return t;
 }
 
 function parseBannedFirstLetterRestriction(_r){
   return null;
-}
-function parseMaxIngredientsCapFromList(arr){
-  let best=null;
-  for(const x of arr||[]){
-    const k=normalizeRestrictionKey(x);
-    const m=/^Max ingredients:\s*(\d+)\s*$/i.exec(k);
-    if(m){
-      const n=+m[1];
-      if(Number.isFinite(n)&&n>0) best=best==null?n:Math.min(best,n);
-    }
-  }
-  return best;
-}
-function parseExactIngredientsCountsFromList(arr){
-  const out=[];
-  for(const x of arr||[]){
-    const k=normalizeRestrictionKey(x);
-    const m=/^Exactly ingredients:\s*(\d+)\s*$/i.exec(k);
-    if(m){
-      const n=+m[1];
-      if(Number.isFinite(n)&&n>0) out.push(n);
-    }
-  }
-  return out;
-}
-/** Smallest exact count if multiple "Exactly ingredients: N" slip through — tightest brief wins. */
-function getExactIngredientCountFromRestrictions(arr){
-  const ns=parseExactIngredientsCountsFromList(arr||[]);
-  return ns.length?Math.min(...ns):null;
 }
 /** Only Canned / Only Frozen / Only Fresh — user must fill the must-use basket (no spinner pre-fill); GGG pantry. */
 function getManualBasketFormatRestriction(arr){
@@ -585,17 +551,13 @@ function getManualBasketFormatRestriction(arr){
   }
   return null;
 }
-/** Must-use count: Exactly N if set; else difficulty req when a manual format rule applies. */
+/** Must-use count from difficulty when a manual format rule (frozen/canned/fresh) applies. */
 function getManualBasketRequiredCount(resArr, diffKey){
-  const ex=getExactIngredientCountFromRestrictions(resArr);
-  if(ex!=null) return ex;
   const d=DIFF[diffKey||state.diff]||DIFF.medium;
   return Math.max(0, Number(d.req)||0);
 }
-/** Target must-use count for exact-N or frozen/canned/fresh-only flows. */
+/** Target must-use count for frozen/canned/fresh-only flows. */
 function getBasketMustUseTargetCount(resArr, diffKey){
-  const ex=getExactIngredientCountFromRestrictions(resArr);
-  if(ex!=null) return ex;
   if(getManualBasketFormatRestriction(resArr)) return getManualBasketRequiredCount(resArr, diffKey);
   return null;
 }
@@ -2014,7 +1976,7 @@ let state = {
   duelJudgeSummaryConflict:false,
   timerRem:0, timerRunning:false, timerInterval:null,
   modalType:null,
-  /** Set by mystery spin when draw includes "Exactly ingredients: N" — cleared after user confirms picker. */
+  /** Set by mystery spin for frozen/canned/fresh-only — cleared after user confirms picker. */
   pendingExactBasketPick:null,
   leaderboard:null,
 };
@@ -2104,8 +2066,8 @@ function applyPantryPreset(presetId){
 }
 
 /**
- * Guy's Grocery Games–style staple list for Step 2: used when "Exactly N must-use ingredients"
- * is in play so the randomizer does not pre-fill the basket — you pick N from this pool; add-ons use the same pool.
+ * Guy's Grocery Games–style staple list for Step 2: used when frozen/canned/fresh-only rules apply
+ * so the randomizer does not pre-fill the basket — you pick from this pool; add-ons use the same pool.
  * Does not navigate away from Build; pass silent:true to skip re-rendering Step 1.
  */
 function syncBattlePantryToGggPreset(opts){
@@ -3074,22 +3036,15 @@ function renderBuild() {
   rbtns.append(btn("+ Add ingredient","#6366f1","#fff",{padding:"8px 14px",fontSize:"12px",fontWeight:"800"},()=>openModal("ingredient")));
   const fmtPick=getManualBasketFormatRestriction(state.res);
   const tgtPick=getBasketMustUseTargetCount(state.res, state.diff);
-  const maxPick=parseMaxIngredientsCapFromList(state.res);
-  if(tgtPick!=null){
-    const lab=fmtPick
-      ?`Pick ${tgtPick} (${fmtPick==="Only Frozen Ingredients"?"frozen-only":fmtPick==="Only Canned Goods"?"canned-only":"fresh/raw"})`
-      :`Pick ${tgtPick} from pantry list`;
-    rbtns.append(btn(lab,"#7c3aed","#fff",{padding:"8px 14px",fontSize:"12px",fontWeight:"800"},()=>openBasketIngredientCountPickerModal({exactCount:tgtPick, manualFormat:fmtPick||undefined})));
-  }else if(maxPick!=null){
-    rbtns.append(btn(`Pick up to ${maxPick} from list`,"#0d9488","#fff",{padding:"8px 14px",fontSize:"12px",fontWeight:"800"},()=>openBasketIngredientCountPickerModal({maxCount:maxPick})));
+  if(tgtPick!=null&&fmtPick){
+    const lab=`Pick ${tgtPick} (${fmtPick==="Only Frozen Ingredients"?"frozen-only":fmtPick==="Only Canned Goods"?"canned-only":"fresh/raw"})`;
+    rbtns.append(btn(lab,"#7c3aed","#fff",{padding:"8px 14px",fontSize:"12px",fontWeight:"800"},()=>openBasketIngredientCountPickerModal({exactCount:tgtPick, manualFormat:fmtPick})));
   }
   rHead.append(heroIntro,rbtns);
   rCard.appendChild(rHead);
-  if(tgtPick!=null&&state.req.length!==tgtPick){
+  if(fmtPick&&tgtPick!=null&&state.req.length!==tgtPick){
     const warn=div({style:{marginBottom:"14px",padding:"12px 14px",background:"#fffbeb",border:"2px solid #fcd34d",borderRadius:"12px",fontSize:"12px",color:"#92400e",lineHeight:1.45}});
-    warn.innerHTML=fmtPick
-      ?`<strong>${fmtPick}</strong> — put exactly <strong>${tgtPick}</strong> must-use items in the basket (name them so they read as ${fmtPick==="Only Frozen Ingredients"?"frozen":fmtPick==="Only Canned Goods"?"canned":"fresh/raw"} — e.g. “Frozen Peas”, “Canned Coconut Milk”). The <strong>GGG Pantry</strong> list is loaded; the spinner did not pre-fill. Use <strong>Pick ${tgtPick}…</strong> or edit chips.`
-      :`<strong>Exactly ${tgtPick} must-use ingredients</strong> — this restriction needs that count in the basket. For this rule the app loads the <strong>GGG Pantry</strong> preset for your pick and for add-ons (spinner does not pre-fill must-use items). Use <strong>Pick ${tgtPick} from pantry list</strong>, or add/remove chips until you have ${tgtPick}.`;
+    warn.innerHTML=`<strong>${fmtPick}</strong> — put exactly <strong>${tgtPick}</strong> must-use items in the basket (name them so they read as ${fmtPick==="Only Frozen Ingredients"?"frozen":fmtPick==="Only Canned Goods"?"canned":"fresh/raw"} — e.g. “Frozen Peas”, “Canned Coconut Milk”). The <strong>GGG Pantry</strong> list is loaded; the spinner did not pre-fill. Use <strong>Pick ${tgtPick}…</strong> or edit chips.`;
     rCard.appendChild(warn);
   }
   if(state.req.length===0){
@@ -3178,16 +3133,6 @@ function renderBuild() {
       const needBase=Math.max(0, Number(cfg.req)||0);
       let draw=drawUnifiedConstraintsFeasible(totalRestr, p, needBase, serial, hot);
       let resTry=sanitizeRestrictionList(draw.restrictions);
-      const exR=getExactIngredientCountFromRestrictions(resTry);
-      const fmtR=getManualBasketFormatRestriction(resTry);
-      const gggR=gggPantryNamesForFeasibility();
-      let feasP=(exR!=null||fmtR!=null)&&gggR.length?gggR:p;
-      const needSlots=exR!=null?Math.max(needBase, exR):needBase;
-      if(needSlots>needBase){
-        const draw2=drawUnifiedConstraintsFeasible(totalRestr, feasP, needSlots, serial, hot);
-        const res2=sanitizeRestrictionList(draw2.restrictions);
-        if(pantryFeasibleCount(feasP, res2)>=needSlots){ draw=draw2; resTry=res2; }
-      }
       state.spinConstraints=sanitizeSpinConstraints(draw.spinConstraints);
       state.res=resTry;
       state.forbEq=draw.forbEquip;
@@ -3196,10 +3141,9 @@ function renderBuild() {
       finalizeMysterySpinSelection(serial, hot, {req:state.req,res:state.res,forbEq:state.forbEq,reqEq:state.reqEq});
       renderBuild();
       const fmt=getManualBasketFormatRestriction(state.res);
-      const ex=getExactIngredientCountFromRestrictions(state.res);
-      if(fmt!=null||ex!=null){
-        const nPick=ex!=null?ex:getManualBasketRequiredCount(state.res, state.diff);
-        setTimeout(()=>openBasketIngredientCountPickerModal({exactCount:nPick, manualFormat:fmt||undefined}), 0);
+      if(fmt!=null){
+        const nPick=getManualBasketRequiredCount(state.res, state.diff);
+        setTimeout(()=>openBasketIngredientCountPickerModal({exactCount:nPick, manualFormat:fmt}), 0);
       }
     })
   );
@@ -3217,10 +3161,9 @@ function renderBuild() {
       renderBuild();
       if(turningOn){
         const fmt=getManualBasketFormatRestriction(state.res);
-        const ex=getExactIngredientCountFromRestrictions(state.res);
-        if(fmt!=null||ex!=null){
-          const nPick=ex!=null?ex:getManualBasketRequiredCount(state.res, state.diff);
-          setTimeout(()=>openBasketIngredientCountPickerModal({exactCount:nPick, manualFormat:fmt||undefined}), 0);
+        if(fmt!=null){
+          const nPick=getManualBasketRequiredCount(state.res, state.diff);
+          setTimeout(()=>openBasketIngredientCountPickerModal({exactCount:nPick, manualFormat:fmt}), 0);
         }
       }
     });
@@ -4092,10 +4035,10 @@ function restrictionsJudgeAddon(ch){
   const veganKimchi=r.some(x=>normalizeRestrictionKey(x)==="Vegan")&&req.some(x=>/\bkimchi\b/i.test(String(x)));
   const fmt=r.filter(x=>{
     const k=normalizeRestrictionKey(x);
-    return /^(Only |No Processed|Max ingredients:|Exactly ingredients:)/.test(k);
+    return /^(Only |No Processed)/.test(k);
   });
   const fmtBlock=fmt.length?`
-- FORMAT / BASKET RULES (when listed): **Only Canned / Frozen / Fresh**, **No Processed Foods**, **Pantry staples**, **Shelf-stable**, **one protein**, **max/exact ingredient count** — enforce on the written plan and ingredients; penalize smuggled shortcuts or "chef's privilege" ignores.`:"";
+- FORMAT / BASKET RULES (when listed): **Only Canned / Frozen / Fresh**, **No Processed Foods**, **Pantry staples**, **Shelf-stable**, **one protein** — enforce on the written plan and ingredients; penalize smuggled shortcuts or "chef's privilege" ignores.`:"";
   return `
 RESTRICTIONS — JUDGING LENS (non-negotiable):
 - Penalize HARD if either competitor's plan breaks a stated restriction (e.g. dairy under No Dairy, meat under Vegetarian). "Classic needs cheese" or "just a finish of cream" is still disqualifying-level bad in real comps.
@@ -5710,7 +5653,7 @@ const MODAL_PROMPTS={
 function openModal(type){
   state.modalType=type;
   const titles={type:"Add Challenge Type",ingredient:"Add Ingredient",pantry_item:"Add to your pantry",restriction:"Add Restriction",equipment:"Add Equipment"};
-  const placeholders={type:"e.g. Diner Food, Brunch...",ingredient:"e.g. Kohlrabi, Wagyu Beef...",pantry_item:"e.g. Gochujang, halloumi, leftover brisket...",restriction:"e.g. Max ingredients: 6, Only Frozen Ingredients, No Frying…",equipment:"e.g. Tagine, Pizza Stone..."};
+  const placeholders={type:"e.g. Diner Food, Brunch...",ingredient:"e.g. Kohlrabi, Wagyu Beef...",pantry_item:"e.g. Gochujang, halloumi, leftover brisket...",restriction:"e.g. Only Frozen Ingredients, No Frying, Vegan…",equipment:"e.g. Tagine, Pizza Stone..."};
   const ov=$("modal-overlay");
   ov.innerHTML=`
     <div class="modal">
@@ -5790,9 +5733,9 @@ function openBasketIngredientCountPickerModal(opts){
     ?"GGG Pantry is loaded. Choose items whose names read as canned/tinned (e.g. “Canned Coconut Milk”). Add custom names if needed. Same list for add-ons."
     :manualFmt==="Only Fresh / Raw Ingredients"
     ?"GGG Pantry is loaded. Choose fresh/raw items only — avoid canned/frozen in the name unless your brief allows. Same list for add-ons."
-    :mode==="exact"
-    ?"For Exactly N must-use rules, the list below is the GGG Pantry staple set (loaded automatically). Pick your N here; everything else in that same list stays available as add-ons for the battle. Restrictions still filter what you can select."
-    :"Shown: everything in your Step 1 pantry that fits the restrictions you have on now. Confirm your must-use basket here — everything else in that pantry stays available as add-ons for the battle.";
+    :mode==="max"
+    ?"Shown: everything in your Step 1 pantry that fits the restrictions you have on now. Confirm your must-use basket here — everything else in that pantry stays available as add-ons for the battle."
+    :"GGG Pantry is loaded. Pick your must-use basket; same list for add-ons.";
   const status=el("div",{id:"basket-picker-status",style:{fontSize:"13px",fontWeight:"700",color:"#3730a3"}});
   const search=el("input",{id:"basket-picker-search",type:"text",placeholder:"Search ingredients…",style:{width:"100%",boxSizing:"border-box",background:"#f8fafc",border:"2px solid #e2e8f0",borderRadius:"8px",padding:"10px 12px",fontSize:"13px",color:"#0f172a"}});
   const gridWrap=el("div",{style:{flex:"1",minHeight:"180px",maxHeight:"50vh",overflowY:"auto",border:"2px solid #e2e8f0",borderRadius:"10px",padding:"8px",background:"#fff"}});
@@ -6033,12 +5976,11 @@ function doModalAdd(data){
     if(n&&!state.res.includes(n)){state.res=sanitizeRestrictionList([...state.res,n]);onBasketModified();}
     pruneConflictingReq(DIFF[state.diff]);
     const fmt=getManualBasketFormatRestriction(state.res);
-    const ex=getExactIngredientCountFromRestrictions(state.res);
     closeModal();
     refreshAfterModalAdd();
-    if(fmt!=null||ex!=null){
-      const nPick=ex!=null?ex:getManualBasketRequiredCount(state.res, state.diff);
-      setTimeout(()=>openBasketIngredientCountPickerModal({exactCount:nPick, manualFormat:fmt||undefined}), 0);
+    if(fmt!=null){
+      const nPick=getManualBasketRequiredCount(state.res, state.diff);
+      setTimeout(()=>openBasketIngredientCountPickerModal({exactCount:nPick, manualFormat:fmt}), 0);
     }
     return;
   }
@@ -6174,9 +6116,6 @@ function ingredientConflictsWithRestriction(ingName, restriction){
     if(ingredientConflictsWithRestriction(ingName,"No Oil")) return true;
     if(ingredientConflictsWithRestriction(ingName,"No Butter")) return true;
     if(/\b(lard|schmaltz|duck fat|beef tallow|shortening|ghee|suet)\b/i.test(n)) return true;
-    return false;
-  }
-  if(/^Max ingredients:/i.test(restriction)||/^Exactly ingredients:/i.test(restriction)){
     return false;
   }
   if(restriction==="No Salt"){
@@ -8975,7 +8914,7 @@ ACTIVE RESTRICTIONS (fail closed):
 - If maple, honey, or brown sugar AND cream/butter appear: you MUST also name citrus, vinegar, or pickle brine in steps or balance.flavor — sweet + fat alone is not a no-salt strategy.\n`;
     else if(norm==="No Eggs")
       s+=` — BANNED: eggs, yolks, whites, mayo/aioli with egg; use egg-free subs only if other rules allow.\n`;
-    else if(norm==="Only Canned Goods"||norm==="Only Frozen Ingredients"||norm==="Only Fresh / Raw Ingredients"||norm==="No Processed Foods"||norm==="Only Pantry Staples"||norm==="Only Shelf-Stable Items"||norm==="Only One Protein"||/^Max ingredients:/i.test(norm)||/^Exactly ingredients:/i.test(norm))
+    else if(norm==="Only Canned Goods"||norm==="Only Frozen Ingredients"||norm==="Only Fresh / Raw Ingredients"||norm==="No Processed Foods"||norm==="Only Pantry Staples"||norm==="Only Shelf-Stable Items"||norm==="Only One Protein")
       s+=` — **Basket/format rule:** honor it in every ingredients[].item line and in the cooking story; do not smuggle disallowed formats.\n`;
     else if(/^(No Frying|No Roasting|No Baking|No Grilling|No Oil|No Added Fat|No Blending|No Peeling|No Straining|No Emulsifying|No Stove|No Oven|No Knife|No Cutting Board|No Blender|No Pan|Must Be Handheld|Must Be One-Bite Format)$/i.test(norm)||/^No Chopping/i.test(norm))
       s+=` — **Technique/format rule:** forbidden methods, tools, or formats must not appear in steps, equipment, or implied workarounds; honor whole-ingredient rules literally.\n`;
@@ -9055,8 +8994,6 @@ function filterPoolForBasketRules(pool, reqArr, resArr){
   const r=sanitizeRestrictionList(resArr||[]);
   if(r.some(x=>normalizeRestrictionKey(x)==="Only One Protein")&&countBasketProteinAnchors(reqArr)>=1)
     p=p.filter(n=>classifyRequiredBucket(n)!=="protein");
-  const maxCap=parseMaxIngredientsCapFromList(r);
-  if(maxCap!=null&&reqArr.length>=maxCap) return [];
   return p;
 }
 
@@ -9111,9 +9048,6 @@ function countBasketProteinAnchors(reqArr){
 function builderRestrictionLaunchErrors(reqArr,resArr){
   const errs=[];
   const r=sanitizeRestrictionList(resArr||[]);
-  const maxCap=parseMaxIngredientsCapFromList(r);
-  if(maxCap!=null&&reqArr.length>maxCap)
-    errs.push(`Max ingredients: basket has ${reqArr.length} but the cap is ${maxCap}.`);
   const tgt=getBasketMustUseTargetCount(r, state.diff);
   if(tgt!=null&&reqArr.length!==tgt)
     errs.push(`Must-use basket: need exactly ${tgt} ingredients for this brief; you have ${reqArr.length}.`);
@@ -9126,9 +9060,6 @@ function pantryAddBlockedByRestrictions(name, reqArr, resArr){
   const tgt=getBasketMustUseTargetCount(r, state.diff);
   if(tgt!=null&&(reqArr||[]).length>=tgt)
     return `Must-use basket is full (${tgt}) — remove one or change restrictions.`;
-  const maxCap=parseMaxIngredientsCapFromList(r);
-  if(maxCap!=null&&(reqArr||[]).length>=maxCap)
-    return `Max ingredients (${maxCap}) — remove one or raise the cap.`;
   if(r.some(x=>normalizeRestrictionKey(x)==="Only One Protein")&&classifyRequiredBucket(name)==="protein"&&countBasketProteinAnchors(reqArr)>=1)
     return "Only One Protein — basket already has its protein slot filled.";
   return "";
@@ -9498,9 +9429,8 @@ function spinConstraintDisplayItems(){
 function mysterySpinResultPanelHtml(){
   const cfg=DIFF[state.diff];
   const fmt=getManualBasketFormatRestriction(state.res);
-  const ex=getExactIngredientCountFromRestrictions(state.res);
   const tgt=getBasketMustUseTargetCount(state.res, state.diff);
-  const manualFlow=fmt!=null||ex!=null;
+  const manualFlow=fmt!=null;
   const need=manualFlow?(!state.req||!state.req.length?0:tgt):cfg.req;
   const constraints=spinConstraintDisplayItems();
   const nConstraints=constraints.length;
@@ -9521,9 +9451,7 @@ function mysterySpinResultPanelHtml(){
   const ct=`${state.ctype.emoji} ${state.ctype.label}`;
   parts.push(`<div class="basket-spin-cell"><span class="basket-spin-lbl">Challenge</span><div class="rnd-slot rnd-done-ct">${escapeHtml(ct)}</div></div>`);
   const exactNote=manualFlow&&(!state.req||!state.req.length)
-    ?fmt!=null
     ?`<div style="font-size:12px;font-weight:700;color:#b45309;margin-top:10px;padding:10px 12px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;line-height:1.45;text-align:center"><strong>${escapeHtml(fmt)}</strong> — the spinner did <strong>not</strong> pre-pick must-use items. The <strong>GGG Pantry</strong> list is loaded: name ingredients that match the rule (e.g. frozen/canned/fresh in the title). Pick <strong>${tgt}</strong> via <strong>Pick ${tgt}…</strong> below (or the popup).</div>`
-    :`<div style="font-size:12px;font-weight:700;color:#b45309;margin-top:10px;padding:10px 12px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;line-height:1.45;text-align:center">Exactly <strong>${ex}</strong> must-use ingredients — the spinner did <strong>not</strong> pre-pick any. The <strong>GGG Pantry</strong> list is loaded for your pick and for add-ons. Use <strong>Pick ${ex} from pantry list</strong> (or the popup if it opened).</div>`
     :"";
   return `<div class="basket-spin-wrap">
     <div class="basket-spin-h"><span>🎰 Mystery basket</span><span style="font-size:11px;font-weight:700;color:#64748b">${escapeHtml(cfg.label)} · locked in</span></div>
@@ -9549,8 +9477,7 @@ function runMysteryRandomize(){
     return;
   }
   const fmtN=getManualBasketFormatRestriction(state.res);
-  const exN=getExactIngredientCountFromRestrictions(state.res);
-  const need=(exN!=null||fmtN!=null)?0:cfg.req;
+  const need=fmtN!=null?0:cfg.req;
   const constraints=spinConstraintDisplayItems();
   const nConstraints=constraints.length;
   const ctypePool=[...CTYPES,...state.customTypes];
@@ -9690,16 +9617,6 @@ function doRandomize(){
   const needBase=Math.max(0, Number(d.req)||0);
   let draw=drawUnifiedConstraintsFeasible(nConstraints, pool, needBase, serial, hot);
   let resTry=sanitizeRestrictionList(draw.restrictions);
-  const exR=getExactIngredientCountFromRestrictions(resTry);
-  const fmtR=getManualBasketFormatRestriction(resTry);
-  const gggNames=gggPantryNamesForFeasibility();
-  let feasPool=(exR!=null||fmtR!=null)&&gggNames.length?gggNames:pool;
-  const needSlots=exR!=null?Math.max(needBase, exR):needBase;
-  if(needSlots>needBase){
-    const draw2=drawUnifiedConstraintsFeasible(nConstraints, feasPool, needSlots, serial, hot);
-    const res2=sanitizeRestrictionList(draw2.restrictions);
-    if(pantryFeasibleCount(feasPool, res2)>=needSlots){ draw=draw2; resTry=res2; }
-  }
   state.spinConstraints=sanitizeSpinConstraints(draw.spinConstraints);
   state.res=resTry;
   state.forbEq=draw.forbEquip;
@@ -9709,12 +9626,11 @@ function doRandomize(){
   const allTypes=[...CTYPES,...state.customTypes];
   state.ctype=allTypes[randomIndex(allTypes.length)];
   const fmt=getManualBasketFormatRestriction(state.res);
-  const ex=getExactIngredientCountFromRestrictions(state.res);
-  if(fmt!=null||ex!=null){
+  if(fmt!=null){
     syncBattlePantryToGggPreset({silent:true});
     pool=(window.USER_PANTRY&&window.USER_PANTRY.length)?window.USER_PANTRY:PANTRY;
     state.req=[];
-    state.pendingExactBasketPick={n:getManualBasketRequiredCount(state.res, state.diff), manualFormat:fmt||undefined};
+    state.pendingExactBasketPick={n:getManualBasketRequiredCount(state.res, state.diff), manualFormat:fmt};
   }else{
     state.pendingExactBasketPick=null;
     state.req=pickRequiredPattern(pool,d.req,state.res,cd);
