@@ -358,7 +358,7 @@ const EQUIPMENT_TECHNIQUE_SHEET={
   Oven:"Roast, bake, broil, gratin/crust finish, toast nuts or spices; pairs with sheet meals, proteins, and anything needing even dry heat.",
   Stovetop:"Sauté, boil, simmer, reduce sauces, steam; control for pasta water, pan sauces, eggs — core for most savory timelines.",
   "Air Fryer":"Crisp with less oil — veg, tofu, wings, reheats; fast browning when oven time is tight.",
-  Grill:"Char, smoke-kissed protein/veg, grill marks; same Maillard story as a ripping-hot skillet.",
+  Grill:"Char, smoke-kissed protein/veg, grill marks; same Maillard story as a ripping-hot skillet. **Saucepan / skillet on grill grates** carries simmer, melt, and shallow sauté when **Stovetop** is forbidden — heat from fire, not burners.",
   Microwave:"Steam or par-cook veg, soften squash, melt, gentle reheat — honest shortcut when clock is tight.",
   "Instant Pot":"Pressure tenderize collagen (beans, stew, tough cuts) when rules allow; then reduce or sear to finish.",
   Blender:"Soups, sauces, emulsions, spice pastes, smooth purées — ties to wet ingredients and silky body.",
@@ -379,7 +379,7 @@ const EQUIPMENT_TECHNIQUE_SHEET={
   "Ice Cream Maker":"**Station default: commercial / staged machine** (pre-frozen bowl or churn-ready); in-round = churn + set — base chill still honest.",
   "Smoker":"**Station default: chamber hot / at smoke temp at go** (commercial pit). **~45+ min from cold** only if the brief assumes **cold pit**.",
   "Commercial Fryer":"Batch fry at volume; **station default: oil at frying temp when the first basket drops** — long heat-up only if **cold oil** is the story.",
-  "Deep Fryer":"**Station default: oil at frying temp at go** — long heat-up only if **cold oil** is explicit.",
+  "Deep Fryer":"**Station default: oil at frying temp at go** — long heat-up only if **cold oil** is explicit. **Two-basket / twin-well:** say so when both loads fry **in parallel** (clears hedged **TWO_BATCH** risk vs one basket).",
   "Meat Grinder":"Fast texture pivot for tough cuts and fillings; minutes, not hours.",
   "Pasta Maker":"Fresh noodle sheets/shapes; excellent texture but prep-heavy on short clocks.",
 };
@@ -4980,7 +4980,7 @@ EVAL MATRIX — COMPETITION REALISM (judges notice; machine checks some):
 - **Day-old / leftover rice**: if the plan needs **cold/dry rice** (fried rice, wok rice) but REQUIRED/PANTRY only has **raw grain**, budget **~18–20 min cook + spread/cool** or state **cooked rice was supplied** — don’t hide that clock cost.
 - **Pasta parallel clock**: **spaghetti/long pasta in the pot does not wait** — treat boil-to-al-dente as its **own countdown**; **drain/strain/reserve on time** even if another lane runs long. Steps with **\`time\` + \`dur\`** must show the **drain** before the line overruns **drop time + boil minutes**.
 - **Squid (flash)**: **~60–90s max** in **ripping heat**; **pat dry / single layer / batches** — **wet surface, crowding, or low gentle heat** → steam → **rubber** (long braise/stew squid is a different story — say so).
-- **Two-batch fry / sear** (matrix **two_batch_fry** — **clock_impact:** must_account_for_second_batch_time_in_timeline): **"work in batches if needed"** (or **two batches** / **second batch**) without **second-pass minutes** understates active cook time when **pan size / capacity is ambiguous** — book **~same fry/sear time again** for batch 2 (or split steps / \`dur\`) and name **skillet size** (e.g. **12-inch**) so single-layer vs two-batch is legible. **Default station** allows **a second pan on another burner** to run one uncrowded layer — if you still batch in **one** pan, the batch-2 clock still applies.
+- **Two-batch fry / sear** (matrix **two_batch_fry** — **clock_impact:** must_account_for_second_batch_time_in_timeline): **"work in batches if needed"** (or **two batches** / **second batch**) without **second-pass minutes** understates active cook time when **pan size / capacity is ambiguous** — book **~same fry/sear time again** for batch 2 (or split steps / \`dur\`) and name **skillet size** (e.g. **12-inch**) so single-layer vs two-batch is legible. **Default station** allows **a second pan on another burner** to run one uncrowded layer — if you still batch in **one** pan, the batch-2 clock still applies. **Two-basket / twin-well deep fryer:** say so — **parallel drops in both baskets** clear the hedge without **sequential** batch time stacking.
 - **Parallel attention (two burners):** Avoid **many minutes** of **two heavy active** lanes at once (e.g. **sear + finicky sauce reduction** + **another** high-watch sear). Prefer **one passive lane** (simmer, oven roast, dough rest, hold under foil) while the other is **hands-on**, or **sequence** heavy steps. Short overlap of **protein sear** + **griddle/flatbread** (flip a few times) on two pans is acceptable if \`dur\` is honest — not the same as **two finicky reductions**.
 - **Grains / legumes vs clock**: **farro, pearl barley, wild rice, brown rice, green lentils, split peas, polenta (simmered)** need **real simmer minutes** — if the round is shorter than a credible tender cook, use **pre-cooked / leftover**, **quick-cook SKU**, or **dry-toast / garnish-only** — not a fantasy 12-minute center-plate porridge.
 - **Cultured dairy + dry heat**: **crème fraîche, sour cream, yogurt** in **hot oven / air fryer** without **starch binder** (slurry, roux, béchamel) → **break / curdle** — finish off heat or protect.
@@ -6268,6 +6268,17 @@ function scrubNegatedButterGhee(low){
  * "non-dairy" / "dairy-free" contain the substring \bdairy\b — strip before scanning or every
  * compliance-safe recipe trips No Dairy. Same for plant cheeses and negated dairy mentions.
  */
+/** "no box grater" / "without a grater" still matches /\bbox\s*grater\b/ — strip before forbidden-equipment scan. */
+function scrubForbiddenGraterNegations(low){
+  return String(low||"")
+    .replace(/\bno\s+box\s+grater\b/gi," ")
+    .replace(/\bnot\s+(?:a\s+)?box\s+grater\b/gi," ")
+    .replace(/\bwithout\s+(?:a\s+|the\s+)?(?:box\s+)?grater\b/gi," ")
+    .replace(/\bavoid(?:ing)?\s+(?:a\s+|the\s+)?(?:box\s+)?grater\b/gi," ")
+    .replace(/\b(do\s+not|don'?t|never)\s+use\s+(?:a\s+|the\s+)?(?:box\s+)?grater\b/gi," ")
+    .replace(/\b(?:box\s+)?grater\s*(?:forbidden|not\s+allowed|banned|omit(?:ted)?)\b/gi," ");
+}
+
 function scrubDairyNegationsForCompliance(low){
   return String(low||"")
     .replace(/\bnon[\s-]*dairy\s+milk\b/gi," __ndmilk__ ")
@@ -7531,6 +7542,8 @@ function getTwoBatchFryClockViolations(recipe, ch){
     ||(/\b(two|2)\s+batches?\b/i.test(low)&&/\bif\s+needed\b/i.test(low));
   const multiHint=/\b(second\s+batch|two\s+batches|2\s+batches|another\s+batch|repeat\s+for\s+(?:the\s+)?(?:second|remaining))\b/i.test(low);
   if(!hedge&&!multiHint) return msgs;
+  const dualBasketFryer=/\b(two|dual|double|twin)[\s-]*(basket|well)(?:s|\s+(?:deep\s+)?fryer)?\b|\bcommercial\s+fryer\s+with\s+two\s+baskets\b|\btwo[\s-]*well\b/i.test(low);
+  if(dualBasketFryer&&/\b(both\s+baskets|parallel\s+fry|parallel\s+drop|simultaneous(?:ly)?|at\s+once|one\s+(?:load|batch)\s+per\s+basket|same\s+clock\b)\b/i.test(low)) return msgs;
   const bookedSecond=/\b\d{1,2}\s*min\s+per\s+batch\b/i.test(low)
     ||(/\b(first|1(?:st)?)\s+batch\b/i.test(low)&&/\b(second|2(?:nd)?)\s+batch\b/i.test(low)&&/\b\d{1,2}\s*min\b/.test(low))
     ||/\b(second|another)\s+batch\b[\s\S]{0,160}\b\d{1,2}\s*min\b/i.test(low)
@@ -7538,7 +7551,8 @@ function getTwoBatchFryClockViolations(recipe, ch){
     ||/\b(two|2)\s*[×x]\s*\d{1,2}\s*min\b/i.test(low)
     ||/\bfollowed\s+by\s+(?:a\s+)?second\s+\d{1,2}\s*min/i.test(low);
   const provedOneBatch=/\b(single\s+batch|one\s+batch\s+only|fits?\s+all\s+in\s+one|entire\s+(?:recipe|batch)\s+in\s+one\s+(?:layer|batch|go))\b/i.test(low)
-    ||/\b(?:all|everything)\s+(?:in\s+)?one\s+(?:uncrowded\s+)?(?:layer|batch)\b/i.test(low);
+    ||/\b(?:all|everything)\s+(?:in\s+)?one\s+(?:uncrowded\s+)?(?:layer|batch)\b/i.test(low)
+    ||/\b(two|dual|double)[\s-]*(basket|well)(?:s|\s+fryer)?\b[\s\S]{0,120}?\b(one\s+uncrowded\s+layer|full\s+load\s+split\s+across|both\s+baskets)\b/i.test(low);
   if(bookedSecond||provedOneBatch) return msgs;
   const panHint=low.match(/\b(\d{1,2})\s*[-]?\s*(?:inch|in|")\s*(?:skillet|pan|frying)/i)
     ||low.match(/\b(large|small|medium)\s+(?:skillet|cast[\s-]?iron|frying\s+pan)\b/i);
@@ -8713,15 +8727,17 @@ function getRecipeEquipmentViolations(recipe, ch){
     if(eq.toLowerCase()==="stovetop"){
       const bad=clauses.find(c=>{
         if(!rx.test(c)) return false;
-        // Allowed edge case: pan/skillet use explicitly tied to grill heat.
-        const grillCtx=/\b(grill|griddle|plancha|bbq)\b/.test(c);
-        const panCtx=/\b(pan|skillet|cast\s*iron)\b/.test(c);
+        // Allowed: pan / saucepan / skillet on grill or plancha (heat from fire, not burners).
+        const grillCtx=/\b(grill|griddle|plancha|bbq|grates|coals|charcoal)\b/.test(c);
+        const panCtx=/\b(saucepan|stock\s*pot|saut[eé]\s+pan|skillet|cast\s*iron|dutch\s+oven|frying\s+pan|wok|heavy\s+pan|large\s+pan)\b/.test(c)
+          ||/\b(?:large\s+|heavy\s+)?pan\b/i.test(c);
         return !(grillCtx&&panCtx);
       });
       if(bad) msgs.push(`Forbidden equipment: Stovetop appears in method text ("${bad.slice(0,120)}").`);
       continue;
     }
-    if(rx.test(low)) msgs.push(`Forbidden equipment: ${eq} appears in method text.`);
+    const scanLow=/\bbox\s*grater\b/i.test(String(eq||""))?scrubForbiddenGraterNegations(low):low;
+    if(rx.test(scanLow)) msgs.push(`Forbidden equipment: ${eq} appears in method text.`);
   }
 
   // Must-use equipment checks: require explicit mention in steps/prose (blender/FP allow technique verbs — see mustUseEquipmentSatisfied).
@@ -9116,7 +9132,7 @@ function equipmentHardPriorityBlock(ch){
   if(req.length) s+=`- STATION DEFAULT (competition kitchen — **commercial / station-grade** gear): Unless the brief explicitly narrates a **cold start**, assume **must-use thermal equipment is staged at working temperature when the round clock starts**: **sous vide bath at target temp** (hot-filled / kettle-backed — not a full cold-volume heat-up on the clock), **deep fryer / fryer oil at frying temperature**, **ovens on and preheated** (competition stations — **available even when Oven is not listed** must-use; any bake/roast/broil step still names honest oven time), **smoker chamber hot / stabilized**, **salamander / griddle / range as needed**, **water for pasta / stock pots already boiling** where the story needs it. **Ice cream makers** are **staged ready** (pre-frozen bowl insert or churn-ready machine — base still honestly chilled). Write the timeline for **active cook, hold, churn, and finish** in-round — not for warming empty gear from room temperature.\n`;
   if(oneBurner) s+=`- LIMIT: 1 burner only — avoid multi-burner choreography.\n`;
   if(forb.some(x=>String(x).toLowerCase()==="stovetop")){
-    s+=`- Outside-the-box allowance: if Stovetop is forbidden, pan/skillet work is allowed ONLY when explicitly tied to an allowed non-stovetop heat source (e.g. cast-iron skillet on grill/plancha), never on a burner/range.\n`;
+    s+=`- **Stovetop forbidden:** treat **Grill** (or allowed live-fire / flat-top) as the **heat source** — **set saucepan, stockpot, skillet, or plancha on the grill grates**; the metal heats like a burner (no **range / burner / hob / “on the stove”** wording). Simmer, melt, and shallow sauté are OK **on the grill** when written that way.\n`;
   }
   if(req.length) s+=`- Centrality: must-use gear must drive a primary step for that tool (sear/braise in the cast iron, blend in the processor) — not only a side garnish while the main cook happens elsewhere.\n`;
   if(req.some(x=>/\bwok\b/i.test(String(x)))) s+=`- WOK: If the dish is oven/bake-forward (tart, quiche, baked custard), you must still run a starring wok technique on the main protein, eggs, noodles, rice, or sauce — do not relegate the wok to wilting one leafy side while the tart carries the plate.\n`;
@@ -9131,7 +9147,7 @@ function equipmentHardPriorityBlock(ch){
   if(req.some(x=>isSmokerEquipment(x)))
     s+=`- SMOKER: **Station default** = chamber **hot / at smoke temp at go**. Only a **cold pit / cold start** story needs **~45+ min** bring-up for meaningful smoke — otherwise in-round = smoke + cook + finish time.\n`;
   if(req.some(x=>isCommercialFryerEquipment(x)))
-    s+=`- DEEP / COMMERCIAL FRYER: **Station default** = **oil at frying temperature when the first basket drops**. Only budget long **oil heat-up from cold** if the brief explicitly says so.\n`;
+    s+=`- DEEP / COMMERCIAL FRYER: **Station default** = **oil at frying temperature when the first basket drops**. **Two-basket / twin-well fryer:** name it in steps or **processEquipment** when you run **both loads in parallel** — that clears **TWO_BATCH** clock risk vs hedging “batches” on a **single** basket. Only budget long **oil heat-up from cold** if the brief explicitly says so.\n`;
   if(req.some(x=>isIceCreamMakerEquipment(x)))
     s+=`- ICE CREAM MAKER: **Station default** = **commercial / staged machine** — pre-frozen bowl or churn-ready setup at go; in-round = **churn + set/harden** honestly — not freezing the insert from warm during the round.\n`;
   const st=req.some(x=>String(x).toLowerCase().includes("stovetop"));
