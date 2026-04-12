@@ -4981,6 +4981,7 @@ EVAL MATRIX — COMPETITION REALISM (judges notice; machine checks some):
 - **Pasta parallel clock**: **spaghetti/long pasta in the pot does not wait** — treat boil-to-al-dente as its **own countdown**; **drain/strain/reserve on time** even if another lane runs long. Steps with **\`time\` + \`dur\`** must show the **drain** before the line overruns **drop time + boil minutes**.
 - **Squid (flash)**: **~60–90s max** in **ripping heat**; **pat dry / single layer / batches** — **wet surface, crowding, or low gentle heat** → steam → **rubber** (long braise/stew squid is a different story — say so).
 - **Two-batch fry / sear** (matrix **two_batch_fry** — **clock_impact:** must_account_for_second_batch_time_in_timeline): **"work in batches if needed"** (or **two batches** / **second batch**) without **second-pass minutes** understates active cook time when **pan size / capacity is ambiguous** — book **~same fry/sear time again** for batch 2 (or split steps / \`dur\`) and name **skillet size** (e.g. **12-inch**) so single-layer vs two-batch is legible. **Default station** allows **a second pan on another burner** to run one uncrowded layer — if you still batch in **one** pan, the batch-2 clock still applies.
+- **Parallel attention (two burners):** Avoid **many minutes** of **two heavy active** lanes at once (e.g. **sear + finicky sauce reduction** + **another** high-watch sear). Prefer **one passive lane** (simmer, oven roast, dough rest, hold under foil) while the other is **hands-on**, or **sequence** heavy steps. Short overlap of **protein sear** + **griddle/flatbread** (flip a few times) on two pans is acceptable if \`dur\` is honest — not the same as **two finicky reductions**.
 - **Grains / legumes vs clock**: **farro, pearl barley, wild rice, brown rice, green lentils, split peas, polenta (simmered)** need **real simmer minutes** — if the round is shorter than a credible tender cook, use **pre-cooked / leftover**, **quick-cook SKU**, or **dry-toast / garnish-only** — not a fantasy 12-minute center-plate porridge.
 - **Cultured dairy + dry heat**: **crème fraîche, sour cream, yogurt** in **hot oven / air fryer** without **starch binder** (slurry, roux, béchamel) → **break / curdle** — finish off heat or protect.
 - **Volatile aromatics**: **yuzu, finger lime, chervil** — **heat_stable: false** for long cooks; **finish raw / dressing / pass** — not primary **air-fry / broil / 20+ min reduction** flavor spine.
@@ -5188,7 +5189,7 @@ ${couscousMalangaSeitanTechniqueBlock(ch)}
 ${streetFoodOkraMarjoramLaneBlock(ch)}
 ${comfortWingMacExecutionBlock(ch)}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
-EVAL MATRIX (same as rival): no juicy fruit **in** fritter/tempura batter; broil + kale/spinach → remove/shield greens or separate tray; pressed grain cakes need brief rest before sear; torch/heat-gun second pass must not target scallion/herb garnish — add herbs after heat. **Rillettes** = slow meat in/set in fat (confit); not cold butter + quick-seared pull — say **pulled [protein]** instead. **Bay leaf + fat**: ~5–7 min low or ~10 min off-heat bloom — not 1–4 min only. **Soy in 2+ steps** = sodium stack: **acid/cut per step** (not one lime for dressing+glaze). **Pork tenderloin ~1\" medallions**: **2–2.5 min/side** max — **3+ min/side** overshoots ~145°F. **Day-old rice**: if haul is raw grain only → **~18–20 min cook+cool** or say rice was pre-cooked. **Pasta**: **drain at al dente on its own clock** — don’t let other steps run past **drop + boil time** without a **drain/strain** step aligned on **\`time\`/\`dur\`**. **Squid flash**: **dry, ripping heat, single layer/batches, ~60–90s** — not wet, crowded, or minutes-long gentle sauté. **Two-batch fry/sear** (matrix **two_batch_fry**): **"in batches if needed"** ⇒ book **batch-2 minutes** (or **2×** per-batch time) + **pan size** when capacity unclear — **default:** a **second skillet** on another burner may clear one layer; if you still batch **one** pan, clock batch 2. **Grains**: farro/barley/wild rice/brown rice/green lentil/split pea/polenta need honest simmer time or pre-cooked/toast-only. **Cultured dairy**: no hot oven/air fry without starch binder. **Yuzu/chervil**: finish raw — not air-fry spine. **Pressure**: +8–12 min to pressure before timer. **Chip/crumb tart shell + wet slaw**: slaw at **PLATE** / last seconds — not early **ASSEMBLE** hold. **Hearts of palm**: when palm is on **MUST USE**, **BASKET GENERATION MANDATES** is law; otherwise char + raw/crema is an exemplary optional pattern. **Yellow mustard + dessert**: reduction/trace/savory contrast — not raw condiment in custard. **Radish + sweet**: 8–10+ min heat or savory-only — not 2 min sauté to sweet.
+EVAL MATRIX (same as rival): no juicy fruit **in** fritter/tempura batter; broil + kale/spinach → remove/shield greens or separate tray; pressed grain cakes need brief rest before sear; torch/heat-gun second pass must not target scallion/herb garnish — add herbs after heat. **Rillettes** = slow meat in/set in fat (confit); not cold butter + quick-seared pull — say **pulled [protein]** instead. **Bay leaf + fat**: ~5–7 min low or ~10 min off-heat bloom — not 1–4 min only. **Soy in 2+ steps** = sodium stack: **acid/cut per step** (not one lime for dressing+glaze). **Pork tenderloin ~1\" medallions**: **2–2.5 min/side** max — **3+ min/side** overshoots ~145°F. **Day-old rice**: if haul is raw grain only → **~18–20 min cook+cool** or say rice was pre-cooked. **Pasta**: **drain at al dente on its own clock** — don’t let other steps run past **drop + boil time** without a **drain/strain** step aligned on **\`time\`/\`dur\`**. **Squid flash**: **dry, ripping heat, single layer/batches, ~60–90s** — not wet, crowded, or minutes-long gentle sauté. **Parallel attention:** don’t stack **two finicky** active tracks for many minutes — one **passive** lane (simmer/roast/hold) or **sequence**; **griddle flatbread + protein sear** on two burners is OK if \`dur\` is honest. **Two-batch fry/sear** (matrix **two_batch_fry**): **"in batches if needed"** ⇒ book **batch-2 minutes** (or **2×** per-batch time) + **pan size** when capacity unclear — **default:** a **second skillet** on another burner may clear one layer; if you still batch **one** pan, clock batch 2. **Grains**: farro/barley/wild rice/brown rice/green lentil/split pea/polenta need honest simmer time or pre-cooked/toast-only. **Cultured dairy**: no hot oven/air fry without starch binder. **Yuzu/chervil**: finish raw — not air-fry spine. **Pressure**: +8–12 min to pressure before timer. **Chip/crumb tart shell + wet slaw**: slaw at **PLATE** / last seconds — not early **ASSEMBLE** hold. **Hearts of palm**: when palm is on **MUST USE**, **BASKET GENERATION MANDATES** is law; otherwise char + raw/crema is an exemplary optional pattern. **Yellow mustard + dessert**: reduction/trace/savory contrast — not raw condiment in custard. **Radish + sweet**: 8–10+ min heat or savory-only — not 2 min sauté to sweet.
 {"title":"","tagline":"","processEquipment":["Oven"],"restrictionCompliance":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":"","dur":"optional e.g. 5 min"}],"lastMinuteTip":"one sentence"}
 restrictionCompliance: **""** if no restrictions. If RESTRICTIONS apply, one sentence naming the rule + compliant technique (e.g. "No Peeler — knife plank peel").
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts. Self-check every ingredient and step before returning.`;
@@ -7234,6 +7235,18 @@ function getSnackFlavorDensityAdvisoryViolations(recipe, ch){
 }
 
 /**
+ * Griddle / dry-pan breads — intermittent flips; lower continuous attention than sear + pan sauce.
+ * Used to avoid false "sequence collision" when second burner runs naan/flatbread vs protein sear.
+ */
+function stepBlobIsLightParallelAttention(blob){
+  const b=String(blob||"").toLowerCase();
+  if(/\b(reduce|deglaze|emulsif|mount\b|stir-fry|deep[\s-]?fry|pressure)\b/.test(b)) return false;
+  if(/\bsear\b/.test(b)&&/\b(kefta|patty|burger|steak|chop|cutlet|medallion|pork|beef|lamb|chicken|fish|scallop)\b/.test(b)) return false;
+  return /\b(flatbread|naan|roti|lavash|pita|tortilla|arepa|injera|socca|paratha)\b/.test(b)
+    &&/\b(griddle|skillet|cast\s*iron|dry\s+pan|press|per\s+side|flip|charr?ed|toast|bubbles?|puff(s)?)\b/.test(b);
+}
+
+/**
  * Detect overloaded active-active overlaps (e.g., sear + glaze + reduction all at once).
  * We allow one passive overlap lane, but flag dense simultaneous attention sinks.
  */
@@ -7260,7 +7273,8 @@ function getActiveAttentionOverlapViolations(recipe, ch){
     windows.push({
       start:st,
       end:st+d,
-      active:isActive
+      active:isActive,
+      blob
     });
   }
   if(windows.length<2) return msgs;
@@ -7289,13 +7303,19 @@ function getActiveAttentionOverlapViolations(recipe, ch){
       const overlap=Math.max(0, Math.min(a.end,b.end)-Math.max(a.start,b.start));
       if(overlap<=0) continue;
       if(!(a.active&&b.active)) continue;
-      if(!worstPair||overlap>worstPair.overlap) worstPair={overlap};
+      if(!worstPair||overlap>worstPair.overlap) worstPair={overlap,i,j};
     }
   }
   if(!worstPair) return msgs;
-  const severe=worstPair.overlap>=Math.max(5, Math.round(total*0.15));
+  const o=worstPair.overlap;
+  const lightMix=o<=10
+    &&stepBlobIsLightParallelAttention(windows[worstPair.i].blob)
+    !==stepBlobIsLightParallelAttention(windows[worstPair.j].blob)
+    &&(stepBlobIsLightParallelAttention(windows[worstPair.i].blob)||stepBlobIsLightParallelAttention(windows[worstPair.j].blob));
+  if(lightMix) return msgs;
+  const severe=o>=Math.max(5, Math.round(total*0.15));
   const level=severe?"HIGH":"LOW";
-  msgs.push(`Sequence collision (${level}): timeline overlaps **active + active** work for ~${worstPair.overlap} min (attention sinks competing at once). Re-sequence so one lane is passive (roast/simmer/hold) while the other is active, or shorten one stage.`);
+  msgs.push(`Sequence collision (${level}): timeline overlaps **active + active** work for ~${o} min (attention sinks competing at once). Re-sequence so one lane is passive (roast/simmer/hold) while the other is active, or shorten one stage.`);
   return msgs;
 }
 
@@ -7378,13 +7398,14 @@ function getCheesePuffCrustSearRiskViolations(recipe){
   return msgs;
 }
 
-/** Dates + piccata-class sauce — sweetness / jam risk; eval pattern. */
+/** Dates + piccata-class sauce — sweetness / jam risk; eval pattern (narrow: not generic "pan sauce"). */
 function getDatePiccataStyleSweetnessRiskViolations(recipe, ch){
   const msgs=[];
   if(!recipe||!ch) return msgs;
   const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
   if(!/\b(medjool\s+)?dates?\b/.test(low)) return msgs;
-  if(!/\b(piccata|picatta|sole\s+meuni|meuni[eè]re|lemon[\s-]butter\s+sauce|pan\s+sauce)\b/.test(low)) return msgs;
+  if(/\b(harissa|ras\s+el\s+hanout|chermoula|tagine|moroccan|maghreb|zaalouk|berbere|baharat|dukkah|zhoug|middle\s+eastern|levant|north\s+african)\b/.test(low)) return msgs;
+  if(!/\b(piccata|picatta|sole\s+meuni|meuni[eè]re|lemon[\s-]butter\s+sauce)\b/.test(low)) return msgs;
   msgs.push(`Flavor architecture: **dates** in a **piccata / meunière-class** sauce can go **jam-sweet** — use **tight quantity**, **extra lemon finish**, and **salt** checks in balance.flavor; pull reduction **before** candy-like.`);
   return msgs;
 }
