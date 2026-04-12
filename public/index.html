@@ -341,8 +341,12 @@ function normalizeEquipmentCatalogName(s){
 function processEquipmentPromptBlock(ch){
   const fe=(ch&&ch.forbEquip&&ch.forbEquip.length)?ch.forbEquip.join(", "):"none";
   const re=(ch&&ch.reqEquip&&ch.reqEquip.length)?ch.reqEquip.join(", "):"none";
+  const limB=ch&&ch.limitBurners;
+  const capacity=limB
+    ?`- **Burner rule:** this round is **1 burner only** on the stovetop — do not plan simultaneous active pots on two eyes; sequence or hand off honestly (you may still run **Oven**, **grill**, **air fryer**, etc. in parallel when those tools are allowed and not forbidden).\n`
+    :`- **Kitchen capacity (default):** assume **multiple stovetop burners** and **multiple pans/pots/sheet pans** (typical competition/home station), plus standard smallwares (bowls, whisk, tongs, sheet pans, mixing tools). **Only the forbidden list below removes gear** — do not invent one-burner or one-pan scarcity; prefer **parallel pans** when that avoids **false** crowding. If you still sear/fry in **one** pan in multiple batches, obey **two-batch** timeline rules (name **pan size**, book batch-2 active minutes).\n`;
   return `PROCESS EQUIPMENT (JSON key **processEquipment**): array of strings for tools used.
-- List every tool the method **actually requires** for this dish (e.g. baked tart / quiche / roast protein ⇒ include **Oven**; stir-fry spine ⇒ **Wok** or **Stovetop** as honest; immersion blend ⇒ **Blender**).
+${capacity}- List every tool the method **actually requires** for this dish (e.g. baked tart / quiche / roast protein ⇒ include **Oven**; stir-fry spine ⇒ **Wok** or **Stovetop** as honest; immersion blend ⇒ **Blender**).
 - **Must include** all must-use tools: ${re}.
 - **Must not include** any forbidden tool: ${fe}.
 - If you cannot execute the dish without a forbidden tool, **change the dish** (different format) — do not hide forbidden gear in prose.
@@ -1946,6 +1950,13 @@ const PW_PHYSICS_GLUTEN_FREE_PASTA={
   typicalBoilRangeMinutes:"10–14",
   starchEmulsification:"low",
 };
+
+/** Recovery margin at the pass — AI must plan active timeline inside (total − this). Validators align with the same ceiling. */
+const PW_AI_TIMELINE_BUFFER_MIN = 3;
+function aiTimelinePlanningMinutes(ch){
+  const t=Math.max(1, Number((ch&&ch.totalTime)||30));
+  return Math.max(1, t-PW_AI_TIMELINE_BUFFER_MIN);
+}
 
 /** Human competitor slots on the battle screen (name + plan each). Only #1 is judged vs the rival chef. */
 const PW_BATTLE_COMPETITORS_MAX=8;
@@ -4865,11 +4876,11 @@ ${snackHard?`- HARD: balance.texture MUST name **crunch or crisp** (fry, chip, s
     const promptCore=`CHOPPED-style competition recipe. ONE valid JSON object only — no markdown, no code fences, no extra text. ASCII double quotes only. No trailing commas. Step "how" max ~90 chars.
 JSON SYNTAX (must be machine-parseable): Do not put unescaped " inside any string value. For sizes write 2-inch or 2 in, not inch marks with quotes. No raw line breaks inside strings — keep each string on one line or use \\n.
 
-CHALLENGE: ${ch.ctype.label} | DIFFICULTY: ${ch.diff} | TIME: ${ch.totalTime}min (Prep ${ch.prepTime}, Cook ${ch.cookTime})
+CHALLENGE: ${ch.ctype.label} | DIFFICULTY: ${ch.diff} | TIME: ${ch.totalTime}min wall-clock (Prep ${ch.prepTime}, Cook ${ch.cookTime}) — **plan active steps to finish by ~${aiTimelinePlanningMinutes(ch)} min** (**${PW_AI_TIMELINE_BUFFER_MIN} min** recovery margin before time is called)
 ${hardDiffBar}${reqBasketPromptLine}
 PANTRY you may use (only these + basics like salt/oil/water): ${pantryLines}
 ${culinaryEngineBrief(ch)}${basketCookFundamentalsBlock(ch)}${basketClockPlaybookBlock(ch)}${basketTechniqueMatrixBlock(ch)}${basketIngredientToolkitBlock(ch)}${basketTransformationPreflightBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${res}
-${fe} ${re} ${bl}
+${fe} ${re} ${bl}${ch.limitBurners?"":` Kitchen default: multiple stovetop burners + multiple pans; standard smallwares; only forbidden equipment is off-limits.`}
 ${processEquipmentPromptBlock(ch)}
 
 ${restrictionHardPriorityBlock(ch)}
@@ -4905,7 +4916,7 @@ ${whiteChocolateHonestyBlock(ch.required)}
 BASKET INTEGRITY (mandatory):
 - The plate's conceptual STAR must match ROLE HIERARCHY for this course — not a hidden rule that "protein = center." On dessert, STAR = sweet identity; meat/charcuterie cannot carry the dish name. On snack, STAR = the bite/handheld format itself; any fish/meat is accent-scale on that vehicle — never a center-plate fillet or steak portion as the dish head noun. STAR elements must come from REQUIRED + PANTRY. Do NOT add a new centerpiece (chicken, beef, pork, salmon, etc.) unless that exact protein appears in REQUIRED or PANTRY.
 - Each REQUIRED item: name its course-correct role (PRIMARY sweet spine vs ACCENT vs SUPPORT on dessert; appetizer/entree per hierarchy above — filling, crust, sauce base, relish, main veg, etc.).
-- Prefer one bold coherent idea — at most ${maxSteps} steps before PLATE, believable in ${ch.totalTime} min.
+- Prefer one bold coherent idea — at most ${maxSteps} steps before PLATE, believable in **~${aiTimelinePlanningMinutes(ch)} min** of hands-on planning budget (**${ch.totalTime} min** wall clock).
 - RICHNESS: oily fish + aged cheese + heavy cream is usually overload; choose at most one fat-forward anchor unless you explicitly lighten the others.
 
 STRUCTURE / ONE BASE (control creativity — avoid "AI fusion" that fights itself):
@@ -4933,9 +4944,10 @@ PLAIN LANGUAGE (kitchen dock, not press release):
 - tagline, step labels ("what"), plating, and step "how" lines: short, direct, competitor voice — like you're calling it to the judges' table, not writing a press kit.
 
 TIMELINE REALISM:
+- ${ch.limitBurners?"**1 burner only** — one active stovetop pot at a time; do not assume a second eye for parallel sauté/simmer.":"**Multiple burners + multiple pans (default)** — unless you choose one pan for technique, schedule **parallel** stovetop lanes honestly; **forbidden equipment** is the only hard ban (see PROCESS EQUIPMENT)."}
 - Competition kitchen (default): **Station ovens**, **deep fryers**, **grills**, and **main pasta/blanch stockpots** are treated as **already hot / at temp / boiling** at clock start — budget **cook** time and true **parallel** work, not long cold-station ramps (full rules under PHYSICS; **pressure** and **sous vide** still need honest ramp minutes unless your text says the bath is at target).
-- The work in your steps must honestly fit ~${ch.totalTime} min total challenge time (your ${ch.prepTime} prep + ${ch.cookTime} cook narrative). If tasks run in parallel, say so. Do not compress a full entrée into an obviously too-short window unless timing is explained.
-- DUR SUM (machine-checked on every generation): Give every step a realistic "dur" string (e.g. "5 min", "12 min"). The **sum** of those minute values must fit the ${ch.totalTime} min round: without parallel work, keep total dur ≤ ${Math.max(1, Number(ch.totalTime)||30) + 6} min slack; if you truly run steps in parallel, you MUST say so in a step "how" or balance.complete (words like "parallel" / "simultaneous") and keep total dur ≤ ${Math.ceil(Math.max(1, Number(ch.totalTime)||30) * 1.35)} min. Do not output a timeline whose dur values add up to more than that — shorten steps, overlap honestly, or drop a stage.
+- The work in your steps must honestly fit **~${aiTimelinePlanningMinutes(ch)} min** of active planning budget within the **${ch.totalTime} min** challenge (your ${ch.prepTime} prep + ${ch.cookTime} cook narrative — **${PW_AI_TIMELINE_BUFFER_MIN} min** reserved for slip/recovery). If tasks run in parallel, say so. Do not compress a full entrée into an obviously too-short window unless timing is explained.
+- DUR SUM (machine-checked on every generation): Give every step a realistic "dur" string (e.g. "5 min", "12 min"). The **sum** of those minute values must fit the **~${aiTimelinePlanningMinutes(ch)} min** planning budget (**${ch.totalTime} min** wall clock): without parallel work, keep total dur ≤ ${aiTimelinePlanningMinutes(ch) + 6} min slack; if you truly run steps in parallel, you MUST say so in a step "how" or balance.complete (words like "parallel" / "simultaneous") and keep total dur ≤ ${Math.ceil(aiTimelinePlanningMinutes(ch) * 1.35)} min. Do not output a timeline whose dur values add up to more than that — shorten steps, overlap honestly, or drop a stage.
 - Stacked oven work: long roast veg + scratch dough + blind bake + filled tart/custard bake often exceeds a 45 min clock — prefer store crust, stovetop-set filling, shorter roasts, or one bake with credible parallel minutes.
 ${["hard","insane"].includes(String(ch.diff||"").toLowerCase())&&Number(ch.totalTime)<=25?`- HARD/INSANE + ≤25 min: scratch dough + custarded bake + a separate wok/greens track is usually fantasy — prefer purchased pastry, one primary heat story, or honest parallel minutes.\n`:""}
 - Do not oversell "easy" or relaxed pacing when the sequence is tight — tip or balance.complete may note that the clock is aggressive but doable with parallel work (if true).
@@ -4953,7 +4965,7 @@ ${techniquePolicy}
 - CLEAN PLATE / MINIMALISM: Default to the smallest set of parts that still honors every REQUIRED item. In balance.texture, briefly justify each texture (sauce body, veg snap, steak crust) — not "adds interest." Do NOT bolt on bonus crunch (extra toasted grain, random crumb, second fried starch) unless it is clearly tied to a REQUIRED or central pantry item OR you state in balance.complete why the dish would fail without it — judges punish "crunch for crunch's sake."
 - If the basket is already LOUD (sardine, aged cheese, chile, raw onion family): simplify elsewhere — fewer competing sharp layers.
 - Charring fruit/veg (e.g. watermelon): prefer SOME raw + SOME lightly charred for freshness when you use heat.
-- "tip": one sentence on clock fit ${ch.totalTime} min (advanced steps + minutes if any). If tight, say so plainly — not false calm.
+- "tip": one sentence on clock fit **~${aiTimelinePlanningMinutes(ch)} min** planning budget / **${ch.totalTime} min** wall clock (advanced steps + minutes if any). If tight, say so plainly — not false calm.
 
 EVAL MATRIX — COMPETITION REALISM (judges notice; machine checks some):
 - Fruit in fry batter: do **not** fold juicy fruit (mango, pineapple, peach, berries, etc.) **into** fritter/tempura/beignet **batter** — moisture + sugar → gummy interior and burn-prone crust; fruit as **salsa, pickle, post-fry glaze, or side** only.
@@ -4968,7 +4980,7 @@ EVAL MATRIX — COMPETITION REALISM (judges notice; machine checks some):
 - **Day-old / leftover rice**: if the plan needs **cold/dry rice** (fried rice, wok rice) but REQUIRED/PANTRY only has **raw grain**, budget **~18–20 min cook + spread/cool** or state **cooked rice was supplied** — don’t hide that clock cost.
 - **Pasta parallel clock**: **spaghetti/long pasta in the pot does not wait** — treat boil-to-al-dente as its **own countdown**; **drain/strain/reserve on time** even if another lane runs long. Steps with **\`time\` + \`dur\`** must show the **drain** before the line overruns **drop time + boil minutes**.
 - **Squid (flash)**: **~60–90s max** in **ripping heat**; **pat dry / single layer / batches** — **wet surface, crowding, or low gentle heat** → steam → **rubber** (long braise/stew squid is a different story — say so).
-- **Two-batch fry / sear** (matrix **two_batch_fry** — **clock_impact:** must_account_for_second_batch_time_in_timeline): **"work in batches if needed"** (or **two batches** / **second batch**) without **second-pass minutes** understates active cook time when **pan size / capacity is ambiguous** — book **~same fry/sear time again** for batch 2 (or split steps / \`dur\`) and name **skillet size** (e.g. **12-inch**) so single-layer vs two-batch is legible.
+- **Two-batch fry / sear** (matrix **two_batch_fry** — **clock_impact:** must_account_for_second_batch_time_in_timeline): **"work in batches if needed"** (or **two batches** / **second batch**) without **second-pass minutes** understates active cook time when **pan size / capacity is ambiguous** — book **~same fry/sear time again** for batch 2 (or split steps / \`dur\`) and name **skillet size** (e.g. **12-inch**) so single-layer vs two-batch is legible. **Default station** allows **a second pan on another burner** to run one uncrowded layer — if you still batch in **one** pan, the batch-2 clock still applies.
 - **Grains / legumes vs clock**: **farro, pearl barley, wild rice, brown rice, green lentils, split peas, polenta (simmered)** need **real simmer minutes** — if the round is shorter than a credible tender cook, use **pre-cooked / leftover**, **quick-cook SKU**, or **dry-toast / garnish-only** — not a fantasy 12-minute center-plate porridge.
 - **Cultured dairy + dry heat**: **crème fraîche, sour cream, yogurt** in **hot oven / air fryer** without **starch binder** (slurry, roux, béchamel) → **break / curdle** — finish off heat or protect.
 - **Volatile aromatics**: **yuzu, finger lime, chervil** — **heat_stable: false** for long cooks; **finish raw / dressing / pass** — not primary **air-fry / broil / 20+ min reduction** flavor spine.
@@ -4989,7 +5001,7 @@ restrictionCompliance: **""** when RESTRICTIONS: none. When any restrictions are
 balance.basket: If RECREATE A CLASSIC rules apply, sentence 1 must name the classic. If ELEVATE A CHEAP MEAL rules apply, sentence 1 MUST be "Cheap baseline: … — …" and you MUST include how the plate still reads as that baseline (see elevate brief lock — "Still reads as: …"). If SNACK rules apply, include early the bite/handheld format and confirm protein is not a full portion. If COMFORT REINVENTED rules apply, sentence 1 MUST be "Comfort baseline: … — twist: …". If GLOBAL CUISINE rules apply, sentence 1 MUST name the cuisine lane + backbone technique. If DINER CLASSIC / STREET FOOD / FINE DINING rules apply, follow the JSON / BRIEF LOCK blocks above. Otherwise sentence 1 = chosen flavor direction / dish lane (the “best dish” you committed to). Then — stars vs hides; for EACH required item tag PRIMARY FOUNDATION / SUPPORTING / ACCENT / MINIMAL-USE (or PRIMARY/ACCENT/SUPPORT per ROLE HIERARCHY), consistent with CHEF PROCESS above. If something is store-bought or messy, say you're using THAT item, not a posh substitute.
 ${challengeTypeIsRecreateClassic(ch.ctype)?"For RECREATE A CLASSIC, append 2-4 concise function-mapping clauses in balance.basket using this pattern: [classic component] -> [required function] -> [basket ingredient strategy] -> [why it still reads classic]. Avoid generic 'swap X for Y' phrasing.":""}
 balance.flavor: name sweet drivers (fruit, beer malt, honey, etc.) and confirm you did not stack them blindly — one clear sweet spine max unless you explain the counterweight.
-balance.complete: single starch/body choice (or explain minor vs major); component count vs ${maxComponents}; timing honesty for ${ch.totalTime} min; optional "purer plate" omission; flag dual-base or gumminess risks if you bent the rule.${challengeTypeIsElevateCheap(ch.ctype)?" For ELEVATE: add one short phrase on transformation (how the judge still sees the cheap baseline — not a new dish).":""}
+balance.complete: single starch/body choice (or explain minor vs major); component count vs ${maxComponents}; timing honesty for **~${aiTimelinePlanningMinutes(ch)} min** active budget (**${ch.totalTime} min** wall); optional "purer plate" omission; flag dual-base or gumminess risks if you bent the rule.${challengeTypeIsElevateCheap(ch.ctype)?" For ELEVATE: add one short phrase on transformation (how the judge still sees the cheap baseline — not a new dish).":""}
 balance.richness: if any REQUIRED item is sugary/processed, concrete sweetness limits + residual-sugar realism (see BASKET IDENTITY).
 balance.texture: each texture choice tied to a reason; no orphan crunch layers.
 Step phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE.`;
@@ -5143,9 +5155,9 @@ Write a WINNING, execution-tight plan — not a copy of any rival draft. Differe
 ${rivalBlock}
 MUST USE: ${(ch.required&&ch.required.length)?ch.required.join(", "):"none — compose from pantry list + course; no named basket items to clear."}
 RESTRICTIONS (mandatory — same binding rules as the rival chef): ${(ch.restrictions||[]).length?(ch.restrictions||[]).join("; "):"none"}
-EQUIPMENT: must ${(ch.reqEquip||[]).join(", ")||"—"} · forbidden ${(ch.forbEquip||[]).join(", ")||"—"}${ch.limitBurners?" · 1 burner only":""}
+EQUIPMENT: must ${(ch.reqEquip||[]).join(", ")||"—"} · forbidden ${(ch.forbEquip||[]).join(", ")||"—"}${ch.limitBurners?" · 1 burner only":" · kitchen default: multiple burners + multiple pans; standard tools except forbidden"}
 ${processEquipmentPromptBlock(ch)}
-COURSE: ${courseLabel} | ${totT} min (prep ${prepT}, cook ${cookT})
+COURSE: ${courseLabel} | ${totT} min wall-clock (prep ${prepT}, cook ${cookT}) — **plan active work to finish by ~${aiTimelinePlanningMinutes(ch)} min** (**${PW_AI_TIMELINE_BUFFER_MIN} min** recovery margin)
 PANTRY ADD-ONS: ${pantryLines}
 
 ${culinaryEngineBrief(ch)}${basketCookFundamentalsBlock(ch)}${basketClockPlaybookBlock(ch)}${basketTechniqueMatrixBlock(ch)}${basketIngredientToolkitBlock(ch)}${basketTransformationPreflightBlock(ch)}${basketEquipmentTechniquesBlock(ch)}${restrictionHardPriorityBlock(ch)}
@@ -5176,7 +5188,7 @@ ${couscousMalangaSeitanTechniqueBlock(ch)}
 ${streetFoodOkraMarjoramLaneBlock(ch)}
 ${comfortWingMacExecutionBlock(ch)}
 Return ONLY valid JSON — no markdown, no code fences. ASCII quotes. Short strings — no essays.
-EVAL MATRIX (same as rival): no juicy fruit **in** fritter/tempura batter; broil + kale/spinach → remove/shield greens or separate tray; pressed grain cakes need brief rest before sear; torch/heat-gun second pass must not target scallion/herb garnish — add herbs after heat. **Rillettes** = slow meat in/set in fat (confit); not cold butter + quick-seared pull — say **pulled [protein]** instead. **Bay leaf + fat**: ~5–7 min low or ~10 min off-heat bloom — not 1–4 min only. **Soy in 2+ steps** = sodium stack: **acid/cut per step** (not one lime for dressing+glaze). **Pork tenderloin ~1\" medallions**: **2–2.5 min/side** max — **3+ min/side** overshoots ~145°F. **Day-old rice**: if haul is raw grain only → **~18–20 min cook+cool** or say rice was pre-cooked. **Pasta**: **drain at al dente on its own clock** — don’t let other steps run past **drop + boil time** without a **drain/strain** step aligned on **\`time\`/\`dur\`**. **Squid flash**: **dry, ripping heat, single layer/batches, ~60–90s** — not wet, crowded, or minutes-long gentle sauté. **Two-batch fry/sear** (matrix **two_batch_fry**): **"in batches if needed"** ⇒ book **batch-2 minutes** (or **2×** per-batch time) + **pan size** when capacity unclear. **Grains**: farro/barley/wild rice/brown rice/green lentil/split pea/polenta need honest simmer time or pre-cooked/toast-only. **Cultured dairy**: no hot oven/air fry without starch binder. **Yuzu/chervil**: finish raw — not air-fry spine. **Pressure**: +8–12 min to pressure before timer. **Chip/crumb tart shell + wet slaw**: slaw at **PLATE** / last seconds — not early **ASSEMBLE** hold. **Hearts of palm**: when palm is on **MUST USE**, **BASKET GENERATION MANDATES** is law; otherwise char + raw/crema is an exemplary optional pattern. **Yellow mustard + dessert**: reduction/trace/savory contrast — not raw condiment in custard. **Radish + sweet**: 8–10+ min heat or savory-only — not 2 min sauté to sweet.
+EVAL MATRIX (same as rival): no juicy fruit **in** fritter/tempura batter; broil + kale/spinach → remove/shield greens or separate tray; pressed grain cakes need brief rest before sear; torch/heat-gun second pass must not target scallion/herb garnish — add herbs after heat. **Rillettes** = slow meat in/set in fat (confit); not cold butter + quick-seared pull — say **pulled [protein]** instead. **Bay leaf + fat**: ~5–7 min low or ~10 min off-heat bloom — not 1–4 min only. **Soy in 2+ steps** = sodium stack: **acid/cut per step** (not one lime for dressing+glaze). **Pork tenderloin ~1\" medallions**: **2–2.5 min/side** max — **3+ min/side** overshoots ~145°F. **Day-old rice**: if haul is raw grain only → **~18–20 min cook+cool** or say rice was pre-cooked. **Pasta**: **drain at al dente on its own clock** — don’t let other steps run past **drop + boil time** without a **drain/strain** step aligned on **\`time\`/\`dur\`**. **Squid flash**: **dry, ripping heat, single layer/batches, ~60–90s** — not wet, crowded, or minutes-long gentle sauté. **Two-batch fry/sear** (matrix **two_batch_fry**): **"in batches if needed"** ⇒ book **batch-2 minutes** (or **2×** per-batch time) + **pan size** when capacity unclear — **default:** a **second skillet** on another burner may clear one layer; if you still batch **one** pan, clock batch 2. **Grains**: farro/barley/wild rice/brown rice/green lentil/split pea/polenta need honest simmer time or pre-cooked/toast-only. **Cultured dairy**: no hot oven/air fry without starch binder. **Yuzu/chervil**: finish raw — not air-fry spine. **Pressure**: +8–12 min to pressure before timer. **Chip/crumb tart shell + wet slaw**: slaw at **PLATE** / last seconds — not early **ASSEMBLE** hold. **Hearts of palm**: when palm is on **MUST USE**, **BASKET GENERATION MANDATES** is law; otherwise char + raw/crema is an exemplary optional pattern. **Yellow mustard + dessert**: reduction/trace/savory contrast — not raw condiment in custard. **Radish + sweet**: 8–10+ min heat or savory-only — not 2 min sauté to sweet.
 {"title":"","tagline":"","processEquipment":["Oven"],"restrictionCompliance":"","atThePass":"2-3 short sentences: what hits the plate and how judges read it — if challenge is Recreate a Classic, sentence 1 MUST name the specific classic dish","flavorBalance":"2 short sentences: acid/salt/sweet/fat balance","ingredients":[{"item":"","amount":"","prep":""}],"steps":[{"phase":"PREP","what":"","how":"","dur":"optional e.g. 5 min"}],"lastMinuteTip":"one sentence"}
 restrictionCompliance: **""** if no restrictions. If RESTRICTIONS apply, one sentence naming the rule + compliant technique (e.g. "No Peeler — knife plank peel").
 Max 8 steps. Phases: PREP, COOK, SAUCE, ASSEMBLE, PLATE — last must be PLATE. Each "how" under 90 chars. Honor every MUST USE; if any RESTRICTIONS are listed, the dish must fully comply — no rule-breaking shortcuts. Self-check every ingredient and step before returning.`;
@@ -7377,19 +7389,20 @@ function getDatePiccataStyleSweetnessRiskViolations(recipe, ch){
   return msgs;
 }
 
-/** Hard rounds that consume the full clock with no slack — eval pattern. */
+/** Timeline eats past built-in planning budget (total − PW_AI_TIMELINE_BUFFER_MIN) — eval pattern. */
 function getZeroTimelineBufferAdvisoryViolations(recipe, ch){
   const msgs=[];
   if(!recipe||!ch) return msgs;
   const total=Math.max(1, Number(ch.totalTime)||30);
+  const planEnd=aiTimelinePlanningMinutes(ch);
   const diff=String(ch.diff||"").toLowerCase();
   const end=recipeTimelineEndMinute(recipe);
   if(end<=0) return msgs;
-  if(end<total) return msgs;
+  if(end<=planEnd) return msgs;
   if(["hard","insane"].includes(diff))
-    msgs.push(`Execution: timeline lands on **${total} min with no buffer** — one slipped sear/reduction **breaks service**; add **1–2 min** slack or drop a lane.`);
+    msgs.push(`Execution: last step ends ~**${end} min** — exceeds **~${planEnd} min** planning budget in a **${total} min** round (**${PW_AI_TIMELINE_BUFFER_MIN} min** recovery margin reserved). Shorten a lane, add honest parallel, or trim active minutes.`);
   else if(diff==="medium"||diff==="easy")
-    msgs.push(`Execution: **${diff}** round uses the **full ${total} min** with **no recovery margin** — add **1–3 min** slack (especially with pressure / pasta sync) or simplify a lane.`);
+    msgs.push(`Execution: **${diff}** — timeline ends ~**${end} min**; aim for **≤ ~${planEnd} min** on the clock for active work (**${PW_AI_TIMELINE_BUFFER_MIN} min** buffer in **${total} min**), especially with pressure / pasta sync — or simplify a lane.`);
   return msgs;
 }
 
@@ -7522,6 +7535,7 @@ function getRecipeTimelineViolations(recipe, ch){
   const msgs=[];
   if(!recipe||!ch) return msgs;
   const total=Math.max(1, Number(ch.totalTime)||30);
+  const plan=aiTimelinePlanningMinutes(ch);
   const steps=recipe.steps||[];
   let sum=0, maxM=0;
   for(const s of steps){
@@ -7532,10 +7546,10 @@ function getRecipeTimelineViolations(recipe, ch){
   const low=recipeFlattenTextForCompliance(recipe).toLowerCase();
   const parallel=/\b(parallel|simultaneous|same\s+time|while\s+.*\s+boil|at\s+the\s+same\s+time)\b/i.test(low);
   if(sum>0){
-    const budget=parallel?total*1.35:total+6;
-    if(sum>budget) msgs.push(`Timeline: step durations (~${sum} min) exceed the ${total} min challenge window${parallel?" (even allowing overlap)":""} — shorten, overlap tasks honestly, or fix dur fields.`);
-    if(maxM>total*0.68) msgs.push(`Timeline: one step (~${maxM} min) dominates the ${total} min clock — compress, parallelize, or simplify so the run is believable.`);
-    if(!parallel&&steps.length>=5&&sum<total*0.42&&total>=28) msgs.push(`Timeline: step durations sum to ~${sum} min vs ${total} min — avoid idle padding; assign real minutes to active prep/cook or state honest parallel work so the clock is believable.`);
+    const budget=parallel?plan*1.35:plan+6;
+    if(sum>budget) msgs.push(`Timeline: step durations (~${sum} min) exceed the **~${plan} min** planning budget (${total} min round, **${PW_AI_TIMELINE_BUFFER_MIN} min** recovery margin)${parallel?" (even allowing overlap)":""} — shorten, overlap tasks honestly, or fix dur fields.`);
+    if(maxM>plan*0.68) msgs.push(`Timeline: one step (~${maxM} min) dominates the **~${plan} min** planning window — compress, parallelize, or simplify so the run is believable.`);
+    if(!parallel&&steps.length>=5&&sum<plan*0.42&&plan>=25) msgs.push(`Timeline: step durations sum to ~${sum} min vs **~${plan} min** planning budget — avoid idle padding; assign real minutes to active prep/cook or state honest parallel work so the clock is believable.`);
   }
   msgs.push(...getProseTimelineViolations(low, total));
   msgs.push(...getProteinMinClockViolations(recipe,ch));
@@ -8476,9 +8490,10 @@ function getPlantProteinTransformationViolations(recipe, ch){
 
 function executionHonestyBlock(ch){
   const t=Math.max(1, Number((ch&&ch.totalTime)||30));
+  const p=aiTimelinePlanningMinutes(ch);
   return `EXECUTION HONESTY (judging table):
 - Must-use equipment: integrate in the main cook story (COOK/SAUCE or the step that matches the tool) — not only for a minor component while the heaviest step uses a different vessel.
-- Timeline: step "dur" values should sum realistically vs ${t} min; long braises must fit; say "parallel" when two things run at once; avoid vague filler steps whose only job is to pad minutes.
+- Timeline: step "dur" values should sum realistically vs **~${p} min planning budget** (**${t} min** wall clock with **${PW_AI_TIMELINE_BUFFER_MIN} min** recovery margin); long braises must fit; say "parallel" when two things run at once; avoid vague filler steps whose only job is to pad minutes.
 - **Tart / pastry shell / quiche / galette (${t} min):** On tight clocks, name **store-bought or frozen pastry** in ingredients if you use a baked shell — or pick a **no-crust** format. Scratch dough + chill + bake is not credible when minutes are short; the app gate checks this.
 - Format words: if you say tartlet, sandwich, pot pie, taco, calzone — include the real structure (pastry shell, bread, tortilla, etc.) or rename the dish.
 - Kitchen naming: mayonnaise/aioli implies a real emulsion (egg yolk, jarred mayo, etc.) — not cream whisked with lemon unless you rename the sauce.
@@ -8527,13 +8542,21 @@ function competitionStationStagingBlock(){
 `;
 }
 
+/** Default haul is unprepared retail unless the brief names otherwise — stops invented pre-cooked proteins. */
+function ingredientStartingStatePromptBlock(){
+  return `- **Ingredient starting state:** Treat must-use and pantry items as **raw / dry / standard retail unprepared** unless **RESTRICTIONS** or **ingredients[]** explicitly names another form (pre-cooked, cooked, canned, jarred, smoked, frozen par-cooked, etc.). Do **not** add "pre-cooked [protein]" or heat-and-serve shortcuts **unless** that wording is justified by the list — inventing them only to fit the clock fails product truth.
+- **Protein vs clock:** If a technique cannot deliver **safe/tender** results for that protein **inside the active minutes that fit the planning budget** (leave **~${PW_AI_TIMELINE_BUFFER_MIN} min** before wall clock), do not budget the **full long cook** in this round — use an honest fast lane (thin slice, high heat, **pressure if equipment allows**), or **change the dish**; do not silently assume off-list pre-cooked product.\n`;
+}
+
 /** Real cooking constraints — rival + coach must not claim impossible outcomes to satisfy the basket. */
 function physicsRealismBlock(ch){
   const t=Math.max(1, Number((ch&&ch.totalTime)||30));
   const ctype=(ch&&ch.ctype)||{};
   let s=`PHYSICS & REAL COOKING (non-negotiable — no comic-book shortcuts):
-- CLOCK (${t} min total): Every named minute in steps and prose must fit inside ${t} min (including parallel work). If sous vide, water bath, or "slow roast" would need longer than ${t} min, you cannot use that method — pick faster techniques (sear, steam, shallow poach, high-heat roast only if oven allowed and time fits).
-${competitionStationStagingBlock()}- **Sous vide bath:** From **room-temp water**, reaching target temp often takes **~8–15+ min** depending on volume — put **real preheat minutes** in PREP, state **preheated / hot fill / kettle boost**, or **bag in only after bath is at temp**; do not imply a **3 min** "set circulator" step is enough before submerge. (**Station circulator already at target** is fine only if you **say so** in steps or PREP — otherwise budget heat-up.)
+- CLOCK (**${t} min** wall clock — plan active work to land by **~${aiTimelinePlanningMinutes(ch)} min**, reserving **${PW_AI_TIMELINE_BUFFER_MIN} min** slack): Every named minute in steps and prose must fit inside the round (including parallel work). If sous vide, water bath, or "slow roast" would need longer than fits that planning budget, you cannot use that method — pick faster techniques (sear, steam, shallow poach, high-heat roast only if oven allowed and time fits).
+${competitionStationStagingBlock()}
+${ingredientStartingStatePromptBlock()}
+- **Sous vide bath:** From **room-temp water**, reaching target temp often takes **~8–15+ min** depending on volume — put **real preheat minutes** in PREP, state **preheated / hot fill / kettle boost**, or **bag in only after bath is at temp**; do not imply a **3 min** "set circulator" step is enough before submerge. (**Station circulator already at target** is fine only if you **say so** in steps or PREP — otherwise budget heat-up.)
 - **Pressure cooker / Instant Pot:** **Minutes "at pressure"** start **after** the pot **reaches full pressure** (often **~5–12+ min** on heavy/bone-in loads) and end before **full depressurization** — budget **build + cook + release** (NR/QPR) in steps, not only a single timer line.
 - Real food obeys time and heat (${t} min round): collagen-rich cuts (short rib, chuck, brisket, shank, oxtail, cheek, pork shoulder) do not become fork-tender from a ${t}-minute open-pot simmer alone — pick real options from this list (mix as needed):
   • **Pressure / Instant Pot** — If allowed in equipment: name it; high-pressure ~35–55 min can stand in for multi-hour braising; finish sauce on stovetop in the same clock.
